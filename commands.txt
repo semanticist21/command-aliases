@@ -1,0 +1,29 @@
+# edit
+alias edit='vi ~/.zshrc'
+alias apply='source ~/.zshrc'
+
+# pnpm
+alias b='pnpm i && pnpm build'
+alias d='pnpm i && pnpm dev'
+alias t='pnpm test'
+
+# git
+alias s='hub sync'
+alias tod='git switch develop'
+alias tom='git switch main'
+alias md='git switch main && git merge develop && git push origin main && git switch develop'
+
+alias u='git pull'
+alias p='git push'
+alias a='git add .'
+alias m='git commit -m'
+
+alias v='git branch -v'
+
+# cmd
+alias c='clear'
+alias myip='ipconfig getifaddr en1'
+
+# others
+alias nx='npx nx'
+
