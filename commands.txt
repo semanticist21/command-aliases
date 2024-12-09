@@ -3,6 +3,7 @@ alias edit='vi ~/.zshrc'
 alias apply='source ~/.zshrc'
 
 # pnpm
+alias i='pnpm i'
 alias b='pnpm i && pnpm build'
 alias d='pnpm i && pnpm dev'
 alias t='pnpm test'
