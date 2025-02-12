@@ -15,11 +15,11 @@ alias tom='git switch main'
 alias md='git switch main && git merge develop && git push origin main && git switch develop'
 
 alias u='git pull'
-alias p='git push'
+alias p='git push && git push --tags'
 alias a='git add .'
 alias m='git commit -m'
 
-alias v='git branch -v'
+alias v='git branch -vv'
 
 # cmd
 alias c='clear'
