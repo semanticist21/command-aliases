@@ -1,7 +1,5 @@
 # Code Conventions
 
-이 문서는 Kobbokkom Forum 프로젝트의 코드 컨벤션을 정의합니다.
-
 ## Type System
 
 ### 타입 사용 규칙
