@@ -1,98 +1,130 @@
 ---
 name: task
-description: "Run a development task end-to-end with an agent-first workflow: triage → plan (skippable) → implement → QA. Handles both new builds and bug fixes — for a bug, triage reproduces and roots the cause before the fix and leaves a regression test. Adds tests for testable code whenever the project has a test surface. Use when the user invokes /task or phrases work as a task to carry out (e.g. \"task ~ 수정해줄래\", \"task ~ 구현좀 해놓을까\", \"~ 좀 만들어줘\"). Delegates most work to subagents for isolation, reaches for /research when external/unfamiliar knowledge is needed, and uses grill-me only when requirements are genuinely unclear. After the work, if the project carries harness-engineering guidance, updates the relevant docs and runs lint/typecheck."
+description: Run a delegated task loop: plan, execute, then QA/verify until findings are zero. Adds tests for testable code whenever the project has a test surface. Use when the user invokes /task or $task, asks for a structured task run, or wants an orchestrator to actively use agents/subagents for planning, implementation, and review. Commits the finished work as Conventional Commits once QA is clean.
+user-invocable: true
+argument-hint: "<task goal and constraints>"
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - MultiEdit
+  - Grep
+  - Glob
+  - Bash(git rev-parse*)
+  - Bash(git status*)
+  - Bash(git diff*)
+  - Bash(git ls-files*)
+  - Bash(git log*)
+  - Bash(git add*)
+  - Bash(git commit*)
+  - Bash(ls*)
+  - Bash(test*)
+  - Bash(node*)
+  - Bash(npm*)
+  - Bash(bun*)
+  - Bash(pnpm*)
+  - Bash(yarn*)
+  - Task
 ---
 
 # Task
 
-Carry a development task from request to verified result. Default to **agents** so
-each phase runs in an isolated context and the main thread stays clean. The user's
-request is everything after `/task` (or the task they described in their own words).
+Act as the orchestrator above the work. Run the user's task through a three-stage
+loop: plan, execute, then QA/verify. Use agents/subagents actively whenever they are
+available and useful. Do not stop until QA findings are zero, the task is truly
+blocked, or the user-defined budget/limit is reached.
 
-## Phases
+## Input
 
-Run in order. Each phase typically delegates to one or more subagents.
+Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
+constraints, target paths, acceptance criteria, and "do not" instructions.
 
-### 0. Triage (always, fast)
+## Loop
 
-- Restate the task in one line. Identify scope: single-file tweak vs. multi-file feature.
-- **Classify the work: build (new behavior) or bug (existing behavior is wrong).** The
-  phases below are identical for both — a bug only shifts the emphasis: reproduce and
-  pin the root cause before touching code, fix the cause not the symptom, and leave a
-  regression test behind. Note the classification so the later phases pick the right slant.
-- **If requirements are genuinely unclear or contradictory** — not just "could use a
-  default" — run the **grill-me** skill to interrogate the request before building.
-  Skip grilling for clear or low-stakes tasks; pick sensible defaults and note them.
-- **If the task needs external or unfamiliar knowledge** (a library's real API, a
-  spec, a design decision to vet, a claim to verify) — run the **research** skill (or
-  `/research`) and fold its conclusion into the plan. Skip when the codebase already
-  answers it.
+### 1. Planning
 
-### 1. Plan (SKIPPABLE)
+- Read the nearest `AGENTS.md`/`CLAUDE.md` and relevant harness docs.
+- Inspect the repo shape and current git status.
+- If subagents are available, delegate exploration/planning for non-trivial tasks:
+  - investigator: locate relevant files, owners, conventions, risk areas.
+  - planner: propose steps and acceptance checks.
+- Produce a short plan with acceptance criteria and verification commands.
 
-- Skip for small, obvious, bounded **build** edits — go straight to Implement. For a
-  bug, skip Plan only when the cause is already obvious and confirmed (the bar is higher
-  — see the bug bullet below).
-- Otherwise spawn a planning agent (architect/Plan-style) to read the relevant code
-  and return a concrete step-by-step plan: files to touch, order, edge cases, risks.
-- **For a bug, the plan is a diagnosis first.** Have the agent reproduce the failure
-  (or define the exact repro steps), trace it to a root cause, and only then propose the
-  fix — name the cause, not just the line to change. Don't skip this phase for bugs
-  unless the cause is already obvious and confirmed.
-- For an open-ended or multi-approach problem, have the agent compare options and
-  recommend one. Surface the plan to the user before large or irreversible work.
+### 2. Execute
 
-### 2. Implement
-
-- Delegate the build to subagent(s). Prefer one agent per independent slice so they
-  run concurrently and don't share context — split by file/module/feature boundary,
-  not arbitrarily.
-- For surgical 1–2 file edits, a single focused builder agent (or doing it inline) is
-  fine. For 3+ file or cross-cutting work, fan out and have each agent own a slice.
-- Match the surrounding code: naming, comment density, idioms, existing conventions.
+- Implement the plan in small, reviewable changes.
+- Prefer existing patterns and narrow edits.
 - **After writing the code, add tests when the project has a test surface and the work
   is testable** — pure functions, mappers, validators, parsers, serializers, behavior
   changes. Mirror the project's test framework, layout, and conventions (check
-  `package.json`/`Cargo.toml`/test dirs to confirm tests are enabled). Skip only for
-  markup/visual-only edits, trivial typos, or projects with no test setup — and say why.
-- **For a bug, fix the root cause, not the symptom**, and add a regression test that
-  fails before the fix and passes after — unless the project has no test surface for it.
-- If agents mutate overlapping files in parallel, isolate them (separate worktrees)
-  to avoid conflicts.
+  `package.json`/`Cargo.toml`/test dirs to confirm tests are enabled). For a bug, add a
+  regression test that fails before the fix and passes after. Skip only for markup/
+  visual-only edits, trivial typos, or projects with no test setup — and say why.
+- Delegate isolated edits or parallel file discovery to agents when it saves context
+  or reduces risk.
+- Update durable docs with `$update-doc` behavior when the task changes harness docs,
+  repo conventions, architecture, or repeatable gotchas.
 
-### 3. QA
+### 3. QA + Verification
 
-- Spawn a reviewer agent to audit the diff for correctness bugs, missed edge cases,
-  and convention violations — one line per finding, severity-tagged, no praise.
-- Run the project's checks: build, typecheck, lint, tests — whatever exists. Fix what
-  they surface (loop back to Implement if needed). Report failures honestly with output.
-- For behavioral changes, verify by actually running the relevant path when feasible,
-  not just by static review.
-- **For a bug, confirm the original repro no longer fails** — re-run the exact steps (or
-  the regression test) that exposed it, not just the happy path.
+Run a review loop until findings are zero:
 
-## Follow-up: harness-engineering docs + checks
+1. Run deterministic checks first: tests, typecheck, lint, build, harness check, and
+   `git diff --check` when available.
+2. Run an independent QA/reviewer agent pass over the diff and acceptance criteria.
+3. Convert each issue into a finding with severity, file/line when possible, and a
+   required fix.
+4. Fix all actionable findings.
+5. Re-run verification and reviewer pass.
+6. Repeat until the reviewer returns **0 findings**.
 
-After the task is done and verified, if the project carries **harness-engineering
-guidance** — agent-facing docs that future agents rely on (e.g. `AGENTS.md`,
-`CLAUDE.md`, `docs/coding-rule.md`, per-folder ownership notes, doc-update policies) —
-do the maintenance pass:
+If findings remain after three QA rounds, continue only when progress is still clear.
+If blocked, report the exact blocker, attempted fixes, and remaining findings.
 
-1. **Update docs.** If the work introduced something durable a future agent won't see
-   from code or git alone — a new convention/constraint, a non-obvious decision, a
-   migration/rename, a gotcha, or a self-correction after build/human feedback —
-   record it in the nearest agent-facing doc. Skip routine edits and anything already
-   documented. If the project ships a doc-refresh/doc-update skill, prefer it.
-2. **Run lint + typecheck** (and the project's other quality gates) as the final gate,
-   using the project's own commands. Fix anything they flag before declaring done.
+### 4. Commit
 
-Skip this follow-up entirely for projects with no such agent-facing guidance.
+Once QA returns **0 findings** and verification is green, commit the work:
 
-## Guardrails
+1. Stage only the files this task changed — never blanket-stage unrelated edits in a
+   dirty tree. If the tree holds pre-existing changes you did not author, stage your
+   paths explicitly and leave the rest.
+2. Write one or more Conventional Commits grouped by concern (`feat`/`fix`/`refactor`/
+   `docs`/`test`/`chore`), with a clear subject and a body explaining the "why" when it
+   is not obvious. Check `git log --oneline -10` to match the repo's commit style; for
+   non-trivial splitting delegate to the `/commit` skill.
+3. Commit on the current branch — do not create branches or switch branches. Do not
+   `push` unless the user explicitly asked.
+4. Re-check `git status` after committing to confirm the intended files landed and
+   nothing unexpected was staged.
 
-- Agent-first, but don't over-delegate trivial one-liners — judgment over ceremony.
-- Confirm before irreversible or outward-facing actions; approval in one phase doesn't
-  carry to the next.
-- Don't commit or push unless the user asks.
-- Report outcomes plainly: if checks fail, say so with output; if a phase was skipped,
-  say which and why.
+Skip the commit only if the task made no file changes, the user said not to commit, or
+committing is blocked — and say why.
+
+## Agent Use
+
+- Use agents for exploration, planning, implementation slices, and review whenever
+  task size or risk justifies it.
+- Keep the main thread as orchestrator: merge agent outputs, decide scope, apply final
+  judgment, and verify.
+- Do not leak hidden conclusions to reviewer agents; give them the diff, goal, and
+  acceptance criteria.
+- Prefer reviewer agents for final QA, not self-review alone.
+
+## Output
+
+Final response should include:
+
+- what changed
+- verification commands/results
+- QA loop count and final finding count (`0` when complete)
+- commit(s) made (subject lines), or why no commit
+- any residual risk or explicit blocker
+
+## Safety
+
+- Do not create branches unless the user explicitly asks.
+- Do not use destructive git commands.
+- Committing is allowed (stage 4) but gated: only after QA is clean, only the task's own
+  files, never blanket-staging a dirty tree, and never `push` unless the user asked.
+- Do not ignore user or harness constraints to reach "0 findings"; resolve the
+  conflict or report a blocker.
