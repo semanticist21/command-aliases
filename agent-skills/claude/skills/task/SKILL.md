@@ -1,6 +1,6 @@
 ---
 name: task
-description: "Run a development task end-to-end with an agent-first workflow: plan (skippable) → implement → QA. Use when the user invokes /task or phrases work as a task to carry out (e.g. \"task ~ 수정해줄래\", \"task ~ 구현좀 해놓을까\", \"~ 좀 만들어줘\"). Delegates most work to subagents for isolation, reaches for /research when external/unfamiliar knowledge is needed, and uses grill-me only when requirements are genuinely unclear. After the work, if the project carries harness-engineering guidance, updates the relevant docs and runs lint/typecheck."
+description: "Run a development task end-to-end with an agent-first workflow: triage → plan (skippable) → implement → QA. Handles both new builds and bug fixes — for a bug, triage reproduces and roots the cause before the fix and leaves a regression test. Use when the user invokes /task or phrases work as a task to carry out (e.g. \"task ~ 수정해줄래\", \"task ~ 구현좀 해놓을까\", \"~ 좀 만들어줘\"). Delegates most work to subagents for isolation, reaches for /research when external/unfamiliar knowledge is needed, and uses grill-me only when requirements are genuinely unclear. After the work, if the project carries harness-engineering guidance, updates the relevant docs and runs lint/typecheck."
 ---
 
 # Task
@@ -30,7 +30,9 @@ Run in order. Each phase typically delegates to one or more subagents.
 
 ### 1. Plan (SKIPPABLE)
 
-- Skip for small, obvious, bounded edits — go straight to Implement.
+- Skip for small, obvious, bounded **build** edits — go straight to Implement. For a
+  bug, skip Plan only when the cause is already obvious and confirmed (the bar is higher
+  — see the bug bullet below).
 - Otherwise spawn a planning agent (architect/Plan-style) to read the relevant code
   and return a concrete step-by-step plan: files to touch, order, edge cases, risks.
 - **For a bug, the plan is a diagnosis first.** Have the agent reproduce the failure
