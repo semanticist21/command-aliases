@@ -1,6 +1,6 @@
 ---
 name: task
-description: "Run a development task end-to-end with an agent-first workflow: plan (skippable) → implement → QA. Use when the user invokes /task or phrases work as a task to carry out (e.g. \"task ~ 수정해줄래\", \"task ~ 구현좀 해놓을까\", \"~ 좀 만들어줘\"). Delegates most work to subagents for isolation, reaches for a research skill when external/unfamiliar knowledge is needed, and uses a grill-me skill only when requirements are genuinely unclear. After the work, if the project carries harness-engineering guidance, updates the relevant docs and runs lint/typecheck."
+description: "Run a development task end-to-end with an agent-first workflow: plan (skippable) → implement → QA. Adds tests for testable code whenever the project has a test surface. Use when the user invokes /task or phrases work as a task to carry out (e.g. \"task ~ 수정해줄래\", \"task ~ 구현좀 해놓을까\", \"~ 좀 만들어줘\"). Delegates most work to subagents for isolation, reaches for a research skill when external/unfamiliar knowledge is needed, and uses a grill-me skill only when requirements are genuinely unclear. After the work, if the project carries harness-engineering guidance, updates the relevant docs and runs lint/typecheck."
 ---
 
 # Task
@@ -40,6 +40,12 @@ Run in order. Each phase typically delegates to one or more subagents.
 - For surgical 1–2 file edits, a single focused builder agent (or doing it inline) is
   fine. For 3+ file or cross-cutting work, fan out and have each agent own a slice.
 - Match the surrounding code: naming, comment density, idioms, existing conventions.
+- **After writing the code, add tests when the project has a test surface and the work
+  is testable** — pure functions, mappers, validators, parsers, serializers, behavior
+  changes. Mirror the project's test framework, layout, and conventions (check
+  `package.json`/`Cargo.toml`/test dirs to confirm tests are enabled). For a bug, add a
+  regression test that fails before the fix and passes after. Skip only for markup/
+  visual-only edits, trivial typos, or projects with no test setup — and say why.
 - If agents mutate overlapping files in parallel, isolate them to avoid conflicts.
 
 ### 3. QA
