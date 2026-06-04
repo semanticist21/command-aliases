@@ -4,6 +4,10 @@ Reusable **user-scope** AI agent skills for Claude Code and Codex, plus plugin
 references. Mirror of what lives in `~/.claude/` and `~/.codex/` so the same
 skills can be reused across machines.
 
+> Asking an agent to **replicate / update / delete** these skills on a machine?
+> The operating contract (sync direction, push identity, delete confirmation) is
+> in [`AGENTS.md`](./AGENTS.md).
+
 ## Layout
 
 ```
