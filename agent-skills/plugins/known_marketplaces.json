@@ -1,0 +1,10 @@
+{
+  "caveman": {
+    "source": {
+      "source": "github",
+      "repo": "JuliusBrussee/caveman"
+    },
+    "installLocation": "/Users/semanticist/.claude/plugins/marketplaces/caveman",
+    "lastUpdated": "2026-05-26T23:22:31.957Z"
+  }
+}
