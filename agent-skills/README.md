@@ -30,6 +30,8 @@ agent-skills/
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
 | root-skill-add   |   ✓    |   ✓   | Scaffold a new user-scope skill for both runtimes         |
+| skill-add        |   ✓    |   ✓   | Create/update a user skill in both runtimes at once       |
+| skill-update     |   ✓    |   ✓   | Revise an existing skill in place across all copies       |
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
 | figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
 | update-doc       |        |   ✓   | Audit/refresh/compact AI-facing project docs              |
