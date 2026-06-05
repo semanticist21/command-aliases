@@ -34,6 +34,7 @@ agent-skills/
 | skill-sync       |   ✓    |   ✓   | Sync skills across both runtimes + this repo mirror       |
 | skill-update     |   ✓    |   ✓   | Revise an existing skill in place across all copies       |
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
+| update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
 | figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
 | update-doc       |        |   ✓   | Audit/refresh/compact AI-facing project docs              |
 
