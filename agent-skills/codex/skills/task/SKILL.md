@@ -52,11 +52,17 @@ Run a review loop until findings are zero:
 1. Run deterministic checks first: tests, typecheck, lint, build, harness check, and
    `git diff --check` when available.
 2. Run an independent QA/reviewer agent pass over the diff and acceptance criteria.
-3. Convert each issue into a finding with severity, file/line when possible, and a
+3. Review coding-convention adherence, not just correctness: read the project's
+   `AGENTS.md`/`CLAUDE.md`/`docs/coding-rule.md` and matching neighbor files, and check
+   the diff follows the documented architecture. For Bulletproof-style projects verify
+   feature-slice layout, `api/`/`hooks/`/`utils/` ownership, colocated tests, and
+   import-boundary rules (no cross-layer or app↔package violations). Treat layering,
+   naming, and folder-ownership breaks as findings.
+4. Convert each issue into a finding with severity, file/line when possible, and a
    required fix.
-4. Fix all actionable findings.
-5. Re-run verification and reviewer pass.
-6. Repeat until the reviewer returns **0 findings**.
+5. Fix all actionable findings.
+6. Re-run verification and reviewer pass.
+7. Repeat until the reviewer returns **0 findings**.
 
 If findings remain after three QA rounds, continue only when progress is still clear.
 If blocked, report the exact blocker, attempted fixes, and remaining findings.
