@@ -16,9 +16,58 @@ A **skill** = a folder whose name is the skill name, containing `SKILL.md` (and 
 some Codex skills `agents/openai.yaml`). Nothing else. The two runtimes are
 independent targets: a skill may exist for one runtime only.
 
-Pick the operation the user wants — replicate, update, or delete — and follow that
-section. Always surface a one-line summary of what changed and in which direction
-before writing.
+Pick the operation the user wants — **full reconcile**, replicate, update, or delete —
+and follow that section. A bare `/skill-sync` or any "sync everything / match the repo /
+맞춰줘" request means **Full reconcile**: do not act on one skill in isolation. Always
+surface a one-line summary of what changed and in which direction before writing.
+
+## Full reconcile (default — sweep every skill, both directions)
+
+Triggered by a bare invocation or "sync all / 전부 맞춰". Never piecemeal: inventory the
+whole surface first, classify every skill, then act per category.
+
+1. **Inventory** both runtimes on both sides:
+   ```bash
+   cd <repo> && git pull -q
+   for rt in claude codex; do
+     ls ~/.$rt/skills/                          # local
+     ls agent-skills/$rt/skills/                # repo
+   done
+   ```
+2. **Classify** each skill name into one bucket, per runtime:
+   - **identical** — `diff -rq` clean → nothing to do.
+   - **drift** — exists both sides, differs → decide direction (see Update step 1;
+     ask the user when both sides were independently edited — a conflict).
+   - **repo-only** — in repo, missing locally → install (Replicate).
+   - **local-only** — local, not in repo → publish (Update §3) **unless** on the
+     never-publish list (`ktbase-push`, Codex `.system/*`, `chronicle`,
+     `codex-primary-runtime`) → leave as user-scope only.
+3. **Surface the full table** to the user before writing: one row per skill with its
+   bucket and the planned action/direction. Call out every drift conflict and every
+   skill the user named that does not exist anywhere (e.g. "`memo` 스킬 없음").
+4. **Act** per bucket: install repo-only, publish eligible local-only (add a
+   `README.md` row for genuinely new skills), sync each drift its decided direction.
+   Batch all repo-side changes into one commit, then push once under the identity below.
+5. **Re-verify** with a second `diff -rq` sweep; report residual drift, conflicts left
+   to the user, and skills intentionally left local-only.
+
+## Versioning (internal generation counter)
+
+The skill-set carries a single monotonic version so any machine can tell whether it is
+behind the mirror without diffing every skill.
+
+- **Repo marker:** `agent-skills/VERSION` — one integer, the current sync generation.
+  Source of truth.
+- **Local markers:** `~/.claude/skills/.sync-version` and `~/.codex/skills/.sync-version`
+  — the generation each machine last reconciled to. Not a skill; ignored by runtimes.
+- **On every reconcile that writes repo-side changes:** bump `agent-skills/VERSION` by 1,
+  write the same number into both local markers, and reference `vN→vN+1` in the commit
+  subject and the user-facing summary. A pure repo→local pull (no repo change) only
+  advances the local markers to match the repo — it does not bump VERSION.
+- **At the start of a reconcile,** read all three markers and report the gap
+  (`local v3 → repo v6: 3 generations behind`). A bare check with no other drift can stop
+  there. The integer is a coarse "are we in sync" signal; `diff -rq` remains the
+  authority on actual content drift.
 
 ## Ground rules
 
