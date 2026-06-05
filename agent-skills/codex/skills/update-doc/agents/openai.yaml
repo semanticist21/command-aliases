@@ -1,6 +1,0 @@
-interface:
-  display_name: "Update Doc"
-  short_description: "Refresh local Codex context docs"
-  default_prompt: "Use $update-doc to update the local repo context documentation from the current source of truth."
-policy:
-  allow_implicit_invocation: true

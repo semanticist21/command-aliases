@@ -36,7 +36,6 @@ agent-skills/
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
 | update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
 | figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
-| update-doc       |        |   ✓   | Audit/refresh/compact AI-facing project docs              |
 
 > **Not included:** `ktbase-push` — references KT-internal registry IPs/hosts;
 > kept user-scope only, intentionally not published here.
