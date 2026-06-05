@@ -1,0 +1,7 @@
+interface:
+  display_name: "Skill Add"
+  short_description: "Add skills to Claude and Codex together"
+  default_prompt: "Use $skill-add to create or update this reusable skill in Claude, Codex, and the shared agents skill roots."
+
+policy:
+  allow_implicit_invocation: true
