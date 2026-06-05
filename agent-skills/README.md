@@ -26,6 +26,7 @@ agent-skills/
 | corp-cert-fix    |   ✓    |   ✓   | Fix corp MITM-proxy TLS errors (bun/node/pip/git/…)      |
 | corp-cert-update |   ✓    |   ✓   | Rotate expired corp MITM CA cert                         |
 | grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |
+| impeccable        |   ✓    |   ✓   | Design/critique/polish frontend UI (multi-mode toolkit)  |
 | merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
