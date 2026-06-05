@@ -46,6 +46,7 @@ agent-skills/
 | memo             |   ✓    |   ✓   | Save the user's memo argument as a durable note           |
 | natural-writing  |        |   ✓   | Rewrite text to natural, human-sounding prose             |
 | svg-logo-designer|   ✓    |       | Generate professional SVG logos from a description        |
+| distill          |   ✓    |       | Strip a design to its essence; declutter/simplify UI      |
 
 > **Not included:** `ktbase-push` — references KT-internal registry IPs/hosts;
 > kept user-scope only, intentionally not published here.
