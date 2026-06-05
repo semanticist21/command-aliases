@@ -38,7 +38,7 @@ agent-skills/
 | update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
 | update-doc       |   ✓    |   ✓   | Update project docs to match code, per its doc harness    |
 | figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
-| agent-review     |   ✓    |       | Review the current session's git commits                  |
+| agent-review     |   ✓    |   ✓   | Review this session's work via delegated subagent loop    |
 | analysis         |   ✓    |   ✓   | Parallel adversarial root-cause bug investigation         |
 | harness-setup    |   ✓    |   ✓   | Install agent handoff harness (test/doc guards) in a repo |
 | humanize-korean  |   ✓    |       | Detect + rewrite AI-tell Korean text to human style       |
