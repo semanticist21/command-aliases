@@ -1,0 +1,9 @@
+{
+  "ignorePrefixes": ["node_modules/", ".git/", "dist/", "build/", "target/", "vendor/"],
+  "sourceExtensions": [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".rs", ".go", ".py"],
+  "testPatterns": ["(^|/)__tests__/", "\\.test\\.", "\\.spec\\.", "(^|/)tests?/"],
+  "testableGlobs": [],
+  "docFileNames": ["AGENTS.md", "CLAUDE.md"],
+  "durableSourceGlobs": [],
+  "roleComments": []
+}

@@ -36,6 +36,14 @@ agent-skills/
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
 | update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
 | figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
+| agent-review     |   ✓    |       | Review the current session's git commits                  |
+| analysis         |   ✓    |   ✓   | Parallel adversarial root-cause bug investigation         |
+| harness-setup    |   ✓    |   ✓   | Install agent handoff harness (test/doc guards) in a repo |
+| humanize-korean  |   ✓    |       | Detect + rewrite AI-tell Korean text to human style       |
+| humanizer        |   ✓    |       | Strip AI-writing signs from English text                  |
+| memo             |   ✓    |   ✓   | Save the user's memo argument as a durable note           |
+| natural-writing  |        |   ✓   | Rewrite text to natural, human-sounding prose             |
+| svg-logo-designer|   ✓    |       | Generate professional SVG logos from a description        |
 
 > **Not included:** `ktbase-push` — references KT-internal registry IPs/hosts;
 > kept user-scope only, intentionally not published here.
