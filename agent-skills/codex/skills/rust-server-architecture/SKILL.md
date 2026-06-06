@@ -1,6 +1,6 @@
 ---
 name: "rust-server-architecture"
-description: "Design, audit, or refactor Rust backend/server code into production-ready architecture. Use for Rust API servers, axum/tonic/gRPC services, feature-first module layout, service/repository boundaries, error contracts, observability architecture, or requests like bulletproof Rust server structure."
+description: "Design, audit, or refactor Rust backend/server architecture. Use for Rust API servers, axum/tonic/gRPC services, feature-first module layout, service/repository boundaries, error contracts, or observability architecture when architecture, module boundaries, service layering, or operability are central to the request."
 ---
 
 # Rust Server Architecture
@@ -8,6 +8,18 @@ description: "Design, audit, or refactor Rust backend/server code into productio
 Use this skill when the user wants a Rust backend shaped, audited, or refactored
 for durable production structure. Optimize for the existing codebase first:
 preserve local conventions unless they block correctness, testing, or operability.
+
+## Root-Scope Constraint
+
+This is a user-scope root skill. Keep guidance project-agnostic:
+
+- Do not encode one repository's folder layout, product boundaries, local docs,
+  private conventions, hostnames, or historical decisions as mandatory rules.
+- Read the current repo's instructions and follow its conventions before applying
+  this skill.
+- If a rule is only true for one project, put it in that repo's `AGENTS.md`, docs,
+  or a project-local skill instead.
+- Treat the structures below as adaptable examples, not mandatory templates.
 
 ## Operating Loop
 
@@ -28,10 +40,10 @@ preserve local conventions unless they block correctness, testing, or operabilit
    concrete plan.
 6. Verify with the repo's lint/test/build commands and report any skipped check.
 
-## Default Shape
+## Example Shape
 
-Prefer feature-first modules for product code and shared adapters for external
-systems:
+When the repo lacks a stronger convention, consider feature-first modules for
+product code and shared adapters for external systems:
 
 ```text
 src/

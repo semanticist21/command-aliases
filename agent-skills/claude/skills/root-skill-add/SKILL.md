@@ -20,15 +20,25 @@ repo, this writes self-contained skills under the user's home config. Targets:
 3. Write the **same** self-contained `SKILL.md` to both target paths above.
    User-scope skills have no project `.agents/` canonical to point at, so the body
    must stand alone — inline the full workflow, do not reference repo-local paths.
-4. Frontmatter: only `name` and `description`. Always quote `description` as a YAML
+4. **Global-scope gate.** Root skills are always common, reusable skills for every
+   project. Do not bake in project-specific architecture, paths, product decisions,
+   local docs, private conventions, secrets, hostnames, or one repository's current
+   structure. If the requested skill is repo-specific, stop and use `skill-add` or
+   write the guidance into that repo's `AGENTS.md`/docs instead. Ask the user to
+   confirm the repo-local target if needed; do not create a root skill for
+   repo-local guidance. A root skill may say "read and follow the current repo's
+   conventions first"; it must not encode one repo's conventions as universal
+   defaults.
+5. Frontmatter: only `name` and `description`. Always quote `description` as a YAML
    string (Korean text and punctuation can mis-parse unquoted).
-5. Verify both files parse — frontmatter is valid YAML, `description` is quoted.
-6. **Agent review (always).** Spawn a sub-agent to review the finished `SKILL.md`
+6. Verify both files parse — frontmatter is valid YAML, `description` is quoted.
+7. **Agent review (always).** Spawn a sub-agent to review the finished `SKILL.md`
    read-only. Have it judge: trigger quality (fires at the right time, doesn't over-fire
-   on trivial cases), workflow soundness, actionability (concrete enough to execute),
-   and conciseness (no bloat). Ask for a blunt severity-tagged findings list, no praise
-   padding. Apply the high/med fixes to BOTH copies, then report the verdict to the user.
-7. **Mirror to `command-aliases`.** Publish both copies to the mirror repo — see
+   on trivial cases), global-scope safety (no project-specific assumptions),
+   workflow soundness, actionability (concrete enough to execute), and conciseness
+   (no bloat). Ask for a blunt severity-tagged findings list, no praise padding.
+   Apply the high/med fixes to BOTH copies, then report the verdict to the user.
+8. **Mirror to `command-aliases`.** Publish both copies to the mirror repo — see
    *Mirror to the command-aliases repo* below. Runs on every invocation, including
    auto-triggered ones, not only explicit `/root-skill-add`.
 
@@ -71,4 +81,7 @@ agent review pass.
 - Keep `SKILL.md` concise and task-specific; no README/changelog/install docs.
 - Keep both copies identical except for tool-name wording when a platform lacks a
   tool (e.g. `Explore`/`WebSearch` are Claude tools — phrase generically for Codex).
+- Root skills must stay project-agnostic. Project-specific workflows, repo paths,
+  architecture choices, product boundaries, and local gotchas belong in that repo's
+  `AGENTS.md`, project docs, or a project-local skill, not in user-scope root skills.
 - For a repo-local skill instead, use `skill-add`.
