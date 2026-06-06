@@ -1,6 +1,6 @@
 ---
-name: task
-description: Run a delegated task loop: plan, execute, then QA/verify until findings are zero. Adds tests for testable code whenever the project has a test surface. Use when the user invokes /task or $task, asks for a structured task run, or wants an orchestrator to actively use agents/subagents for planning, implementation, and review. Commits the finished work as Conventional Commits once QA is clean.
+name: "task"
+description: "Run a delegated task loop: plan, execute, then QA/verify until findings are zero. Adds tests for testable code whenever the project has a test surface. Use when the user invokes /task or $task, asks for a structured task run, or wants an orchestrator to actively use agents/subagents for planning, implementation, and review. Commits the finished work as Conventional Commits once QA is clean."
 user-invocable: true
 argument-hint: "<task goal and constraints>"
 allowed-tools:
@@ -18,6 +18,7 @@ allowed-tools:
   - Bash(git add*)
   - Bash(git commit*)
   - Bash(ls*)
+  - Bash(mkdir*)
   - Bash(test*)
   - Bash(node*)
   - Bash(npm*)
@@ -38,6 +39,39 @@ blocked, or the user-defined budget/limit is reached.
 
 Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
+
+## Agent Briefing
+
+Every delegated agent must receive the real task context, not a vague summary.
+Before spawning an agent, prepare a brief with:
+
+- original user goal and exact constraints
+- relevant repo instructions, target paths, ownership boundaries, and current git status
+- scope assigned to that agent and what is explicitly out of scope
+- acceptance criteria, verification commands, and expected output format
+- any files the agent must read first
+
+For small one-shot agent calls, put that brief directly in the agent prompt. For
+multi-agent, long-running, or high-context work, write a project-local handoff doc
+and tell every agent to read it before acting:
+
+1. Resolve the project root with `git rev-parse --show-toplevel` when possible.
+2. Use `<project-root>/.agent-tmp/` as the shared temporary task directory.
+3. If it does not exist, create it.
+4. Ensure `.agent-tmp/` is ignored at the project root. If no existing ignore rule
+   covers it, add the line `.agent-tmp/` to `<project-root>/.gitignore`; create
+   `.gitignore` if needed.
+5. Write a concise brief such as `<project-root>/.agent-tmp/task-brief.md` or
+   `<project-root>/.agent-tmp/<task-slug>.md`.
+6. Keep the brief neutral: goal, constraints, scope, commands, and factual context.
+7. Update the brief when scope or acceptance criteria change.
+8. Keep implementation notes or hypotheses separate when they could bias a reviewer.
+9. Do not stage or commit files under `.agent-tmp/`.
+
+Agent prompts must point at the brief path and restate the agent's slice in the
+prompt itself. Reviewer agents get the goal, acceptance criteria, and diff directly;
+do not ask them to read biased implementation notes, leak hidden conclusions, or
+coach them toward a desired verdict.
 
 ## Loop
 
