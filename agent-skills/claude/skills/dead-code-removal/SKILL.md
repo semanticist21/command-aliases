@@ -13,7 +13,8 @@ Static analyzers are leads, not proof.
 Use this skill for:
 
 - unused files, exports, functions, classes, imports, variables, routes, tests, fixtures,
-  assets, generated outputs, and dependencies
+  assets, non-deploy generated outputs with verified regeneration sources, and
+  dependencies
 - cleanup after feature removal, deleted flags, abandoned modules, or completed
   migrations when removing obsolete scaffolding/helpers rather than historical migrations
 - validating dead-code reports before applying deletions
@@ -27,7 +28,12 @@ code merely because it "looks old".
    git status. Never revert unrelated user changes.
 2. Identify package boundaries, public APIs, generated code, plugin/entrypoint
    conventions, build tags, test-only imports, and reflection/dynamic loading.
-3. Establish the verification surface before deleting: tests, typecheck, lint, build,
+3. Identify preservation zones before trusting analyzer output: tracked archives,
+   backups, historical snapshots, generated deploy artifacts (`dist/`, `build/`,
+   static exports), ignored scratch/log folders, and directories explicitly ignored by
+   harness or docs. Treat these as intentionally kept unless the user explicitly scopes
+   them for removal.
+4. Establish the verification surface before deleting: tests, typecheck, lint, build,
    route/storybook/demo smoke checks, or language-specific commands.
 
 ## Evidence Rules
@@ -41,8 +47,15 @@ code merely because it "looks old".
 - One strong signal is enough only for local private code already rejected by the
   compiler/linter, trivial unused imports/variables, or files unreachable by manifest
   and reference search.
+- Analyzer "unused files" output is never enough to delete a whole directory, tracked
+  archive/backup/snapshot, generated deploy artifact, ignored local artifact, or
+  historical copy. Require either explicit user scope plus evidence, or owner
+  documentation plus git-history and reference-search evidence.
 - If removal changes user-visible behavior or deletes an unclear product feature, stop
   and ask instead of guessing.
+- Stop and ask before deleting broad directories, preserved historical folders, deploy
+  artifacts, ignored/transient local artifacts, or unusually large batches unless the
+  user explicitly scoped that cleanup and the evidence supports deletion.
 
 ## Trusted Tools
 
@@ -73,7 +86,9 @@ status first. Examples checked as credible on 2026-06-06:
 2. Classify findings:
    - **safe local**: private unused imports/vars/functions with compiler/linter support
    - **needs proof**: exported symbols, files, dependencies, routes, assets, fixtures
-   - **do not delete yet**: dynamic/reflection/plugin/config/generated/test-only usage
+   - **do not delete yet**: dynamic/reflection/plugin/config/generated/test-only usage,
+     tracked archive/backup/snapshot folders, deploy outputs, ignored scratch/log
+     folders, historical mirrors, and anything docs or harness config marks as special
 3. If the user asked only to verify/review a dead-code report, stop after classification
    and report candidates, evidence, confidence, and keep/delete recommendation.
 4. Delete in small, reviewable batches. Start with leaf code and unused dependencies
