@@ -25,6 +25,7 @@ agent-skills/
 | commit-isolate   |   ✓    |   ✓   | Split a messy tree into isolated atomic commits          |
 | corp-cert-fix    |   ✓    |   ✓   | Fix corp MITM-proxy TLS errors (bun/node/pip/git/…)      |
 | corp-cert-update |   ✓    |   ✓   | Rotate expired corp MITM CA cert                         |
+| dead-code-removal|   ✓    |   ✓   | Remove unused code/deps with evidence and verification   |
 | grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |
 | impeccable        |   ✓    |   ✓   | Design/critique/polish frontend UI (multi-mode toolkit)  |
 | merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
