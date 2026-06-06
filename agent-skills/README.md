@@ -31,6 +31,7 @@ agent-skills/
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
 | root-skill-add   |   ✓    |   ✓   | Scaffold a new user-scope skill for both runtimes         |
+| rust-server-architecture | ✓ | ✓ | Shape Rust backend servers with feature-first architecture |
 | skill-add        |   ✓    |   ✓   | Create/update a user skill in both runtimes at once       |
 | skill-sync       |   ✓    |   ✓   | Sync skills across both runtimes + this repo mirror       |
 | skill-update     |   ✓    |   ✓   | Revise an existing skill in place across all copies       |
