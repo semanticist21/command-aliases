@@ -1,6 +1,6 @@
 ---
 name: corp-cert-update
-description: Rotate corp MITM CA cert when expired or TLS errors return. Locates current bundle, re-extracts from keychain, verifies. Companion to corp-cert-fix.
+description: Rotate managed TLS interception CA certs when expired or TLS errors return. Locates the active bundle, rebuilds it, and verifies. Companion to corp-cert-fix.
 ---
 
 # Corp Cert Update (global)

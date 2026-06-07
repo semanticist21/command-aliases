@@ -28,6 +28,7 @@ is the *how-to-operate* contract; the README is the *what's-here* reference.
   - Codex `.system/*` (skill-creator, plugin-creator, skill-installer) — Codex
     built-ins, regenerated on install.
   - Codex `chronicle` — Codex-shipped screen-view built-in. Empty `codex-primary-runtime`.
+- **Public mirror hygiene.** Before publishing any skill, scrub secrets, private hostnames/IPs, credential paths, account IDs, and company-internal implementation details.
 
 ## Replicate (install onto a machine)
 

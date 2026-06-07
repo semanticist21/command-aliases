@@ -96,6 +96,7 @@ the local edits and the agent review pass.
   the user unless they ask.
 - **Edit in place — do not rewrite wholesale.** Preserve the parts the user did not
   ask to change; a revision is surgical, not a fresh scaffold.
+- **Public mirror hygiene.** Before publishing any skill, scrub secrets, private hostnames/IPs, credential paths, account IDs, and company-internal implementation details.
 - Keep `SKILL.md` concise and task-specific; do not add README/changelog/install
   bloat while editing.
 - If copies have drifted before you arrive, surface the difference and ask which

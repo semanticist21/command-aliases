@@ -94,6 +94,7 @@ Do not place user skills under `.system`.
 ## Safety
 
 - Never store secrets in skill files.
+- Public mirror hygiene: before publishing any skill, scrub secrets, private hostnames/IPs, credential paths, account IDs, and company-internal implementation details.
 - Never overwrite unrelated skill resources.
 - Do not delete old copies unless the user explicitly asks.
 - Keep generated artifacts minimal: no README, changelog, or extra docs unless the

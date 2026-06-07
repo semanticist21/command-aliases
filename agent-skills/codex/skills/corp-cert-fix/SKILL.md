@@ -1,6 +1,6 @@
 ---
 name: corp-cert-fix
-description: Fix SELF_SIGNED_CERT_IN_CHAIN / CERTIFICATE_VERIFY_FAILED from corp MITM proxies (ZTNA, Zscaler, Palo Alto, Netskope) for bun/node/pnpm/pip/uv/curl/git/docker.
+description: Fix SELF_SIGNED_CERT_IN_CHAIN / CERTIFICATE_VERIFY_FAILED from managed TLS interception proxies for bun/node/pnpm/pip/uv/curl/git/docker.
 ---
 
 # Corp Cert Fix

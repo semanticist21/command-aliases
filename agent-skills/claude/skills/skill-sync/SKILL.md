@@ -80,6 +80,7 @@ behind the mirror without diffing every skill.
   - Codex `.system/*` (skill-creator, plugin-creator, skill-installer) — Codex
     built-ins, regenerated on install.
   - Codex `chronicle`, `codex-primary-runtime` — Codex-shipped built-ins.
+- **Public mirror hygiene.** Before publishing any skill, scrub secrets, private hostnames/IPs, credential paths, account IDs, and company-internal implementation details.
 - **Get the repo.** Operate in a local clone. If none exists, clone it:
   `gh repo clone semanticist21/command-aliases /tmp/command-aliases`.
 

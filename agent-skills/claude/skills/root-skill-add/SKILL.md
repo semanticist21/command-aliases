@@ -78,6 +78,7 @@ agent review pass.
   outside any repo; nothing here is staged. The one exception is the
   `command-aliases` mirror, a real repo that *is* committed + pushed (see *Mirror to
   the command-aliases repo*).
+- **Public mirror hygiene.** Before publishing any skill, scrub secrets, private hostnames/IPs, credential paths, account IDs, and company-internal implementation details.
 - Keep `SKILL.md` concise and task-specific; no README/changelog/install docs.
 - Keep both copies identical except for tool-name wording when a platform lacks a
   tool (e.g. `Explore`/`WebSearch` are Claude tools — phrase generically for Codex).
