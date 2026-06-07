@@ -19,6 +19,28 @@ blocked, or the user-defined budget/limit is reached.
 Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
 
+## Goal Tracking
+
+Use the platform goal mechanism by default for every task run.
+
+- Create the goal from the concrete objective, not the full raw argument when it
+  contains paths, constraints, or "do not" clauses. Preserve those details in the
+  task context and acceptance criteria.
+- In Codex, call `get_goal` before planning. If no goal is active, call
+  `create_goal`. If the active goal matches this task, reuse it. If an unrelated
+  goal is active, report the conflict and do not call `create_goal`.
+- In Claude, use `/goal` before planning to create or select the task goal. If an
+  unrelated goal is active, report the conflict before changing it.
+- Report progress in normal task updates. Do not use goal status commands for
+  planning/execution/QA/commit progress unless the platform explicitly supports
+  non-terminal progress states.
+- In Codex, use `update_goal` only for terminal states: `complete` or `blocked`.
+  Mark `complete` only after QA is clean and the commit step is either done or
+  explicitly skipped for a valid reason.
+- Mark `blocked` only when the same blocker has repeated across the required goal
+  turns and no meaningful progress is possible without user input or external state
+  change. Do not mark budget exhaustion or partial progress as complete.
+
 ## Agent Briefing
 
 Every delegated agent must receive the real task context, not a vague summary.
@@ -136,6 +158,7 @@ Final response should include:
 - what changed
 - verification commands/results
 - QA loop count and final finding count (`0` when complete)
+- final goal status (`complete`, `blocked`, or still active with why)
 - commit(s) made (subject lines), or why no commit
 - any residual risk or explicit blocker
 
