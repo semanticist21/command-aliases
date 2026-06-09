@@ -1,6 +1,6 @@
 ---
-name: memo
-description: Save the user's memo argument as a durable note. Use when the user invokes $memo, says memo/save/remember this, or asks to persist an instruction, preference, follow-up, pitfall, environment fact, or reusable reminder.
+name: "memo"
+description: "Save the user's memo argument as a durable note in the right scope. Use when the user invokes $memo, says memo/save/remember this, or asks to persist an instruction, preference, follow-up, pitfall, agent mistake, environment fact, or reusable reminder; prefer the current project's harness docs for project-specific mistakes and traps."
 user-invocable: true
 argument-hint: "<note to persist>"
 allowed-tools:
@@ -26,15 +26,23 @@ make the stored note compact and useful.
 ## Target selection
 
 1. If the user gives an explicit target path, write there.
-2. If the note is specific to the current repo, write to the nearest relevant
-   `AGENTS.md` when one exists.
-3. If the repo has the harness durable-docs structure and the note is a repeatable
-   trap/gotcha, append to `doc/playbook.md`.
-4. If the note is cross-project, machine-level, or a personal workflow preference,
+2. If the note concerns the current repo, write inside that repo's harness docs:
+   - Use the nearest relevant `AGENTS.md` for subtree-specific rules, ownership,
+     setup quirks, implementation gotchas, and mistakes limited to that subtree.
+     If no local `AGENTS.md` exists and the note is useful for future work in that
+     subtree, create one there.
+   - Use `doc/playbook.md` when it exists and the note is a project-wide repeatable
+     trap, debugging lesson, or agent mistake future agents should avoid.
+   - Use the repo-root `AGENTS.md` for project-wide operating rules when
+     `doc/playbook.md` does not exist or the note is not a playbook-style trap.
+     If no repo harness file exists, create repo-root `AGENTS.md`; do not fall back
+     to the global memo for a repo-specific note.
+3. If the note is cross-project, machine-level, or a personal workflow preference,
    append to `~/.codex/memo.md`.
 
-When unsure, prefer `~/.codex/memo.md` for broad user preferences and repo
-`AGENTS.md` for project-specific operating rules.
+When working inside a repo and unsure, prefer repo harness docs over the global
+memo. Do not store project-specific mistakes in `~/.codex/memo.md` only because
+the underlying lesson also applies elsewhere.
 
 ## Format
 
