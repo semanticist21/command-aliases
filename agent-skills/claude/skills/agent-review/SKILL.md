@@ -1,43 +1,49 @@
 ---
-name: agent-review
-description: Review the work done in the current session against the current state of the code, using delegated subagents. Defaults to a single-pass review-and-report; when asked to also fix, runs a converging remediation loop until findings reach zero. Use when the user wants to review/validate/critique what was done this session, audit session work before shipping, or 현상황에 맞게 했던 작업 리뷰. Not for general PR review (use review), a plain diff bug-hunt (use code-review), or a build-then-QA task (use task).
-version: 2.0.0
-user-invocable: true
-argument-hint: "[scope or focus area, optional]"
+name: "agent-review"
+description: "Review the work this agent actually did in the current session, based on the conversation transcript and tool actions first, then the current code as evidence. Defaults to a single-pass review-and-report; when asked to also fix, runs a converging remediation loop until findings reach zero. Use when the user wants to review/validate/critique what was done this session, audit session work before shipping, or 현상황에 맞게 했던 작업 리뷰. Not for general PR review (use review), a plain diff bug-hunt (use code-review), or a build-then-QA task (use task)."
 ---
 
-Review the work performed during the **current session** against the **current state** of the
-repo. Findings are produced by **delegated subagents**. By **default this is a single-pass
-review-and-report** — it surfaces findings, it does not change code. Only when the user asks for a
-converging/remediation run does it **loop until a round returns zero findings** (fixing between
-rounds). The main thread stays a thin orchestrator: it scopes the work, fans out reviewers, and —
-in remediation mode — decides what to fix and re-reviews.
+Review the work this agent actually performed during the **current session**, then judge that work
+against the **current state** of the repo. Findings are produced by **delegated subagents**. By
+**default this is a single-pass review-and-report** — it surfaces findings, it does not change code.
+Only when the user asks for a converging/remediation run does it **loop until a round returns zero
+findings** (fixing between rounds). The main thread stays a thin orchestrator: it scopes the work,
+fans out reviewers, and — in remediation mode — decides what to fix and re-reviews.
 
 ## Sources of truth (in priority order)
 
-1. **The conversation transcript** — the authoritative record of what this session was asked to
-   do and what it actually did (tool calls, edits, attempts, reversions). Primary.
-2. **The working tree** — `git diff`, `git diff --staged`, untracked files. The current state;
-   often the real deliverable when work is uncommitted. First-class input, not an afterthought.
-3. **Git log** — corroborating only. Commit messages can be rewritten/gated by hooks and
-   concurrent agents may land commits, so log is a lossy proxy for "what this session did." Never
-   anchor scope on log alone.
+1. **This agent's session record** — the conversation transcript, tool calls, edits, attempts,
+   reversions, compacted summaries, and task logs from the current run. This is the authority for
+   authorship and scope.
+2. **The current code** — working-tree files, `git diff`, `git diff --staged`, untracked files, and
+   committed patches only as evidence of the present deliverable. Review these only where the
+   session record shows this agent touched or created them.
+3. **Git metadata** — status, diff, staged diff, and log are corroborating only. Git answers "what
+   is currently changed/committed," not "what this agent did." Never anchor scope on git state or a
+   guessed commit range.
 
 ## Step 1 — Scope the session (main thread)
 
-- Derive the set of files/areas this session actually touched from the conversation's own tool
-  calls, then map them to working-tree changes (`git status`, `git diff`) and any matching
-  commits. Don't guess a commit range and interrogate the user.
-- Include uncommitted + untracked changes as primary review targets.
-- Exclude pre-existing work the session didn't touch. Only ask the user to bound scope if the
-  conversation genuinely can't disambiguate.
+- Derive the review scope from this agent's own deliverable actions first: files patched,
+  generated, deleted, staged, committed, or explicitly handed off by the conversation. Files only
+  read during exploration are context, not review targets, unless the user explicitly includes them.
+  Do not infer authorship from dirty git state, branch position, or recent commits.
+- Map those session-touched files/areas to current code (`git status`, `git diff`, `git
+  diff --staged`, untracked files) and to commits only when the session record shows this agent made
+  those commits. Don't guess a commit range and interrogate the user.
+- Include uncommitted + untracked changes only when this session touched them, or when the user
+  explicitly asked to review them.
+- Exclude pre-existing or concurrent work the session didn't touch, even if it is dirty, staged, or
+  recently committed. Only ask the user to bound scope if the session record genuinely can't
+  disambiguate.
 
 ## Step 2 — Fan out reviewers (delegate)
 
-Spawn review **subagents in parallel**, one per coherent area/concern (or per commit when commits
-are clean units). Give each subagent: the intent from the conversation, the diff/working-tree for
-its area, and the relevant `AGENTS.md`/`CLAUDE.md` rules. Each returns a structured findings list
-(no fixes), every finding tagged **HIGH / MED / LOW** with a `path:line` cite. Reviewers judge:
+Spawn review **subagents in parallel**, one per coherent area/concern (or per session-made commit
+when commits are clean units). Give each subagent: the intent from the conversation, the exact
+session-touched files/areas it may review, the current code/diff for that area, and the relevant
+`AGENTS.md`/`CLAUDE.md` rules. Each returns a structured findings list (no fixes), every finding
+tagged **HIGH / MED / LOW** with a `path:line` cite. Reviewers judge:
 
 - **Intent match** — does the change do what was asked, nothing more/less?
 - **Scope creep** — unrelated refactors, speculative abstraction, files that didn't need touching.
