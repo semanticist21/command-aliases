@@ -89,9 +89,9 @@ target already has an equivalent, create a `doc/` directory at the repo root:
 - `doc/README.md` — index + the routing convention (table below).
 - `doc/architecture.md` — the **base skeleton**: shape, module/dependency order,
   core invariants, open decisions. Seed it from the repo's existing AGENTS/README.
-- `doc/playbook.md` — **append-only gotchas log**. One entry per trap a future
-  session would otherwise re-learn. Seed with the entry format
-  (`## YYYY-MM-DD — title` / **Trap:** / **Truth:** / **Apply:**).
+- `doc/playbook.md` — **append-only gotchas log** for traps/corrections the user
+  explicitly supplied or explicitly asked the agent to fix. Seed with the entry
+  format (`## YYYY-MM-DD — title` / **Trap:** / **Truth:** / **Apply:**).
 - `doc/plan/` — scoped work-in-progress notes (`.gitkeep` if empty).
 
 Routing convention to put in `doc/README.md`:
@@ -99,7 +99,7 @@ Routing convention to put in `doc/README.md`:
 | Kind | Location |
 | --- | --- |
 | Base skeleton — architecture, module plan, design decisions | `doc/architecture.md`, package `AGENTS.md` |
-| Gotchas / mistakes / surprises | `doc/playbook.md` (append-only) |
+| User-supplied gotchas / explicit mistake corrections | `doc/playbook.md` (append-only) |
 | Plans / WIP | `doc/plan/` |
 | Agent instructions | root `AGENTS.md` |
 
@@ -108,8 +108,9 @@ Then wire it in `harness.config.json` (config only, no script edit): add
 durable-doc check, and point `durableSourceGlobs` at the source trees whose
 changes should trigger the doc reminder. The accumulation loop is: source
 changes → harness reminds at commit/handoff → the agent records the durable bit
-(skeleton in `architecture.md`/`AGENTS.md`, every gotcha as one `playbook.md`
-line). Do not overwrite an existing `doc/` or its files — merge or ask.
+(skeleton in `architecture.md`/`AGENTS.md`, user-supplied gotchas and explicit
+mistake corrections as `playbook.md` entries). Do not overwrite an existing
+`doc/` or its files — merge or ask.
 
 ### 3c. Add the self-documentation directive to the root agent doc (always)
 
@@ -123,8 +124,13 @@ Stop hook is optional reinforcement, not the mechanism). Add a few lines like:
 > durable consequences a future session would re-learn:
 > - Edited something **easy to overwrite/clobber** or non-obvious in shape → note
 >   the constraint in `doc/architecture.md` or the nearest `AGENTS.md`.
-> - Hit a **trap/gotcha or a mistake likely to repeat** → append one line to
->   `doc/playbook.md` (`## YYYY-MM-DD — title` / **Trap:** / **Truth:** / **Apply:**).
+> - Hit a **trap/gotcha or a mistake likely to repeat** that the user explicitly
+>   supplied, or that the user explicitly asked you to correct → append one line
+>   to `doc/playbook.md` (`## YYYY-MM-DD — title` / **Trap:** / **Truth:** /
+>   **Apply:**).
+> - Do not infer new product/history concepts from code shape, UI copy, issue
+>   context, or agent interpretation. If the concept source is ambiguous, report
+>   it to the user instead of writing it as project history.
 >
 > The harness only reminds; it never writes. Any harness `WARN`, or noticing the
 > above mid-edit, is the trigger to write the note yourself.

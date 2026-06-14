@@ -88,6 +88,23 @@ contradict it. This is prose, not the blocking `roleComments` check (Boundaries)
 complement each other: the check enforces that a comment is *present*, this
 directive sets its *depth*.
 
+### 3c. Install a concept/history record discipline directive (always)
+
+Append or merge a short directive into the same root `AGENTS.md` (or `CLAUDE.md`) so
+future sessions do not turn agent interpretation into durable project lore:
+
+> **Record only user-given project concepts.** Durable docs may record reusable
+> project concepts, naming, history, and corrections only when the user explicitly
+> provided that concept or explicitly asked to fix that mistaken concept. Do not
+> infer new product/history concepts from code shape, UI copy, issue context, or
+> agent interpretation. If a durable note is useful but its concept source is
+> ambiguous, report it to the user instead of writing it as project history.
+
+Merge into any existing history/memo/doc policy without weakening stricter local
+rules. This does not block verified technical facts such as real commands, paths,
+APIs, or file ownership; it only prevents inferred concept/history records from
+being written as if the user had supplied them.
+
 ### 4. Wire hooks conservatively (standard / full)
 
 - **pre-commit**: prefer the existing hook manager. Add a step that runs

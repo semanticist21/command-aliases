@@ -56,9 +56,13 @@ the harness explicitly hosts a status doc.
    another canonical doc now owns. Keep edits ASCII unless the file already uses
    non-ASCII. Do not invent new sections beyond what's needed to fix drift.
 
-5. **Don't add noise.** No timestamp-only history, status logs, redundant
-   corrections, secrets, or raw logs in durable docs. Add conversation-learned
-   context only when it's durable, repo-scoped, and future-useful.
+5. **Don't add noise or inferred project lore.** No timestamp-only history, status
+   logs, redundant corrections, secrets, or raw logs in durable docs. Add
+   conversation-learned context only when it's durable, repo-scoped,
+   future-useful, and grounded in concepts the user explicitly gave you. Do not
+   infer and record new product/history concepts from code shape or agent
+   interpretation. Record corrections as concepts only when the user explicitly
+   asked to fix that mistake.
 
 6. **Verify.** Re-read changed sections. Re-confirm any path/command you cited
    exists. Run the narrowest doc/lint/harness check the project defines (e.g. a repo
