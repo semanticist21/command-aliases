@@ -27,7 +27,6 @@ agent-skills/
 | corp-cert-update |   ✓    |   ✓   | Rotate expired corp MITM CA cert                         |
 | dead-code-removal|   ✓    |   ✓   | Remove unused code/deps with evidence and verification   |
 | grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |
-| impeccable        |   ✓    |   ✓   | Design/critique/polish frontend UI (multi-mode toolkit)  |
 | merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
@@ -50,7 +49,6 @@ agent-skills/
 | natural-writing  |        |   ✓   | Rewrite text to natural, human-sounding prose             |
 | svg-logo-designer|   ✓    |       | Generate professional SVG logos from a description        |
 | svg-craft        |   ✓    |   ✓   | Author/edit/optimize hand-written SVG graphics            |
-| distill          |   ✓    |       | Strip a design to its essence; declutter/simplify UI      |
 
 > **Not included:** `ktbase-push` — references KT-internal registry IPs/hosts;
 > kept user-scope only, intentionally not published here.
