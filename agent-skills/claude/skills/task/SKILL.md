@@ -10,11 +10,14 @@ allowed-tools:
   - MultiEdit
   - Grep
   - Glob
+  - Bash(cd*)
   - Bash(git rev-parse*)
+  - Bash(git -C*)
   - Bash(git status*)
   - Bash(git diff*)
   - Bash(git ls-files*)
   - Bash(git log*)
+  - Bash(git worktree*)
   - Bash(git add*)
   - Bash(git commit*)
   - Bash(ls*)
@@ -25,6 +28,14 @@ allowed-tools:
   - Bash(bun*)
   - Bash(pnpm*)
   - Bash(yarn*)
+  - Bash(make*)
+  - Bash(cargo*)
+  - Bash(python*)
+  - Bash(pytest*)
+  - Bash(uv*)
+  - Bash(ruff*)
+  - Bash(go*)
+  - Bash(flutter*)
   - Task
 ---
 
@@ -39,6 +50,30 @@ blocked, or the user-defined budget/limit is reached.
 
 Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
+
+## Worktree Isolation
+
+Use a dedicated git worktree by default for every task that will read/write repo
+files, so the task does not disturb the caller's current working tree.
+
+1. Resolve the project root with `git rev-parse --show-toplevel`.
+2. Inspect `git status --short` before creating the worktree and include that status
+   in agent briefs. Do not move, stash, reset, or otherwise alter pre-existing dirty
+   files in the caller's working tree.
+3. Create a sibling worktree from the current `HEAD`, using a task branch:
+   `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
+   Keep the slug short, lowercase, and filesystem-safe.
+4. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
+   original working tree as read-only task context unless the user explicitly asks to
+   apply changes there.
+5. If the task explicitly depends on uncommitted caller changes, stop and ask whether
+   to include those changes, because the default worktree starts from committed
+   `HEAD`.
+6. Skip worktree creation only when the user asks not to, the repo is not a git repo,
+   the task is read-only/no-file-change, or `git worktree add` fails. State the reason
+   and continue in the current tree only when it is safe.
+7. After the task is complete or blocked, leave the worktree in place and report its
+   path and branch. Do not remove it unless the user asks.
 
 ## Goal Tracking
 
@@ -148,14 +183,15 @@ If blocked, report the exact blocker, attempted fixes, and remaining findings.
 Once QA returns **0 findings** and verification is green, commit the work:
 
 1. Stage only the files this task changed — never blanket-stage unrelated edits in a
-   dirty tree. If the tree holds pre-existing changes you did not author, stage your
-   paths explicitly and leave the rest.
+   dirty tree. In the default task worktree this should be only task-owned files; if
+   running without a worktree, stage your paths explicitly and leave pre-existing
+   changes alone.
 2. Write one or more Conventional Commits grouped by concern (`feat`/`fix`/`refactor`/
    `docs`/`test`/`chore`), with a clear subject and a body explaining the "why" when it
    is not obvious. Check `git log --oneline -10` to match the repo's commit style; for
    non-trivial splitting delegate to the `/commit` skill.
-3. Commit on the current branch — do not create branches or switch branches. Do not
-   `push` unless the user explicitly asked.
+3. Commit on the task worktree branch. If worktree creation was skipped, commit on the
+   current branch. Do not `push` unless the user explicitly asked.
 4. Re-check `git status` after committing to confirm the intended files landed and
    nothing unexpected was staged.
 
@@ -185,7 +221,9 @@ Final response should include:
 
 ## Safety
 
-- Do not create branches unless the user explicitly asks.
+- For `/task`/`$task`, creating the task worktree branch is allowed and expected by
+  default. Do not create additional branches beyond that unless the user explicitly
+  asks.
 - Do not use destructive git commands.
 - Committing is allowed (stage 4) but gated: only after QA is clean, only the task's own
   files, never blanket-staging a dirty tree, and never `push` unless the user asked.

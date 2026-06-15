@@ -31,6 +31,7 @@ agent-skills/
 | merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
+| react-flutter-port | ✓ | ✓   | Port React UI to Flutter with visual parity              |
 | root-skill-add   |   ✓    |   ✓   | Scaffold a new user-scope skill for both runtimes         |
 | rust-server-architecture | ✓ | ✓ | Shape Rust backend servers with feature-first architecture |
 | skill-add        |   ✓    |   ✓   | Create/update a user skill in both runtimes at once       |

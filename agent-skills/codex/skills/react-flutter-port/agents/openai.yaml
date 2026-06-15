@@ -1,0 +1,5 @@
+display_name: React Flutter Port
+short_description: Port React UI to Flutter with visual parity
+default_prompt: "Use react-flutter-port when porting React or React Native UI into Flutter. Treat source UI as the source of truth, create a measured component map, and require screenshot-based visual parity before done."
+policy:
+  allow_implicit_invocation: true
