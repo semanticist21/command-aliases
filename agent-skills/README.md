@@ -29,6 +29,7 @@ agent-skills/
 | grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |
 | merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
+| openai-image     |   ✓    |   ✓   | Generate/edit images via OpenAI gpt-image-1 API          |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
 | react-flutter-port | ✓ | ✓   | Port React UI to Flutter with visual parity              |
 | root-skill-add   |   ✓    |   ✓   | Alias to skill-sync for global user-scope skill creation  |
