@@ -1,8 +1,7 @@
 ---
 name: update-doc
-description: "Update a project's documentation to match its current code, scoped to that project's own harness/doc structure. Given instructions, apply exactly that doc change in the right doc home; given no instructions, audit every durable doc against the real code and reconcile drift. Use when the user asks to /update-doc, update/refresh/현행화/sync the docs, fix stale docs, or bring documentation in line with the code. For AGENTS.md-only work prefer update-agents-md; for a trivial one-line typo/word fix just edit directly without this workflow."
+description: "Update project docs to match current code. Use for /update-doc, stale docs, doc sync, or documentation 현행화."
 ---
-
 # Update Doc
 
 Keep a project's durable docs accurate and in the right place by following that

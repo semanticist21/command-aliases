@@ -1,8 +1,7 @@
 ---
 name: commit
-description: "Stage and commit the current work as one or more clean Conventional Commits. Use when the user asks to commit, /commit, 커밋해줘, or wants their changes written to git history with a good message."
+description: "Create clean Conventional Commits for current repo changes. Use only when asked to create/write/make a git commit."
 ---
-
 # commit
 
 Create well-formed git commits for the work that is currently outstanding.

@@ -1,8 +1,7 @@
 ---
 name: research
-description: "Comprehensive cross-checked research and review on a topic. Use when the user asks to research, investigate, review, or vet a subject, library, design decision, or claim and wants an extensive multi-source answer. Fans out subagents plus web search and external sources, adversarially cross-checks findings, and returns a tightly compressed, decisive conclusion with cited evidence."
+description: "Run cross-checked research with external sources and adversarial review. Use for substantial research, vetting, or investigation asks."
 ---
-
 # Research
 
 Produce an extensive, cross-checked investigation and return a short, decisive

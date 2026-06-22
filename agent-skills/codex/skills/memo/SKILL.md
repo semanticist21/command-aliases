@@ -1,12 +1,11 @@
 ---
 name: "memo"
-description: "Save the user's memo argument as a durable note in the right scope. Use when the user invokes $memo, says memo/save this note/remember this, or asks to persist an instruction, preference, follow-up, pitfall, agent mistake, environment fact, or reusable reminder; discover and follow the current repo's durable-doc harness for repo-specific notes, and use the global memo only for truly cross-project facts."
+description: "Save a durable user memo. Use when the user says memo, save, remember, or asks to persist an instruction/preference."
 user-invocable: true
 argument-hint: "<note to persist>"
 metadata:
   short-description: Save durable notes from a memo argument
 ---
-
 # Memo
 
 Save the memo argument the user provided. Treat the argument as the source of truth:

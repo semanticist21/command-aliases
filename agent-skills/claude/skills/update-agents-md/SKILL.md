@@ -1,8 +1,7 @@
 ---
 name: update-agents-md
-description: "Maintain AGENTS.md files across a repo: find and review every AGENTS.md, apply hygiene rules, fix outdated or incorrect guidance, reduce verbosity, split large sections into docs and link them, add reusable context learned from the current conversation, and report concise changes. Use when asked to update, sweep, compact, or maintain AGENTS.md files across a repository or subfolder."
+description: "Maintain AGENTS.md files across a repo. Use for update, compact, sweep, or refresh AGENTS.md instructions."
 ---
-
 # Update AGENTS.md
 
 Keep AGENTS.md files accurate, concise, scoped, and within practical size limits.

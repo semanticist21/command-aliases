@@ -31,11 +31,11 @@ agent-skills/
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
 | react-flutter-port | ✓ | ✓   | Port React UI to Flutter with visual parity              |
-| root-skill-add   |   ✓    |   ✓   | Scaffold a new user-scope skill for both runtimes         |
+| root-skill-add   |   ✓    |   ✓   | Alias to skill-sync for global user-scope skill creation  |
 | rust-server-architecture | ✓ | ✓ | Shape Rust backend servers with feature-first architecture |
-| skill-add        |   ✓    |   ✓   | Create/update a user skill in both runtimes at once       |
-| skill-sync       |   ✓    |   ✓   | Sync skills across both runtimes + this repo mirror       |
-| skill-update     |   ✓    |   ✓   | Revise an existing skill in place across all copies       |
+| skill-add        |   ✓    |   ✓   | Alias to skill-sync for creating user skills              |
+| skill-sync       |   ✓    |   ✓   | Create/update/sync/compact skills across runtimes + repo  |
+| skill-update     |   ✓    |   ✓   | Alias to skill-sync for revising existing skills          |
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
 | update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
 | update-doc       |   ✓    |   ✓   | Update project docs to match code, per its doc harness    |
@@ -43,11 +43,12 @@ agent-skills/
 | agent-review     |   ✓    |   ✓   | Review this session's work via delegated subagent loop    |
 | analysis         |   ✓    |   ✓   | Parallel adversarial root-cause bug investigation         |
 | harness-setup    |   ✓    |   ✓   | Install agent handoff harness (test/doc guards) in a repo |
-| humanize-korean  |   ✓    |       | Detect + rewrite AI-tell Korean text to human style       |
-| humanizer        |   ✓    |       | Strip AI-writing signs from English text                  |
+| humanize-korean  |   ✓    |       | Natural-writing alias for Korean AI-text cleanup          |
+| humanizer        |   ✓    |       | Natural-writing alias for humanize/less-AI cleanup        |
+| impeccable       |        |   ✓   | Design, audit, or polish frontend UI                      |
 | memo             |   ✓    |   ✓   | Save the user's memo argument as a durable note           |
 | natural-writing  |        |   ✓   | Rewrite text to natural, human-sounding prose             |
-| svg-logo-designer|   ✓    |       | Generate professional SVG logos from a description        |
+| svg-logo-designer|   ✓    |       | SVG-craft alias for logos and brand marks                 |
 | svg-craft        |   ✓    |   ✓   | Author/edit/optimize hand-written SVG graphics            |
 
 > **Not included:** `ktbase-push` — references KT-internal registry IPs/hosts;

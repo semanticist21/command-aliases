@@ -1,8 +1,7 @@
 ---
 name: "dead-code-removal"
-description: "Remove dead code safely from software repositories. Use when the user asks to prune, delete, or clean up dead code, unused exports/files/functions/dependencies, stale feature code, or wants dead-code findings verified before removal. Do not use for ordinary refactors, formatting-only cleanup, or broad dependency upgrades."
+description: "Find and remove dead code safely. Use for prune/delete unused files, exports, functions, stale features, or dead-code audits."
 ---
-
 # Dead Code Removal
 
 Remove unused code with evidence, small patches, and deterministic verification.

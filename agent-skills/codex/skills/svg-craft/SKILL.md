@@ -1,8 +1,7 @@
 ---
 name: svg-craft
-description: "Author, edit, and optimize hand-written SVG graphics — icons, illustrations, diagrams, charts, badges, UI ornaments, animated and responsive vectors. Use whenever the user wants to create, draw, generate, fix, clean up, optimize, convert, or animate an SVG (or asks for a vector icon/illustration/diagram/chart 'as SVG' or '.svg'). For brand logos, lettermarks, wordmarks, or multi-variation brand-identity systems, prefer svg-logo-designer when it is installed."
+description: "Create, edit, optimize, or animate SVGs. Use for vector icons, diagrams, charts, badges, and hand-written SVG assets."
 ---
-
 # SVG Craft
 
 Produce correct, minimal, scalable SVG by hand. Default to clean geometry, a tight

@@ -1,6 +1,6 @@
 ---
 name: harness-setup
-description: Install a portable agent handoff harness into a target repository — a git-changed-files guard that nudges the agent about missing tests and stale docs, plus a self-documentation directive in the root agent doc that tells every future session to record overwrite-risks and repeat-traps as it works (a `doc/` durable-docs home with an append-only playbook). Wired as a blocking pre-commit check and a warn-only end-of-turn reminder. Use when the user asks to set up an agent harness, install harness checks, add a handoff guard, make the agent self-document gotchas/mistakes automatically, wire pre-commit + Stop-hook agent reminders, or enforce test/doc pairing in a project.
+description: "Install a repo handoff harness with changed-file guards and test/doc nudges. Use when asked to add agent workflow safety checks."
 user-invocable: true
 allowed-tools:
   - Read
@@ -17,7 +17,6 @@ allowed-tools:
   - Bash(node*)
   - Bash(test*)
 ---
-
 # Agent Harness Setup
 
 Install a small, runtime-agnostic guard that runs over a repo's changed files and

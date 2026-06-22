@@ -1,8 +1,7 @@
 ---
 name: merge
-description: "Merge the current branch into a target branch (default main) with a real merge commit. Use when the user asks to /merge, merge this branch into main or another branch, or integrate the current feature branch. Takes an optional branch-target argument; defaults to main when none is given."
+description: "Merge the current branch into a target branch with a real merge commit. Use for /merge or merge-into-branch requests."
 ---
-
 # Merge
 
 Merge the **current** branch into a **target** branch with a real (`--no-ff`)

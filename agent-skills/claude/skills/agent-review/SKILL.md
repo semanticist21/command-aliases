@@ -1,8 +1,7 @@
 ---
 name: "agent-review"
-description: "Review whether this agent's current-session work satisfies the user's explicit request and success criteria, using the conversation transcript and tool actions first, then current code as evidence. Defaults to a single-pass review-and-report; when asked to also fix, attempts a capped converging remediation loop. Use when the user wants to review/validate/critique what was done this session, audit session work before shipping, or 현상황에 맞게 했던 작업 리뷰. Not for general PR review, a git-log-based audit, a plain diff bug-hunt, or a build-then-QA task unless framed around this session's work."
+description: "Review current-session code changes with subagents. Use when asked for a review, QA pass, or review-and-fix loop."
 ---
-
 Review the work this agent actually performed during the **current session**, then judge that work
 against the **user's explicit request and success criteria**, using the **current state** of the repo
 as evidence. Prefer findings from **delegated subagents** when the runtime provides them; otherwise

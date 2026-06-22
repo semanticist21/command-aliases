@@ -1,8 +1,7 @@
 ---
 name: commit-isolate
-description: "Commit the entire dirty working tree — including pre-existing changes you did not author — by splitting everything into isolated, atomic Conventional Commits grouped by concern. Use when the user asks to commit isolate, /commit-isolate, 커밋 쪼개줘, or wants a messy tree (their work plus other uncommitted changes) committed cleanly without leaving anything behind."
+description: "Split the entire dirty tree into isolated Conventional Commits. Use for /commit-isolate, commit isolate, or messy-tree commit requests."
 ---
-
 # commit-isolate
 
 Leave the working tree clean. Every outstanding change gets committed — **including changes

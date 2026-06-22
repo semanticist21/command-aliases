@@ -1,8 +1,7 @@
 ---
 name: figma-lookup
-description: Use when the user provides a Figma link to a storyboard/planning board that mixes mobile screens with right-side planning/spec tables, and wants a lightweight list of screen links plus the matching planning/spec node. Trigger explicitly with /figma-lookup or $figma-lookup. Use figma-use/use_figma shallow indexing, not get_metadata/get_design_context, for storyboard lookup.
+description: "Extract screen/spec links from mixed Figma planning boards. Use when given a Figma board and asked for lightweight lookup."
 ---
-
 # Figma Lookup
 
 Use this skill to index a large Figma storyboard without flooding context. Assume the user usually provides one or more large bundle nodes, not single clean screen nodes. The target pattern is a canvas/frame containing one or more mobile screens on the left and one right-side planning/spec table or several smaller planning/spec fragments on the same board.

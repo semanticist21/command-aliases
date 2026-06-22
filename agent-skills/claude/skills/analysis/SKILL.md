@@ -1,8 +1,7 @@
 ---
 name: analysis
-description: "버그·장애·이상 동작의 근본 원인을 서브 에이전트 병렬 수사 + 적대적 크로스 검증으로 찾아내는 전용 분석 스킬. 트리거 — '버그 원인 찾아', '왜 이게 안 돼', '근본 원인', '디버깅 도와줘', 'root cause', 'why is this failing', 'race condition 추적', '재현은 되는데 원인 모름', '간헐적 버그', 'flaky', '리그레션 원인'. 증상은 분명한데 원인이 불분명하거나, 가설이 여러 개라 좁혀야 하거나, 단일 추론으로 틀릴 위험이 큰 진단 작업에 사용. 단순 stack trace 한 줄 읽기나 자명한 typo 는 직접 처리."
+description: "Find root causes for unclear bugs or failures using parallel investigation and adversarial review. Use for debugging, flaky/race/regression, or why-failing asks."
 ---
-
 # Root Cause Hunt
 
 Find the *real* cause of a bug — not the first plausible one. Single-line reasoning

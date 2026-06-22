@@ -1,8 +1,7 @@
 ---
 name: merge-squash
-description: "Squash-merge the current branch into a target branch (default main) as one new commit. Use when the user asks to /merge-squash, squash-merge this branch into main or another branch, or collapse the current feature branch into a single commit on the target. Takes an optional branch-target argument; defaults to main when none is given."
+description: "Squash-merge the current branch into a target branch as one commit. Use for /merge-squash or squash-merge requests."
 ---
-
 # Merge (squash)
 
 Collapse the **current** branch into a single new commit on a **target** branch

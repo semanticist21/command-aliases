@@ -1,8 +1,7 @@
 ---
 name: grill-me
-description: "Adversarially interrogate the user's idea, plan, decision, or draft one hard question at a time to expose weak assumptions, gaps, and risks before they commit. Use when the user says 'grill me', 'poke holes', 'stress-test this', 'play devil's advocate', 'challenge my thinking', or wants their reasoning pressure-tested rather than validated."
+description: "Pressure-test an idea or draft one hard question at a time. Use for grill me, poke holes, devil advocate, or challenge-my-thinking asks."
 ---
-
 # Grill Me
 
 Pressure-test the user's thinking through relentless, focused questioning. You are

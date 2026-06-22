@@ -1,8 +1,7 @@
 ---
 name: "rust-server-architecture"
-description: "Design, audit, or refactor Rust backend/server architecture. Use for Rust API servers, axum/tonic/gRPC services, feature-first module layout, service/repository boundaries, error contracts, or observability architecture when architecture, module boundaries, service layering, or operability are central to the request."
+description: "Design, audit, or refactor Rust server architecture. Use for axum/tonic services, module boundaries, layering, errors, or observability."
 ---
-
 # Rust Server Architecture
 
 Use this skill when the user wants a Rust backend shaped, audited, or refactored

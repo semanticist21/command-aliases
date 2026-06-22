@@ -1,8 +1,7 @@
 ---
 name: corp-cert-fix
-description: Fix SELF_SIGNED_CERT_IN_CHAIN / CERTIFICATE_VERIFY_FAILED from managed TLS interception proxies for bun/node/pnpm/pip/uv/curl/git/docker.
+description: "Fix managed-proxy TLS certificate errors for dev tools. Use for SELF_SIGNED_CERT_IN_CHAIN, CERTIFICATE_VERIFY_FAILED, or CA bundle setup."
 ---
-
 # Corp Cert Fix
 
 Corporate MITM proxies (KT ZTNA, Zscaler, Palo Alto SSL Forward Proxy, Netskope) re-sign all outbound HTTPS with a private CA. The OS keychain trusts it (IT installed); language runtimes with their own bundled CA stores do not. Result: `SELF_SIGNED_CERT_IN_CHAIN` / `CERTIFICATE_VERIFY_FAILED`.

@@ -1,8 +1,7 @@
 ---
 name: "skill-sync"
-description: "Sync user-scope AI skills between Claude Code (~/.claude/skills), Codex (~/.codex/skills), and the semanticist21/command-aliases GitHub mirror (agent-skills/{claude,codex}/skills/<name>/SKILL.md). Use when the user asks for /skill-sync or to replicate/install, pull repo improvements, publish a local edit, reconcile drift, mirror, or delete skills across the two runtimes and the repo. Handles bidirectional drift detection, the semanticist21 push-identity switch, and explicit delete confirmation."
+description: "Manage user skills end to end: create, update, reconcile, mirror, compact, or delete across Claude, Codex, and command-aliases."
 ---
-
 # Skill Sync
 
 Keep one developer's user-scope skills consistent across three places:
@@ -12,14 +11,20 @@ Keep one developer's user-scope skills consistent across three places:
 - `semanticist21/command-aliases` repo → `agent-skills/claude/skills/<name>/` and
   `agent-skills/codex/skills/<name>/` — the GitHub mirror of the two dirs above.
 
-A **skill** = a folder whose name is the skill name, containing `SKILL.md` (and for
-some Codex skills `agents/openai.yaml`). Nothing else. The two runtimes are
+A **skill** = a folder whose name is the skill name and whose entrypoint is
+`SKILL.md`. It may also carry support files such as `agents/openai.yaml`,
+references, scripts, assets, README, LICENSE, or AGENTS.md. Preserve those support
+files unless the user explicitly asks to remove them. The two runtimes are
 independent targets: a skill may exist for one runtime only.
 
-Pick the operation the user wants — **full reconcile**, replicate, update, or delete —
-and follow that section. A bare `/skill-sync` or any "sync everything / match the repo /
-맞춰줘" request means **Full reconcile**: do not act on one skill in isolation. Always
-surface a one-line summary of what changed and in which direction before writing.
+Pick the operation the user wants — **full reconcile**, create, update, compact,
+replicate, publish, pull, or delete — and follow that section. A bare `/skill-sync`
+or any "sync everything / match the repo / 맞춰줘" request means **Full reconcile**:
+do not act on one skill in isolation. Always surface a one-line summary of what
+changed and in which direction before writing.
+
+This skill also owns the old `skill-add`, `root-skill-add`, and `skill-update`
+workflows. Treat those names as compatibility aliases that route here.
 
 ## Full reconcile (default — sweep every skill, both directions)
 
@@ -28,7 +33,7 @@ whole surface first, classify every skill, then act per category.
 
 1. **Inventory** both runtimes on both sides:
    ```bash
-   cd <repo> && git pull -q
+   cd <repo> && git status --short && git fetch -q
    for rt in claude codex; do
      ls ~/.$rt/skills/                          # local
      ls agent-skills/$rt/skills/                # repo
@@ -45,11 +50,60 @@ whole surface first, classify every skill, then act per category.
 3. **Surface the full table** to the user before writing: one row per skill with its
    bucket and the planned action/direction. Call out every drift conflict and every
    skill the user named that does not exist anywhere (e.g. "`memo` 스킬 없음").
-4. **Act** per bucket: install repo-only, publish eligible local-only (add a
+4. **Refresh the mirror only after the plan is known.** If the mirror worktree is
+   clean and the plan does not depend on local repo changes, run `git pull --ff-only`.
+   If that changes classifications, re-surface the changed rows before writing.
+5. **Act** per bucket: install repo-only, publish eligible local-only (add a
    `README.md` row for genuinely new skills), sync each drift its decided direction.
    Batch all repo-side changes into one commit, then push once under the identity below.
-5. **Re-verify** with a second `diff -rq` sweep; report residual drift, conflicts left
+6. **Re-verify** with a second `diff -rq` sweep; report residual drift, conflicts left
    to the user, and skills intentionally left local-only.
+
+## Create or update one skill
+
+Use this for `/skill-add`, `/root-skill-add`, `/skill-update`, or any request to
+create, revise, rename, compact, or fix an existing skill.
+
+1. **Resolve scope.** Default to user-scope Claude + Codex copies:
+   `~/.claude/skills/<name>/SKILL.md` and `~/.codex/skills/<name>/SKILL.md`.
+   If the user explicitly asks for project-local scope, operate in that repo only
+   and do not mirror to `command-aliases` unless a user-scope copy also changes.
+2. **Find every copy before editing.** Check Claude user scope, Codex user scope,
+   project `.claude/skills`, project `.codex/skills`, and both mirror runtimes.
+   Surface any pre-existing drift; if both sides changed independently, ask which
+   version wins or merge by hand.
+3. **Create/update the body.** Keep the skill self-contained, concise, and
+   runtime-safe. Do not encode one repo's private paths, hostnames, credentials, or
+   transient decisions into a user-scope skill.
+4. **Frontmatter.** Prefer only `name` and quoted `description`. `name` is lowercase
+   kebab-case, under 64 chars, and matches the directory. The description is the
+   trigger surface: make it short, specific, and hard to over-fire.
+5. **Rename.** If the name changes, create the new directory, update `name:`, grep
+   other skills for literal references to the old name, then remove the old
+   directory only after the user has clearly asked for the rename/delete.
+6. **Sync copies.** Write the same content to every intended copy, keeping only
+   deliberate runtime wording differences.
+7. **Review.** Spawn a read-only reviewer for meaningful skill edits. Ask for
+   severity-tagged findings on trigger quality, over-fire risk, workflow
+   soundness, actionability, concision, and contradictions. Apply high/medium
+   fixes to every copy.
+8. **Mirror and version.** For user-scope changes, copy changed skills into
+   `command-aliases`, update `agent-skills/README.md` for brand-new skills, bump
+   `agent-skills/VERSION` when repo-side content changes, and push once.
+
+## Compact skills
+
+Use this when the user says there are too many skills, descriptions overflow, or
+similar skills should be merged.
+
+1. Inventory Claude, Codex, and mirror skill names plus frontmatter descriptions.
+2. Prefer non-breaking compaction first: move broad instructions into one canonical
+   skill, shorten other descriptions, and leave thin compatibility aliases.
+3. Delete or remove aliases only after explicit second confirmation naming the
+   exact skill(s), runtime(s), and side(s) to delete.
+4. Keep descriptions short enough for the global skill list. Long rationale,
+   examples, and edge cases belong in the body or references, not frontmatter.
+5. Re-run frontmatter and drift checks after compaction.
 
 ## Versioning (internal generation counter)
 

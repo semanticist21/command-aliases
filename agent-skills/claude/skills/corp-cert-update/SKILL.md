@@ -1,8 +1,7 @@
 ---
 name: corp-cert-update
-description: Rotate managed TLS interception CA certs when expired or TLS errors return. Locates the active bundle, rebuilds it, and verifies. Companion to corp-cert-fix.
+description: "Refresh expired managed-proxy CA bundles. Use when certificate errors return after corp-cert-fix or the proxy CA rotated."
 ---
-
 # Corp Cert Update (global)
 
 Rotates the CA bundle that lets bun / node / pip / curl / etc trust corp MITM proxy. Project-agnostic. For the ts-start–specific flow, the project ships its own `update-cert` skill.

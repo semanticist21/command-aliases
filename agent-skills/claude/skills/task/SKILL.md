@@ -1,6 +1,6 @@
 ---
 name: "task"
-description: "Run a delegated task loop: plan, execute, then QA/verify until findings are zero. Adds tests for testable code whenever the project has a test surface. Use when the user invokes /task or $task, asks for a structured task run, or wants an orchestrator to actively use agents/subagents for planning, implementation, and review. Commits the finished work as Conventional Commits once QA is clean."
+description: "Run a delegated task loop through plan, implementation, QA, and commit. Use for /task or structured agent-driven work."
 user-invocable: true
 argument-hint: "<task goal and constraints>"
 allowed-tools:
@@ -38,7 +38,6 @@ allowed-tools:
   - Bash(flutter*)
   - Task
 ---
-
 # Task
 
 Act as the orchestrator above the work. Run the user's task through a three-stage
