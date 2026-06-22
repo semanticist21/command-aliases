@@ -39,8 +39,14 @@ files, so the task does not disturb the caller's current working tree.
 6. Skip worktree creation only when the user asks not to, the repo is not a git repo,
    the task is read-only/no-file-change, or `git worktree add` fails. State the reason
    and continue in the current tree only when it is safe.
-7. After the task is complete or blocked, leave the worktree in place and report its
-   path and branch. Do not remove it unless the user asks.
+7. After the task is complete or blocked, report the worktree path and branch, then
+   ask the user whether to merge the task branch into its base branch.
+   - If the user approves, merge it into the base with a real merge commit
+     (`git switch <base> && git merge --no-ff <task-branch>`), then remove the
+     worktree with `git worktree remove <path>` and confirm both. Stop and report on
+     a merge conflict — never force-resolve. Do not push unless explicitly asked.
+   - If the user declines or does not respond, leave the worktree and branch in place.
+   Never merge or delete the worktree without explicit approval.
 
 ## Goal Tracking
 
