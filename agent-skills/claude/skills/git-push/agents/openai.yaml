@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Push"
+  short_description: "Commit with Conventional Commits and push"
+  default_prompt: "Use $git-push to commit the current changes with a Conventional Commits message and push to the current branch."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc Add"
+  short_description: "Add durable AI-facing docs"
+  default_prompt: "Use $doc-add to add durable AI-facing project guidance from the provided note."

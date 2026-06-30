@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc Update"
+  short_description: "Refresh and compact project docs"
+  default_prompt: "Use $doc-update to audit, refresh, and compact project documentation."
