@@ -82,10 +82,12 @@ intended base from user prompt or stop and ask.
      flow immediately.
    - Otherwise report the worktree path, task branch, and base branch, then ask for
      approval to merge.
-   - On approval, merge into the base with a real merge commit
-     (`git switch <base> && git merge --no-ff <task-branch>`), then remove the
-     worktree with `git worktree remove <path>` and confirm both. Stop and report on
-     a merge conflict — never force-resolve. Do not push unless explicitly asked.
+   - On approval, squash-merge into the base
+     (`git switch <base> && git merge --squash <task-branch> && git commit`),
+     then remove the worktree with `git worktree remove <path>` and confirm
+     both. Reuse the task branch commit subject when appropriate, keep final
+     base history to one commit, and stop/report on merge conflict — never
+     force-resolve. Do not push unless explicitly asked.
    - If the user declines or does not respond, leave the worktree branch in place and
      state that merge-back remains pending. Never merge or delete the worktree without
      explicit approval.
