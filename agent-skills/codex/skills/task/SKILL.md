@@ -24,29 +24,39 @@ Use a dedicated git worktree by default for every task that will read/write repo
 files, so the task does not disturb the caller's current working tree.
 
 1. Resolve the project root with `git rev-parse --show-toplevel`.
-2. Inspect `git status --short` before creating the worktree and include that status
+2. Record caller's current branch with `git branch --show-current`; this is the
+base branch task work must merge back into after commit. If detached, resolve
+intended base from user prompt or stop and ask.
+3. Inspect `git status --short` before creating the worktree and include that status
    in agent briefs. Do not move, stash, reset, or otherwise alter pre-existing dirty
    files in the caller's working tree.
-3. Create a sibling worktree from the current `HEAD`, using a task branch:
+4. Create a sibling worktree from the current `HEAD`, using a task branch:
    `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
    Keep the slug short, lowercase, and filesystem-safe.
-4. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
+5. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
    apply changes there.
-5. If the task explicitly depends on uncommitted caller changes, stop and ask whether
+6. If the task explicitly depends on uncommitted caller changes, stop and ask whether
    to include those changes, because the default worktree starts from committed
    `HEAD`.
-6. Skip worktree creation only when the user asks not to, the repo is not a git repo,
+7. Skip worktree creation only when the user asks not to, the repo is not a git repo,
    the task is read-only/no-file-change, or `git worktree add` fails. State the reason
    and continue in the current tree only when it is safe.
-7. After the task is complete or blocked, report the worktree path and branch, then
-   ask the user whether to merge the task branch into its base branch.
-   - If the user approves, merge it into the base with a real merge commit
+8. After QA passes and the task branch is committed, merge it back into the recorded
+   base branch (`main`, `dev`, or whatever branch the caller started from). This
+   merge-back is part of the default task lifecycle; do not finish while silently
+   leaving completed work only in the worktree branch.
+   - If the user already gave merge approval in the task prompt, run the merge-back
+     flow immediately.
+   - Otherwise report the worktree path, task branch, and base branch, then ask for
+     approval to merge.
+   - On approval, merge into the base with a real merge commit
      (`git switch <base> && git merge --no-ff <task-branch>`), then remove the
      worktree with `git worktree remove <path>` and confirm both. Stop and report on
      a merge conflict — never force-resolve. Do not push unless explicitly asked.
-   - If the user declines or does not respond, leave the worktree and branch in place.
-   Never merge or delete the worktree without explicit approval.
+   - If the user declines or does not respond, leave the worktree branch in place and
+     state that merge-back remains pending. Never merge or delete the worktree without
+     explicit approval.
 
 ## Goal Tracking
 
