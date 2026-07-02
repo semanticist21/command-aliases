@@ -52,29 +52,40 @@ constraints, target paths, acceptance criteria, and "do not" instructions.
 
 ## Worktree Isolation
 
-Use a dedicated git worktree by default for every task that will read/write repo
-files, so the task does not disturb the caller's current working tree.
+Use a dedicated git worktree only after a safety gate says it is safe. The goal
+is to avoid disturbing the caller's current working tree, but a worktree from
+`HEAD` is unsafe when it would hide or bypass local state the task needs.
 
 1. Resolve the project root with `git rev-parse --show-toplevel`.
 2. Record caller's current branch with `git branch --show-current`; this is the
 base branch task work must merge back into after commit. If detached, resolve
 intended base from user prompt or stop and ask.
-3. Inspect `git status --short` before creating the worktree and include that status
-   in agent briefs. Do not move, stash, reset, or otherwise alter pre-existing dirty
-   files in the caller's working tree.
-4. Create a sibling worktree from the current `HEAD`, using a task branch:
+3. Inspect `git status --short` and `git status --porcelain=v1 -b` before
+   creating the worktree and include that status in agent briefs. Do not move,
+   stash, reset, or otherwise alter pre-existing dirty files in the caller's
+   working tree.
+4. Worktree creation is safe only when all are true:
+   - repo is a git repo with a resolved branch base, not detached or unborn
+   - no merge, rebase, cherry-pick, or bisect is in progress
+   - caller working tree has no uncommitted tracked changes or untracked files
+     that the task might depend on
+   - task will write repo files and is not explicitly scoped to the caller's
+     current working tree
+   - sibling worktree path and `task/<slug>-<timestamp>` branch name are unused
+5. If caller tree is dirty, do not create a worktree automatically. Stop and ask
+   whether to start from committed `HEAD`, incorporate dirty changes first, or
+   work in the current tree. Continue only after the choice is safe and explicit.
+6. Create a sibling worktree from the current `HEAD`, using a task branch:
    `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
    Keep the slug short, lowercase, and filesystem-safe.
-5. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
+7. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
    apply changes there.
-6. If the task explicitly depends on uncommitted caller changes, stop and ask whether
-   to include those changes, because the default worktree starts from committed
-   `HEAD`.
-7. Skip worktree creation only when the user asks not to, the repo is not a git repo,
-   the task is read-only/no-file-change, or `git worktree add` fails. State the reason
-   and continue in the current tree only when it is safe.
-8. After QA passes and the task branch is committed, merge it back into the recorded
+8. Skip worktree creation when the safety gate fails, the user asks not to, the
+   repo is not a git repo, the task is read-only/no-file-change, or
+   `git worktree add` fails. State the reason and continue in the current tree
+   only when that is also safe; otherwise ask or report blocked.
+9. After QA passes and the task branch is committed, merge it back into the recorded
    base branch (`main`, `dev`, or whatever branch the caller started from). This
    merge-back is part of the default task lifecycle; do not finish while silently
    leaving completed work only in the worktree branch.
@@ -238,9 +249,9 @@ Final response should include:
 
 ## Safety
 
-- For `/task`/`$task`, creating the task worktree branch is allowed and expected by
-  default. Do not create additional branches beyond that unless the user explicitly
-  asks.
+- For `/task`/`$task`, creating the task worktree branch is allowed only after
+  the worktree safety gate passes. Do not create additional branches beyond that
+  unless the user explicitly asks.
 - Do not use destructive git commands.
 - Committing is allowed (stage 4) but gated: only after QA is clean, only the task's own
   files, never blanket-staging a dirty tree, and never `push` unless the user asked.
