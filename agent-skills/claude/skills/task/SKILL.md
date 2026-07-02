@@ -85,23 +85,20 @@ intended base from user prompt or stop and ask.
    repo is not a git repo, the task is read-only/no-file-change, or
    `git worktree add` fails. State the reason and continue in the current tree
    only when that is also safe; otherwise ask or report blocked.
-9. After QA passes and the task branch is committed, merge it back into the recorded
-   base branch (`main`, `dev`, or whatever branch the caller started from). This
-   merge-back is part of the default task lifecycle; do not finish while silently
-   leaving completed work only in the worktree branch.
-   - If the user already gave merge approval in the task prompt, run the merge-back
-     flow immediately.
-   - Otherwise report the worktree path, task branch, and base branch, then ask for
-     approval to merge.
-   - On approval, squash-merge into the base
+9. After QA passes and task branch committed, merge it back into recorded
+   base branch (`main`, `dev`, or branch caller started from) without asking
+   for second approval. This merge-back part default task lifecycle; do not
+   finish while silently leaving completed work only in worktree branch.
+   - Squash-merge into base
      (`git switch <base> && git merge --squash <task-branch> && git commit`),
-     then remove the worktree with `git worktree remove <path>` and confirm
-     both. Reuse the task branch commit subject when appropriate, keep final
-     base history to one commit, and stop/report on merge conflict — never
-     force-resolve. Do not push unless explicitly asked.
-   - If the user declines or does not respond, leave the worktree branch in place and
-     state that merge-back remains pending. Never merge or delete the worktree without
-     explicit approval.
+     then remove worktree with `git worktree remove <path>` and confirm both.
+     Reuse task branch commit subject appropriate, keep final base history one commit.
+   - Before merge-back, re-check base worktree status. If unrelated dirty files
+     exist, continue only when merge can be done without staging, reverting, or
+     overwriting them; otherwise stop/report exact blocker.
+     Never stash, reset, or force-resolve user changes.
+   - Stop/report on merge conflict; never force-resolve. Do not push unless
+     explicitly asked.
 
 ## Goal Tracking
 
