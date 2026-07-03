@@ -1,6 +1,6 @@
 ---
 name: "skill-sync"
-description: "Manage user skills end to end: create, update, reconcile, mirror, compact, or delete across Claude, Codex, and command-aliases."
+description: "Manage user skills: create, update, sync, compact, mirror, delete."
 ---
 # Skill Sync
 

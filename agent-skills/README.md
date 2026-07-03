@@ -38,6 +38,7 @@ agent-skills/
 | skill-sync       |   ✓    |   ✓   | Create/update/sync/compact skills across runtimes + repo  |
 | skill-update     |   ✓    |   ✓   | Alias to skill-sync for revising existing skills          |
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
+| text-to-lottie   |        |   ✓   | Create/edit Lottie JSON animations with Skottie verification |
 | update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
 | update-doc       |   ✓    |   ✓   | Update project docs to match code, per its doc harness    |
 | figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
