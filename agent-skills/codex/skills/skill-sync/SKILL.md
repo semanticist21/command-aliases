@@ -44,18 +44,19 @@ whole surface first, classify every skill, then act per category.
    - **drift** — exists both sides, differs → decide direction (see Update step 1;
      ask the user when both sides were independently edited — a conflict).
    - **repo-only** — in repo, missing locally → install (Replicate).
-   - **local-only** — local, not in repo → publish (Update §3) **unless** on the
-     never-publish list (`ktbase-push`, Codex `.system/*`, `chronicle`,
-     `codex-primary-runtime`) → leave as user-scope only.
+   - **local-only** — local, not in repo → treat as **local-private** by default.
+     Do not publish during a reconcile unless the user explicitly names the skill
+     and says to publish it. Keep it in the user-scope inventory/quarantine list.
 3. **Surface the full table** to the user before writing: one row per skill with its
    bucket and the planned action/direction. Call out every drift conflict and every
    skill the user named that does not exist anywhere (e.g. "`memo` 스킬 없음").
 4. **Refresh the mirror only after the plan is known.** If the mirror worktree is
    clean and the plan does not depend on local repo changes, run `git pull --ff-only`.
    If that changes classifications, re-surface the changed rows before writing.
-5. **Act** per bucket: install repo-only, publish eligible local-only (add a
-   `README.md` row for genuinely new skills), sync each drift its decided direction.
-   Batch all repo-side changes into one commit, then push once under the identity below.
+5. **Act** per bucket: install repo-only and sync each drift its decided
+   direction. Do not publish local-only skills from a reconcile; report them as
+   local-private candidates needing a separate publish request. Batch all repo-side
+   changes into one commit, then push once under the identity below.
 6. **Re-verify** with a second `diff -rq` sweep; report residual drift, conflicts left
    to the user, and skills intentionally left local-only.
 
@@ -135,6 +136,9 @@ behind the mirror without diffing every skill.
     built-ins, regenerated on install.
   - Codex `chronicle`, `codex-primary-runtime` — Codex-shipped built-ins.
 - **Public mirror hygiene.** Before publishing any skill, scrub secrets, private hostnames/IPs, credential paths, account IDs, and company-internal implementation details.
+- **Local-private quarantine.** Local-only skills stay user-scope by default.
+  Surface them in the reconcile table as "local-private / no action"; do not copy,
+  commit, or push them until the user explicitly asks to publish the named skill.
 - **Get the repo.** Operate in a local clone. If none exists, clone it:
   `gh repo clone semanticist21/command-aliases /tmp/command-aliases`.
 
@@ -187,7 +191,13 @@ updates flow both ways. Classify direction before writing.
    - Differs → decide which side is newer (ask the user if unclear).
 2. **Repo → local** (pull improvements): `git pull`, then re-run Replicate
    (no-op for symlinks, `cp -R` for copies).
-3. **Local → repo** (publish a local edit):
+3. **Local → repo** (publish a local edit): only after an explicit publish
+   request naming the skill. Before copying, show the files that would be
+   published and run a local scan for secrets/private context:
+   ```bash
+   rg -n --hidden -S "(AKIA|AIza|ghp_|github_pat_|sk-|BEGIN .*PRIVATE KEY|private_key|client_secret|access_key|secret_access|password\\s*[:=]|10\\.|172\\.(1[6-9]|2[0-9]|3[0-1])\\.|192\\.168\\.|~/(\\.private_keys|\\.ssh)|/Users/[^/]+)" ~/.claude/skills/<name> ~/.codex/skills/<name>
+   ```
+   If any hit is not clearly safe documentation, stop and ask before publishing.
    ```bash
    cp -R ~/.claude/skills/<name> <repo>/agent-skills/claude/skills/
    cd <repo> && git add agent-skills && git commit -m "feat(<name>): <what changed>"

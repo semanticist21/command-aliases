@@ -29,6 +29,9 @@ is the *how-to-operate* contract; the README is the *what's-here* reference.
     built-ins, regenerated on install.
   - Codex `chronicle` — Codex-shipped screen-view built-in. Empty `codex-primary-runtime`.
 - **Public mirror hygiene.** Before publishing any skill, scrub secrets, private hostnames/IPs, credential paths, account IDs, and company-internal implementation details.
+- **Local-private quarantine.** Local-only skills are private by default. During
+  sync/reconcile, list them as "local-private / no action" and do not publish
+  unless the user explicitly names the skill and asks to publish it.
 
 ## Replicate (install onto a machine)
 
@@ -65,8 +68,10 @@ updates flow both ways. Always classify direction before acting.
 2. **Repo → local** (pull improvements): `git pull`, then re-run the replicate
    step for symlinks (no-op) or `cp -R` for copies.
 
-3. **Local → repo** (publish a local improvement): copy the local skill back,
-   then commit + push (mind the push identity above):
+3. **Local → repo** (publish a local improvement): only after an explicit publish
+   request naming the skill. Show the file list, scan for secrets/private paths
+   or hosts, and stop for user review on any unclear hit before copying. Then
+   copy the local skill back, commit + push (mind the push identity above):
    ```bash
    cp -R ~/.claude/skills/<name> agent-skills/claude/skills/
    git add agent-skills && git commit -m "feat(<name>): <what changed>"
