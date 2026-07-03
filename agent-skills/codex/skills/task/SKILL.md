@@ -20,9 +20,10 @@ constraints, target paths, acceptance criteria, and "do not" instructions.
 
 ## Worktree Isolation
 
-Use a dedicated git worktree only after a safety gate says it is safe. The goal
-is to avoid disturbing the caller's current working tree, but a worktree from
-`HEAD` is unsafe when it would hide or bypass local state the task needs.
+Default to a dedicated git worktree for every repo-writing task. Create it as
+soon as the safety gate passes, before planning or edits, so the caller's
+current working tree stays undisturbed. Skip worktree only for explicit
+exceptions below.
 
 1. Resolve the project root with `git rev-parse --show-toplevel`.
 2. Record caller's current branch with `git branch --show-current`; this is the
@@ -32,24 +33,25 @@ intended base from user prompt or stop and ask.
    creating the worktree and include that status in agent briefs. Do not move,
    stash, reset, or otherwise alter pre-existing dirty files in the caller's
    working tree.
-4. Worktree creation is safe only when all are true:
+4. Worktree creation is the default path when all are true:
    - repo is a git repo with a resolved branch base, not detached or unborn
    - no merge, rebase, cherry-pick, or bisect is in progress
-   - caller working tree has no uncommitted tracked changes or untracked files
-     that the task might depend on
-   - task will write repo files and is not explicitly scoped to the caller's
-     current working tree
+   - task will write repo files
+   - user did not explicitly ask to work in the caller's current tree
    - sibling worktree path and `task/<slug>-<timestamp>` branch name are unused
-5. If caller tree is dirty, do not create a worktree automatically. Stop and ask
-   whether to start from committed `HEAD`, incorporate dirty changes first, or
-   work in the current tree. Continue only after the choice is safe and explicit.
+5. If caller tree is dirty, still prefer a worktree from committed `HEAD` when
+   the task can stand alone from committed state. Include dirty status in the
+   brief and treat the original tree as read-only context. Stop and ask only
+   when the task likely depends on uncommitted tracked changes or untracked
+   files, offering: start from committed `HEAD`, incorporate dirty changes
+   first, or work in the current tree.
 6. Create a sibling worktree from the current `HEAD`, using a task branch:
    `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
    Keep the slug short, lowercase, and filesystem-safe.
 7. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
    apply changes there.
-8. Skip worktree creation when the safety gate fails, the user asks not to, the
+8. Skip worktree creation only when the safety gate fails, the user asks not to, the
    repo is not a git repo, the task is read-only/no-file-change, or
    `git worktree add` fails. State the reason and continue in the current tree
    only when that is also safe; otherwise ask or report blocked.
