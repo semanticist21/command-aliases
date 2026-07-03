@@ -163,6 +163,12 @@ coach them toward a desired verdict.
 
 - Read the nearest `AGENTS.md`/`CLAUDE.md` and relevant harness docs.
 - Inspect the repo shape and current git status.
+- For tasks that create or modify code, load the `coding-rule` skill before planning
+  and include its minimal-code, no speculative extraction/export, and project-version
+  convention rules in the acceptance criteria.
+- For tasks that create or modify UI screens, load the `design` skill before planning
+  and include its non-duplication, minimalism, and conventional UX rules in the
+  acceptance criteria.
 - If subagents are available, delegate exploration/planning for non-trivial tasks:
   - investigator: locate relevant files, owners, conventions, risk areas.
   - planner: propose steps and acceptance checks.

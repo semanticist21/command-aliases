@@ -1,0 +1,14 @@
+---
+name: "design"
+description: "Use when creating or modifying UI screens to keep them minimal, non-duplicative, and conventional."
+---
+# Design
+
+Apply this before changing screens or UI.
+
+- Show each metric or fact once per screen. Do not repeat the same value across headers, cards, lists, or templates.
+- Keep decoration minimal. Avoid decorative badges, large icon backdrops, arbitrary accent colors, and non-essential graphics.
+- Keep typography uniform within a group. Emphasize only the core value or next action/date.
+- Compress layout height. Use tight rows, modest padding, dividers, and no required eyebrow/caption when parent context already says it.
+- Keep interaction direct and conventional. Prefer one tap for the expected action; avoid extra modals or confirmation steps except destructive or undo-like actions.
+- Use one active/check color across items. Do not assign different status colors unless the meaning is real and user-facing.

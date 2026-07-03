@@ -23,9 +23,11 @@ agent-skills/
 |------------------|:------:|:-----:|----------------------------------------------------------|
 | commit           |   ✓    |   ✓   | Stage + commit as clean Conventional Commits             |
 | commit-isolate   |   ✓    |   ✓   | Split a messy tree into isolated atomic commits          |
+| coding-rule      |   ✓    |   ✓   | Minimal, contextual, idiomatic code-writing rules         |
 | corp-cert-fix    |   ✓    |   ✓   | Fix corp MITM-proxy TLS errors (bun/node/pip/git/…)      |
 | corp-cert-update |   ✓    |   ✓   | Rotate expired corp MITM CA cert                         |
 | dead-code-removal|   ✓    |   ✓   | Remove unused code/deps with evidence and verification   |
+| design           |   ✓    |   ✓   | Minimal, non-duplicative, conventional UI screen rules    |
 | grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |
 | merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
