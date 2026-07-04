@@ -14,3 +14,4 @@ Apply this before changing screens or UI.
 - Compress layout height. Use tight rows, modest padding, dividers, and no required eyebrow/caption when parent context already says it.
 - Keep interaction direct and conventional. Prefer one tap for the expected action; avoid extra modals or confirmation steps except destructive or undo-like actions.
 - Use one active/check color across items. Do not assign different status colors unless the meaning is real and user-facing.
+- On action/status/attention surfaces, show only information the user can act on or needs to notice now. Before adding a status, badge, or list item, ask "does this change what the user does next?" If a fact is stale, already resolved, or has no follow-up action, do not present it as current or attention-worthy. Preserve it where read-only history, audit trails, receipts, or completed-step confirmations are the point.
