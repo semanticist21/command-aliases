@@ -214,7 +214,9 @@ coach them toward a desired verdict.
   and include its non-duplication, minimalism, and conventional UX rules in the
   acceptance criteria. Acceptance criteria must reject repeated visible
   information inside the same row/card/modal, such as the same status appearing
-  in both helper text and a badge.
+  in both helper text and a badge. Also check row/card spatial hierarchy:
+  primary content leads, secondary details support it, and status/actions
+  occupy trailing or distinct slots.
 - If subagents are available, delegate exploration/planning for non-trivial tasks:
   - investigator: locate relevant files, owners, conventions, risk areas.
   - planner: propose steps and acceptance checks.
