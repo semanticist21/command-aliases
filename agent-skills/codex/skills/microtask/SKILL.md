@@ -1,6 +1,6 @@
 ---
 name: "microtask"
-description: "Run /microtask directly on the base branch, no worktree."
+description: "Run /microtask on current task work, else base branch."
 user-invocable: true
 argument-hint: "<small task goal constraints>"
 metadata:
@@ -12,8 +12,10 @@ metadata:
 Run a bounded task through the same disciplined loop as `task`: plan, execute,
 verify, review, and commit when appropriate. Use skills and agents/subagents
 actively whenever they help. The difference is intentional:
-**do the work directly in the caller's current base-branch worktree. Do not create
-a task worktree or task branch.**
+**do the work inside the current active task worktree when one is still in
+progress; otherwise work directly in the caller's current base-branch
+worktree. Do not create a new task worktree or task branch for microtask
+itself.**
 
 ## Input
 
@@ -37,18 +39,33 @@ Before starting a new microtask, clear or queue against existing task work:
    explicit user instruction. Then remove the worktree and delete the task branch
    before planning new work. If the base is unknown, do not guess `main`; stop and
    ask.
-4. If previous task or microtask work is still in progress, do not start the new
-   microtask immediately. Queue it explicitly and report what is already running,
-   what remains before the queue can advance, and where the queued request is
-   recorded.
+4. If previous task or microtask work is still in progress, queue the new
+   microtask as a sub-item of that active work instead of treating it as a fresh
+   base-branch job. Record the active worktree/branch context, report what is
+   already running, what remains before the queue can advance, and where the
+   queued request is recorded. When active work resumes, handle the queued
+   microtask inside the same worktree so it lands with the parent task.
 5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
    unfinished git operation, stop and report the blocker. Never stash, reset,
    checkout, clean, force-merge, or overwrite user changes to make room for the
    new microtask.
 
+## Worktree Choice
+
+Choose the write location before planning:
+
+1. If active unmerged task work exists and the new microtask belongs to that
+   work, run or queue it inside the active task worktree as a child scope. Keep
+   the parent task's base branch and merge-back contract.
+2. If the earlier task work has already merged back, or no active task work
+   exists, use the caller's current base branch worktree.
+3. If multiple active task worktrees could own the microtask, stop and ask which
+   parent task should receive it. Do not guess from branch names alone.
+
 ## Direct Branch Work
 
-For repo-writing work, current-branch work is the default contract.
+For repo-writing work outside an active parent task worktree, current-branch work
+is the default contract.
 
 1. Resolve project root with `git rev-parse --show-toplevel` when possible.
 2. Record current branch with `git branch --show-current`; treat it as the base
@@ -196,7 +213,7 @@ Final response should include:
 
 ## Safety
 
-- `microtask` means no worktree and no task branch by default.
+- `microtask` means no new worktree and no new task branch by default.
 - Do not use destructive git commands.
 - Do not move, stash, reset, or overwrite user changes.
 - Do not push unless explicitly asked.
