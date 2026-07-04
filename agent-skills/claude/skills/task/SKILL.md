@@ -107,6 +107,9 @@ intended base from user prompt or stop and ask.
      task branch with `git branch -D <task-branch>` after confirming the
      squash commit exists. Confirm worktree removal and branch deletion.
      Reuse task branch commit subject appropriate, keep final base history one commit.
+   - Task cleanup mandatory: do not mark task complete while worktree or
+     `task/<slug>-<timestamp>` branch still exists. If branch deletion fails,
+     stop and report exact cleanup blocker.
    - Before merge-back, re-check base worktree status. If unrelated dirty files
      exist, continue only when merge can be done without staging, reverting, or
      overwriting them; otherwise stop/report exact blocker.
@@ -209,22 +212,29 @@ Run a review loop until findings are zero:
 
 1. Run deterministic checks first: tests, typecheck, lint, build, harness check, and
    `git diff --check` when available.
-2. Run an independent QA/reviewer agent pass over the diff and acceptance criteria.
-3. For UI changes, run a visible-information duplication pass: inspect each row,
+2. UI changes require live browser verification, not code inspection alone. In
+   Codex, attempt Chrome Plugin verification first: load the Chrome control skill,
+   connect to the user's Chrome extension backend, open/reload the changed route,
+   and inspect the actual rendered screen with DOM or screenshot evidence. If the
+   Chrome Plugin is unavailable after its documented retry/recovery steps, do not
+   silently substitute another browser path; report the Chrome blocker and use an
+   explicitly labeled fallback only when the user did not require Chrome.
+3. Run an independent QA/reviewer agent pass over the diff and acceptance criteria.
+4. For UI changes, run a visible-information duplication pass: inspect each row,
    card, modal, header, empty state, badge, and CTA for repeated semantic facts.
    Treat duplicate status/value/price/count/date/limit/benefit text in the same UI
    unit as a finding even when tests pass.
-4. Review coding-convention adherence, not just correctness: read the project's
+5. Review coding-convention adherence, not just correctness: read the project's
    `AGENTS.md`/`CLAUDE.md`/`docs/coding-rule.md` and matching neighbor files, and check
    the diff follows the documented architecture. For Bulletproof-style projects verify
    feature-slice layout, `api/`/`hooks/`/`utils/` ownership, colocated tests, and
    import-boundary rules (no cross-layer or app↔package violations). Treat layering,
    naming, and folder-ownership breaks as findings.
-5. Convert each issue into a finding with severity, file/line when possible, and a
+6. Convert each issue into a finding with severity, file/line when possible, and a
    required fix.
-6. Fix all actionable findings.
-7. Re-run verification and reviewer pass.
-8. Repeat until the reviewer returns **0 findings**.
+7. Fix all actionable findings.
+8. Re-run verification and reviewer pass.
+9. Repeat until the reviewer returns **0 findings**.
 
 If findings remain after three QA rounds, continue only when progress is still clear.
 If blocked, report the exact blocker, attempted fixes, and remaining findings.

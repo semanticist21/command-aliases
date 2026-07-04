@@ -1,6 +1,6 @@
 ---
 name: "skill-sync"
-description: "Manage user skills: create, update, sync, compact, mirror, delete."
+description: "Manage user skills end-to-end: sync, mirror, version, commit, push."
 ---
 # Skill Sync
 
@@ -25,6 +25,15 @@ changed and in which direction before writing.
 
 This skill also owns the old `skill-add`, `root-skill-add`, and `skill-update`
 workflows. Treat those names as compatibility aliases that route here.
+
+## Autonomous completion
+
+When the user explicitly asks to commit, push, publish, or says to handle the
+skill sync end-to-end, do the remaining repo-side work without asking for another
+approval: sync the intended copies, bump version markers, stage explicit
+pathspecs, commit, switch to the required GitHub identity, push, and restore the
+previous identity. Ask only when there is a destructive action, drift conflict,
+secret/private-context scan hit, authentication failure, or an unclear target.
 
 ## Full reconcile (default — sweep every skill, both directions)
 
