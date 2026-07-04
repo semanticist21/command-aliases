@@ -55,10 +55,11 @@ constraints, target paths, acceptance criteria, and "do not" instructions.
 
 ## Worktree Isolation
 
-Default to a dedicated git worktree for every repo-writing task. Create it as
-soon as the safety gate passes, before planning or edits, so the caller's
-current working tree stays undisturbed. Skip worktree only for explicit
-exceptions below.
+For any repo-writing task, the task worktree is a mandatory pre-planning
+gate, not a preference. Do not inspect implementation files, draft a detailed
+plan, edit files, run generators, or start subagents until the gate below has
+either created a task worktree or produced an explicit blocked/no-worktree
+decision. The caller's current tree is read-only until merge-back.
 
 1. Resolve the project root with `git rev-parse --show-toplevel`.
 2. Record caller's current branch with `git branch --show-current`; this is the
@@ -68,7 +69,7 @@ intended base from user prompt or stop and ask.
    creating the worktree and include that status in agent briefs. Do not move,
    stash, reset, or otherwise alter pre-existing dirty files in the caller's
    working tree.
-4. Worktree creation is the default path when all are true:
+4. Worktree creation is required when all are true:
    - repo is a git repo with a resolved branch base, not detached or unborn
    - no merge, rebase, cherry-pick, or bisect is in progress
    - task will write repo files
@@ -86,14 +87,20 @@ intended base from user prompt or stop and ask.
 7. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
    apply changes there.
-8. Skip worktree creation only when the safety gate fails, the user asks not to, the
-   repo is not a git repo, the task is read-only/no-file-change, or
-   `git worktree add` fails. State the reason and continue in the current tree
-   only when that is also safe; otherwise ask or report blocked.
+8. Skip worktree creation only when the safety gate fails, the user explicitly
+   asks not to use a worktree, the repo is not a git repo, the task is
+   read-only/no-file-change, or `git worktree add` fails. If the task still
+   needs repo writes, do not fall back to `main`/the caller's branch just
+   because it would be convenient. Stop and report the exact no-worktree
+   reason, unless the user explicitly approves current-tree work after seeing
+   that reason.
 9. After QA passes and task branch committed, merge it back into recorded
    base branch (`main`, `dev`, or branch caller started from) without asking
    for second approval. This merge-back part default task lifecycle; do not
    finish while silently leaving completed work only in worktree branch.
+   This merge-back is the only normal moment when task changes should land on
+   `main`/the caller's branch. All planning, edits, tests, QA, and task-branch
+   commit happen in the task worktree first.
    - Squash-merge into base
      (`git switch <base> && git merge --squash <task-branch> && git commit`),
      then remove worktree with `git worktree remove <path>` and delete the
