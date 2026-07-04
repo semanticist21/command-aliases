@@ -6,7 +6,9 @@ description: "Use when creating or modifying UI screens to keep them minimal, no
 
 Apply this before changing screens or UI.
 
-- Show each metric or fact once per screen. Do not repeat the same value across headers, cards, lists, or templates.
+- Show each metric or fact once per relevant UI unit or summary surface. Do not repeat the same value across a header, card, row, modal, or template instance. Repeated list items may use the same label/CTA pattern when each item describes a different object or action.
+- Do not show the same visible information twice in one UI unit. Status, plan state, count, date, price, limit, benefit, and CTA labels must each have one owner; do not repeat them between title, helper text, badge, trailing value, button text, or empty-state copy.
+- Before implementing or approving UI, scan every row/card/modal for semantic duplicates. If two labels would make the user say "this says the same thing twice" (for example `Subscribed` in both helper text and badge), treat it as a design defect and remove or rewrite one surface.
 - Keep decoration minimal. Avoid decorative badges, large icon backdrops, arbitrary accent colors, and non-essential graphics.
 - Keep typography uniform within a group. Emphasize only the core value or next action/date.
 - Compress layout height. Use tight rows, modest padding, dividers, and no required eyebrow/caption when parent context already says it.

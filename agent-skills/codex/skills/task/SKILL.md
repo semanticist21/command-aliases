@@ -145,7 +145,9 @@ coach them toward a desired verdict.
   convention rules in the acceptance criteria.
 - For tasks that create or modify UI screens, load the `design` skill before planning
   and include its non-duplication, minimalism, and conventional UX rules in the
-  acceptance criteria.
+  acceptance criteria. Acceptance criteria must reject repeated visible
+  information inside the same row/card/modal, such as the same status appearing
+  in both helper text and a badge.
 - If subagents are available, delegate exploration/planning for non-trivial tasks:
   - investigator: locate relevant files, owners, conventions, risk areas.
   - planner: propose steps and acceptance checks.
@@ -173,17 +175,21 @@ Run a review loop until findings are zero:
 1. Run deterministic checks first: tests, typecheck, lint, build, harness check, and
    `git diff --check` when available.
 2. Run an independent QA/reviewer agent pass over the diff and acceptance criteria.
-3. Review coding-convention adherence, not just correctness: read the project's
+3. For UI changes, run a visible-information duplication pass: inspect each row,
+   card, modal, header, empty state, badge, and CTA for repeated semantic facts.
+   Treat duplicate status/value/price/count/date/limit/benefit text in the same UI
+   unit as a finding even when tests pass.
+4. Review coding-convention adherence, not just correctness: read the project's
    `AGENTS.md`/`CLAUDE.md`/`docs/coding-rule.md` and matching neighbor files, and check
    the diff follows the documented architecture. For Bulletproof-style projects verify
    feature-slice layout, `api/`/`hooks/`/`utils/` ownership, colocated tests, and
    import-boundary rules (no cross-layer or app↔package violations). Treat layering,
    naming, and folder-ownership breaks as findings.
-4. Convert each issue into a finding with severity, file/line when possible, and a
+5. Convert each issue into a finding with severity, file/line when possible, and a
    required fix.
-5. Fix all actionable findings.
-6. Re-run verification and reviewer pass.
-7. Repeat until the reviewer returns **0 findings**.
+6. Fix all actionable findings.
+7. Re-run verification and reviewer pass.
+8. Repeat until the reviewer returns **0 findings**.
 
 If findings remain after three QA rounds, continue only when progress is still clear.
 If blocked, report the exact blocker, attempted fixes, and remaining findings.
