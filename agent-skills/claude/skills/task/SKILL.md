@@ -53,6 +53,25 @@ blocked, or the user-defined budget/limit is reached.
 Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
 
+## Start Gate
+
+Before starting a new task, clear or queue against existing task work:
+
+1. Check for an active `task` or `microtask` goal/session and inspect the repo with
+   `git status --short`, `git status --porcelain=v1 -b`, `git worktree list`, and
+   `git branch --list 'task/*'`.
+2. If previous task work is complete but left a task worktree, task branch, or
+   unmerged commit, finish the normal merge-back into the recorded base branch
+   (`main` when it was the recorded base), then remove the worktree and delete the
+   task branch before planning new work.
+3. If previous task or microtask work is still in progress, do not start the new
+   task immediately. Queue it explicitly and report what is already running, what
+   remains before the queue can advance, and where the queued request is recorded.
+4. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
+   unfinished git operation, stop and report the blocker. Never stash, reset,
+   checkout, clean, force-merge, or overwrite user changes to make room for the
+   new task.
+
 ## Worktree Isolation
 
 For any repo-writing task, the task worktree is a mandatory pre-planning
