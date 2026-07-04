@@ -27,15 +27,21 @@ Before starting a new microtask, clear or queue against existing task work:
 1. Check for an active `task` or `microtask` goal/session and inspect the repo with
    `git status --short`, `git status --porcelain=v1 -b`, `git worktree list`, and
    `git branch --list 'task/*'`.
-2. If previous task work is complete but left a task worktree, task branch, or
-   unmerged commit, finish the normal merge-back into the recorded base branch
-   (`main` when it was the recorded base), then remove the worktree and delete the
-   task branch before planning new work.
-3. If previous task or microtask work is still in progress, do not start the new
+2. Use `<project-root>/.agent-tmp/task-queue.md` as the default queue log. Ensure
+   `.agent-tmp/` is ignored before writing. If project root is unavailable or a
+   safe queue write is blocked, keep the queued request in conversation only and
+   say it was not persisted.
+3. If previous task work is complete but left a task worktree, task branch, or
+   unmerged commit, finish merge-back only when the base branch is known from
+   `<task-worktree>/.agent-tmp/task-state.md`, an active goal/session handoff, or
+   explicit user instruction. Then remove the worktree and delete the task branch
+   before planning new work. If the base is unknown, do not guess `main`; stop and
+   ask.
+4. If previous task or microtask work is still in progress, do not start the new
    microtask immediately. Queue it explicitly and report what is already running,
    what remains before the queue can advance, and where the queued request is
    recorded.
-4. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
+5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
    unfinished git operation, stop and report the blocker. Never stash, reset,
    checkout, clean, force-merge, or overwrite user changes to make room for the
    new microtask.

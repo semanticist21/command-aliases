@@ -60,14 +60,20 @@ Before starting a new task, clear or queue against existing task work:
 1. Check for an active `task` or `microtask` goal/session and inspect the repo with
    `git status --short`, `git status --porcelain=v1 -b`, `git worktree list`, and
    `git branch --list 'task/*'`.
-2. If previous task work is complete but left a task worktree, task branch, or
-   unmerged commit, finish the normal merge-back into the recorded base branch
-   (`main` when it was the recorded base), then remove the worktree and delete the
-   task branch before planning new work.
-3. If previous task or microtask work is still in progress, do not start the new
+2. Use `<project-root>/.agent-tmp/task-queue.md` as the default queue log. Ensure
+   `.agent-tmp/` is ignored before writing. If project root is unavailable or a
+   safe queue write is blocked, keep the queued request in conversation only and
+   say it was not persisted.
+3. If previous task work is complete but left a task worktree, task branch, or
+   unmerged commit, finish merge-back only when the base branch is known from
+   `<task-worktree>/.agent-tmp/task-state.md`, an active goal/session handoff, or
+   explicit user instruction. Then remove the worktree and delete the task branch
+   before planning new work. If the base is unknown, do not guess `main`; stop and
+   ask.
+4. If previous task or microtask work is still in progress, do not start the new
    task immediately. Queue it explicitly and report what is already running, what
    remains before the queue can advance, and where the queued request is recorded.
-4. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
+5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
    unfinished git operation, stop and report the blocker. Never stash, reset,
    checkout, clean, force-merge, or overwrite user changes to make room for the
    new task.
@@ -103,17 +109,21 @@ intended base from user prompt or stop and ask.
 6. Create a sibling worktree from the current `HEAD`, using a task branch:
    `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
    Keep the slug short, lowercase, and filesystem-safe.
-7. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
+7. Immediately record task state in
+   `<task-worktree>/.agent-tmp/task-state.md`: base branch, task branch,
+   worktree path, original caller path, created time, and task summary. Keep
+   `.agent-tmp/` ignored and never stage it.
+8. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
    apply changes there.
-8. Skip worktree creation only when the safety gate fails, the user explicitly
+9. Skip worktree creation only when the safety gate fails, the user explicitly
    asks not to use a worktree, the repo is not a git repo, the task is
    read-only/no-file-change, or `git worktree add` fails. If the task still
    needs repo writes, do not fall back to `main`/the caller's branch just
    because it would be convenient. Stop and report the exact no-worktree
    reason, unless the user explicitly approves current-tree work after seeing
    that reason.
-9. After QA passes and task branch committed, merge it back into recorded
+10. After QA passes and task branch committed, merge it back into recorded
    base branch (`main`, `dev`, or branch caller started from) without asking
    for second approval. This merge-back part default task lifecycle; do not
    finish while silently leaving completed work only in worktree branch.
