@@ -1,6 +1,6 @@
 ---
 name: update-agents-md
-description: "Maintain AGENTS.md files across a repo. Use for update, compact, sweep, or refresh AGENTS.md instructions."
+description: "Update, compact, sweep, or refresh AGENTS.md instructions across a repo."
 ---
 # Update AGENTS.md
 

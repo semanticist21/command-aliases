@@ -1,6 +1,6 @@
 ---
 name: react-flutter-port
-description: "Port React or React Native UI to Flutter with Figma-level visual fidelity. Use when asked to convert, migrate, port, copy, or faithfully reproduce React demo UI in Flutter, especially demo/ -> app/ work."
+description: "Port/convert/migrate React UI to Flutter with visual parity, especially demo -> app."
 user-invocable: true
 argument-hint: "<source React path/screen and target Flutter path/screen>"
 metadata:

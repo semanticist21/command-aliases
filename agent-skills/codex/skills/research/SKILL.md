@@ -1,6 +1,6 @@
 ---
 name: research
-description: "Run cross-checked research with external sources and adversarial review. Use for substantial research, vetting, or investigation asks."
+description: "Run cross-checked research with sources and adversarial review."
 ---
 # Research
 

@@ -1,6 +1,6 @@
 ---
 name: "skill-update"
-description: "Compatibility alias for skill-sync. Use for /skill-update or editing, compacting, renaming, or fixing an existing skill."
+description: "Alias skill-sync for /skill-update editing, compacting, renaming, or fixing skills."
 ---
 # Skill Update
 

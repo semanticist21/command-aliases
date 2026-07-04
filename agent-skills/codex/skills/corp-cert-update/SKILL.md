@@ -1,6 +1,6 @@
 ---
 name: corp-cert-update
-description: "Refresh expired managed-proxy CA bundles. Use when certificate errors return after corp-cert-fix or the proxy CA rotated."
+description: "Refresh managed-proxy CA bundles after cert errors return or CA rotates."
 ---
 # Corp Cert Update (global)
 

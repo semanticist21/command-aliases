@@ -1,6 +1,6 @@
 ---
 name: commit-isolate
-description: "Split entire dirty tree into isolated Conventional Commits. Use for /commit-isolate, commit isolate, messy-tree commit requests."
+description: "Split a dirty tree into isolated Conventional Commits for /commit-isolate."
 ---
 
 # commit-isolate

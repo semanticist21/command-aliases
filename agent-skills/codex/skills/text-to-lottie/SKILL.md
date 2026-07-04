@@ -1,6 +1,6 @@
 ---
 name: text-to-lottie
-description: Create, edit, or fix Lottie/Bodymovin JSON animations for the local Skia Skottie player. Use for text-to-Lottie, SVG/logo/type animation, loaders/icons, state feedback, UI microinteractions, lower thirds, diagrams, data/stat/chart animations, product promos, scene/camera motion, visual effects, scene edits, slots/controls, and Skottie debugging.
+description: "Create/edit Lottie for SVG/logo/type, loaders, UI motion, charts, scenes, Skottie."
 ---
 
 # Text To Lottie

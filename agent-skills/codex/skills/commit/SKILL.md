@@ -1,6 +1,6 @@
 ---
 name: commit
-description: "Create clean Conventional Commits for current repo changes. Use only when asked to create/write/make a git commit."
+description: "Create clean Conventional Commits when asked to make a git commit."
 ---
 # commit
 

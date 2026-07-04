@@ -1,6 +1,6 @@
 ---
 name: analysis
-description: "Find root causes for unclear bugs or failures using parallel investigation and adversarial review. Use for debugging, flaky/race/regression, or why-failing asks."
+description: "Root-cause unclear bugs, flaky failures, regressions, or why-failing asks."
 ---
 # Root Cause Hunt
 

@@ -1,6 +1,6 @@
 ---
 name: "memo"
-description: "Save a durable user memo. Use when the user says memo, save, remember, or asks to persist an instruction/preference."
+description: "Save durable user notes when asked to memo, remember, or persist preferences."
 user-invocable: true
 argument-hint: "<note to persist>"
 metadata:

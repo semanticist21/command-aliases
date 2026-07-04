@@ -1,6 +1,6 @@
 ---
 name: figma-lookup
-description: "Extract screen/spec links from mixed Figma planning boards. Use when given a Figma board and asked for lightweight lookup."
+description: "Extract screen or spec links from mixed Figma planning boards."
 ---
 # Figma Lookup
 

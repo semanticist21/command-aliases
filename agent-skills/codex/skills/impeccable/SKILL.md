@@ -1,6 +1,6 @@
 ---
 name: impeccable
-description: "Design, audit, or polish frontend UI. Use for frontend redesign, UX critique, visual refinement, or app/site interface work."
+description: "Design, audit, or polish frontend UI, UX, and app/site interfaces."
 ---
 Designs and iterates production-grade frontend interfaces. Real working code, committed design choices, exceptional craft.
 

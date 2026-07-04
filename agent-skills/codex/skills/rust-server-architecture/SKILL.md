@@ -1,6 +1,6 @@
 ---
 name: "rust-server-architecture"
-description: "Design, audit, or refactor Rust server architecture. Use for axum/tonic services, module boundaries, layering, errors, or observability."
+description: "Rust server architecture: axum/tonic, modules, layering, errors, observability."
 ---
 # Rust Server Architecture
 

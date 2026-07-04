@@ -1,6 +1,6 @@
 ---
 name: "task"
-description: "Run a delegated task loop through plan, implementation, QA, and commit. Use for /task or structured agent-driven work."
+description: "Run delegated /task work through plan, implementation, QA, and commit."
 user-invocable: true
 argument-hint: "<task goal and constraints>"
 metadata:

@@ -1,6 +1,6 @@
 ---
 name: update-doc
-description: "Update project docs to match current code. Use for /update-doc, stale docs, doc sync, or documentation 현행화."
+description: "Update project docs for /update-doc, stale docs, doc sync, or 현행화."
 ---
 # Update Doc
 

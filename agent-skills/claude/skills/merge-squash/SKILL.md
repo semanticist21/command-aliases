@@ -1,6 +1,6 @@
 ---
 name: merge-squash
-description: "Squash-merge the current branch into a target branch as one commit. Use for /merge-squash or squash-merge requests."
+description: "Squash-merge the current branch into a target branch for /merge-squash."
 ---
 # Merge (squash)
 

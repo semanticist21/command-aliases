@@ -1,6 +1,6 @@
 ---
 name: "skill-add"
-description: "Compatibility alias for skill-sync. Use for $skill-add or creating a reusable Claude+Codex user skill."
+description: "Alias skill-sync for $skill-add or reusable Claude+Codex user skills."
 user-invocable: true
 argument-hint: "<skill name and behavior>"
 metadata:

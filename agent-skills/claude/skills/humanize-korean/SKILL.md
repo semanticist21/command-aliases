@@ -1,6 +1,6 @@
 ---
 name: humanize-korean
-description: "Natural-writing alias for Korean AI-text cleanup. Use for AI 티 제거, 번역투 제거, or Korean humanize requests."
+description: "Alias natural-writing for Korean AI-text, 번역투, and humanize cleanup."
 version: "1.5.0"
 ---
 # Humanize Korean — AI 한글 티 제거 오케스트레이터 (v1.5)

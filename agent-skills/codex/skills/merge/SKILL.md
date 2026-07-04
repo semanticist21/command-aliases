@@ -1,6 +1,6 @@
 ---
 name: merge
-description: "Merge the current branch into a target branch with a real merge commit. Use for /merge or merge-into-branch requests."
+description: "Merge current branch into target with real merge commit for /merge or merge-into-branch."
 ---
 # Merge
 

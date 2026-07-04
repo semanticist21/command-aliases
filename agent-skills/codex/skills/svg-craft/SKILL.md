@@ -1,6 +1,6 @@
 ---
 name: svg-craft
-description: "Create, edit, optimize, or animate SVGs. Use for vector icons, diagrams, charts, badges, and hand-written SVG assets."
+description: "Create, edit, optimize, or animate SVG icons, diagrams, charts, or badges."
 ---
 # SVG Craft
 

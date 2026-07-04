@@ -1,6 +1,6 @@
 ---
 name: grill-me
-description: "Pressure-test an idea or draft one hard question at a time. Use for grill me, poke holes, devil advocate, or challenge-my-thinking asks."
+description: "Pressure-test ideas with one hard question: grill me, poke holes, devil's advocate."
 ---
 # Grill Me
 

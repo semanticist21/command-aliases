@@ -1,6 +1,6 @@
 ---
 name: corp-cert-fix
-description: "Fix managed-proxy TLS certificate errors for dev tools. Use for SELF_SIGNED_CERT_IN_CHAIN, CERTIFICATE_VERIFY_FAILED, or CA bundle setup."
+description: "Fix managed-proxy TLS errors: SELF_SIGNED_CERT_IN_CHAIN, CERTIFICATE_VERIFY_FAILED, CA setup."
 ---
 # Corp Cert Fix
 

@@ -1,6 +1,6 @@
 ---
 name: natural-writing
-description: "Rewrite or draft natural Korean/English text while preserving intent. Use for humanize, tone cleanup, copy edits, or message polish."
+description: "Rewrite or draft natural Korean/English text for humanize, tone, or polish."
 ---
 # Natural Writing
 

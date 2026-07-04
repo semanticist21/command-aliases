@@ -1,6 +1,6 @@
 ---
 name: "dead-code-removal"
-description: "Find and remove dead code safely. Use for prune/delete unused files, exports, functions, stale features, or dead-code audits."
+description: "Find and remove unused files, exports, functions, deps, or stale features."
 ---
 # Dead Code Removal
 

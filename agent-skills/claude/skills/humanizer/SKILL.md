@@ -1,6 +1,6 @@
 ---
 name: humanizer
-description: "Natural-writing alias for humanize this, make natural, less AI, tone cleanup, or AI-writing cleanup."
+description: "Alias natural-writing for humanize, tone cleanup, or less-AI requests."
 version: 2.7.0
 license: MIT
 compatibility: claude-code opencode

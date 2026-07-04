@@ -1,6 +1,6 @@
 ---
 name: "agent-review"
-description: "Review current-session code changes with subagents. Use when asked for a review, QA pass, or review-and-fix loop."
+description: "Review this session's changes with subagents for review, QA, or fix loops."
 ---
 Review the work this agent actually performed during the **current session**, then judge that work
 against the **user's explicit request and success criteria**, using the **current state** of the repo

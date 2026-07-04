@@ -1,6 +1,6 @@
 ---
 name: harness-setup
-description: "Install a repo handoff harness with changed-file guards and test/doc nudges. Use when asked to add agent workflow safety checks."
+description: "Install agent workflow safety harnesses with changed-file guards and test/doc nudges."
 metadata:
   short-description: Install a portable agent handoff harness into a repo
 ---

@@ -1,6 +1,6 @@
 ---
 name: "svg-logo-designer"
-description: "SVG-craft alias for logos and brand marks. Use for logo, wordmark, lettermark, or brand-identity SVG requests."
+description: "Alias svg-craft for logo, wordmark, lettermark, or brand SVG requests."
 ---
 # SVG Logo Designer
 

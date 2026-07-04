@@ -1,12 +1,6 @@
 ---
 name: openai-image
-description: >-
-  Generate or edit images with the OpenAI image API (gpt-image-1). Trigger when the
-  user wants to create/generate/make an image, icon, logo, illustration, mockup, or
-  art via OpenAI/ChatGPT/DALL-E/gpt-image, or edit/modify/inpaint an existing image
-  with a prompt, or invokes $openai-image / /openai-image. Reads OPENAI_API_KEY from
-  env or ~/.private_keys/openai.md; saves PNG to disk. Not for Figma design work, not
-  for SVG authoring (use svg-craft), not for reading/describing existing images.
+description: "Generate/edit OpenAI gpt-image images via $openai-image; edits/inpaint; not Figma/SVG."
 user-invocable: true
 argument-hint: <prompt> [--edit base.png] [--size 1024x1024] [--quality high] [-o out.png]
 allowed-tools: Bash(python3 *), Read
