@@ -61,7 +61,9 @@ intended base from user prompt or stop and ask.
    finish while silently leaving completed work only in worktree branch.
    - Squash-merge into base
      (`git switch <base> && git merge --squash <task-branch> && git commit`),
-     then remove worktree with `git worktree remove <path>` and confirm both.
+     then remove worktree with `git worktree remove <path>` and delete the
+     task branch with `git branch -D <task-branch>` after confirming the
+     squash commit exists. Confirm worktree removal and branch deletion.
      Reuse task branch commit subject appropriate, keep final base history one commit.
    - Before merge-back, re-check base worktree status. If unrelated dirty files
      exist, continue only when merge can be done without staging, reverting, or
@@ -225,7 +227,11 @@ Final response should include:
 - For `/task`/`$task`, creating the task worktree branch is allowed only after
   the worktree safety gate passes. Do not create additional branches beyond that
   unless the user explicitly asks.
-- Do not use destructive git commands.
+- Do not use destructive git commands, except scoped `git branch -D <task-branch>`
+  cleanup after successful squash-merge commit. Squash merges do not mark source
+  branch merged by ancestry, so `git branch -d` may incorrectly refuse cleanup;
+  only force-delete task branch after squash commit is present on recorded base
+  and no worktree still uses that branch.
 - Committing is allowed (stage 4) but gated: only after QA is clean, only the task's own
   files, never blanket-staging a dirty tree, and never `push` unless the user asked.
 - Do not ignore user or harness constraints to reach "0 findings"; resolve the
