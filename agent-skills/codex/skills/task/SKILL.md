@@ -70,14 +70,12 @@ intended base from user prompt or stop and ask.
    - task will write repo files
    - user did not explicitly ask to work in the caller's current tree
    - sibling worktree path and `task/<slug>-<timestamp>` branch name are unused
-5. If caller tree is dirty, still prefer a worktree from committed `HEAD` when
-   the task can stand alone from committed state. If the user already said
-   "use HEAD", "last commit", "현재 마지막 커밋", or equivalent, do that
-   without asking again. Include dirty status in the brief and treat the
-   original tree as read-only context. Stop and ask only when the task likely
-   depends on uncommitted tracked changes or untracked files and no HEAD
-   override was given, offering: start from committed `HEAD`, incorporate dirty
-   changes first, or work in the current tree.
+5. If caller tree is dirty, do not treat that as a blocker when a worktree can be
+   created from committed `HEAD`. The default is to ignore caller-tree dirty
+   files, branch from the last commit, include the dirty status in briefs, and
+   treat the original tree as read-only context. Ask only when the user
+   explicitly says the task must incorporate uncommitted tracked changes or
+   untracked files, or explicitly asks to work in the current tree.
 6. Create a sibling worktree from the current `HEAD`, using a task branch:
    `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
    Keep the slug short, lowercase, and filesystem-safe.
@@ -138,7 +136,9 @@ Use the platform goal mechanism by default for every task run.
   explicitly skipped for a valid reason.
 - Mark `blocked` only when the same blocker has repeated across the required goal
   turns and no meaningful progress is possible without user input or external state
-  change. Do not mark budget exhaustion or partial progress as complete.
+  change. Caller-tree dirty files are not a blocker when the task worktree can be
+  created from committed `HEAD`; proceed from the last commit instead. Do not mark
+  budget exhaustion or partial progress as complete.
 
 ## Agent Briefing
 
