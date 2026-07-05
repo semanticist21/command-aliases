@@ -55,22 +55,23 @@ constraints, target paths, acceptance criteria, and "do not" instructions.
 
 ## Start Gate
 
-Before starting a new task, clear or queue against existing task work:
+Before starting a new task, clear or queue only against task work owned by this agent/session:
 
 1. Check for an active `task` or `microtask` goal/session and inspect the repo with
    `git status --short`, `git status --porcelain=v1 -b`, `git worktree list`, and
-   `git branch --list 'task/*'`.
+   `git branch --list 'task/*'`. Treat unrelated sibling task worktrees/branches created by other agents as context only, not blockers.
+   Ownership evidence means an active current goal/session that names or matches the discovered task worktree/branch/path, a task-state owner/session marker matching this run, or an explicit handoff/user instruction naming that task work as yours. If a task worktree lacks that evidence, treat it as another agent's context, not stale local work.
 2. Use `<project-root>/.agent-tmp/task-queue.md` as the default queue log. Ensure
    `.agent-tmp/` is ignored before writing. If project root is unavailable or a
    safe queue write is blocked, keep the queued request in conversation only and
    say it was not persisted.
-3. If previous task work is complete but left a task worktree, task branch, or
+3. If previous task work owned by this agent/session is complete but left a task worktree, task branch, or
    unmerged commit, finish merge-back only when the base branch is known from
    `<task-worktree>/.agent-tmp/task-state.md`, an active goal/session handoff, or
    explicit user instruction. Then remove the worktree and delete the task branch
-   before planning new work. If the base is unknown, do not guess `main`; stop and
+   before planning new work. If the base is unknown for your own leftover task, do not guess `main`; stop and
    ask.
-4. If previous task or microtask work is still in progress, do not start the new
+4. If previous task or microtask work owned by this agent/session is still in progress, do not start new
    task immediately unless the user explicitly says to proceed from committed
    `HEAD` / the last commit. In that override case, leave the existing task
    worktree and branch untouched, treat them as read-only external state, and
@@ -117,7 +118,7 @@ intended base from user prompt or stop and ask.
    Keep the slug short, lowercase, and filesystem-safe.
 7. Immediately record task state in
    `<task-worktree>/.agent-tmp/task-state.md`: base branch, task branch,
-   worktree path, original caller path, created time, and task summary. Keep
+   worktree path, original caller path, created time, task summary, and mandatory owner/session marker. If no platform session id is available, derive a stable marker from runtime name + created timestamp + caller path + concise task summary. Keep
    `.agent-tmp/` ignored and never stage it.
 8. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
@@ -142,8 +143,8 @@ intended base from user prompt or stop and ask.
      task branch with `git branch -D <task-branch>` after confirming the
      squash commit exists. Confirm worktree removal and branch deletion.
      Reuse task branch commit subject appropriate, keep final base history one commit.
-   - Task cleanup mandatory: do not mark task complete while worktree or
-     `task/<slug>-<timestamp>` branch still exists. If branch deletion fails,
+   - Task cleanup mandatory: do not mark task complete while this task's worktree or
+     `task/<slug>-<timestamp>` branch still exists. Unrelated sibling task worktrees/branches owned by other agents do not block completion. If branch deletion fails,
      stop and report exact cleanup blocker.
    - Before merge-back, re-check base worktree status. If unrelated dirty files
      exist, continue only when merge can be done without staging, reverting, or
