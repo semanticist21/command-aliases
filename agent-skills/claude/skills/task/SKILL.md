@@ -71,7 +71,11 @@ Before starting a new task, clear or queue against existing task work:
    before planning new work. If the base is unknown, do not guess `main`; stop and
    ask.
 4. If previous task or microtask work is still in progress, do not start the new
-   task immediately. Queue it explicitly and report what is already running, what
+   task immediately unless the user explicitly says to proceed from committed
+   `HEAD` / the last commit. In that override case, leave the existing task
+   worktree and branch untouched, treat them as read-only external state, and
+   continue the new task through Worktree Isolation from current `HEAD`.
+   Otherwise queue it explicitly and report what is already running, what
    remains before the queue can advance, and where the queued request is recorded.
 5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
    unfinished git operation, stop and report the blocker. Never stash, reset,
@@ -101,11 +105,13 @@ intended base from user prompt or stop and ask.
    - user did not explicitly ask to work in the caller's current tree
    - sibling worktree path and `task/<slug>-<timestamp>` branch name are unused
 5. If caller tree is dirty, still prefer a worktree from committed `HEAD` when
-   the task can stand alone from committed state. Include dirty status in the
-   brief and treat the original tree as read-only context. Stop and ask only
-   when the task likely depends on uncommitted tracked changes or untracked
-   files, offering: start from committed `HEAD`, incorporate dirty changes
-   first, or work in the current tree.
+   the task can stand alone from committed state. If the user already said
+   "use HEAD", "last commit", "현재 마지막 커밋", or equivalent, do that
+   without asking again. Include dirty status in the brief and treat the
+   original tree as read-only context. Stop and ask only when the task likely
+   depends on uncommitted tracked changes or untracked files and no HEAD
+   override was given, offering: start from committed `HEAD`, incorporate dirty
+   changes first, or work in the current tree.
 6. Create a sibling worktree from the current `HEAD`, using a task branch:
    `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
    Keep the slug short, lowercase, and filesystem-safe.
