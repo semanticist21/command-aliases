@@ -87,6 +87,8 @@ Before starting a new task, clear or queue only against task work owned by this 
 
 **HEAD worktree default.** For new repo-writing tasks, caller worktree state almost never blocks. If committed `HEAD` exists and `git worktree add ... HEAD` can create an isolated task worktree, do it without asking, regardless of caller dirty files, staged files, unmerged paths, merge/rebase/cherry-pick/bisect state, or unrelated task branches. Treat caller tree read-only and proceed from last commit. Ask only when user explicitly says task must include current uncommitted/unmerged changes or explicitly asks work in current tree. If even this rare path fails (no `HEAD`, path/branch collision, transient git lock), report waiting state, sleep/check periodically, and retry until user redirects or the condition clears; do not mark blocked immediately.
 
+Operational/exploratory work that should not create a commit or leave `git log` history does not need a task worktree; run in caller context while preserving user changes.
+
 For any repo-writing task, the task worktree is a mandatory pre-planning
 gate, not a preference. Do not inspect implementation files, draft a detailed
 plan, edit files, run generators, or start subagents until the gate below has
