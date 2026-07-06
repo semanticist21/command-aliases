@@ -60,6 +60,12 @@ plan, edit files, run generators, or start subagents until the gate below has
 either created a task worktree or produced an explicit blocked/no-worktree
 decision. The caller's current tree is read-only until merge-back.
 
+**Hard fail guard.** If task will write repo files and no task worktree exists,
+do not continue in caller checkout. Stop, say worktree isolation failed, and
+recover by creating the task worktree before any edit or commit. Continuing to
+edit current checkout is a task-skill violation, even when staging explicit
+pathspecs would avoid unrelated files.
+
 1. Resolve the project root with `git rev-parse --show-toplevel`.
 2. Record caller's current branch with `git branch --show-current`; this is the
 base branch task work must merge back into after commit. If detached, resolve
@@ -70,7 +76,6 @@ intended base from user prompt or stop and ask.
    working tree.
 4. Worktree creation is required when all are true:
    - repo is a git repo with a resolved branch base, not detached or unborn
-   - no merge, rebase, cherry-pick, or bisect is in progress
    - task will write repo files
    - user did not explicitly ask to work in the caller's current tree
    - sibling worktree path and `task/<slug>-<timestamp>` branch name are unused
