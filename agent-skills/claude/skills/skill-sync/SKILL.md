@@ -35,6 +35,15 @@ pathspecs, commit, switch to the required GitHub identity, push, and restore the
 previous identity. Ask only when there is a destructive action, drift conflict,
 secret/private-context scan hit, authentication failure, or an unclear target.
 
+## Required worktree isolation
+
+Before any repo-side write for `skill-sync`, `task`, or delegated task-style work,
+create a dedicated git worktree and branch from a clean fetched base. Do not edit
+or commit in the caller's current checkout, especially when `git status --short`
+shows unrelated changes. Keep the original checkout untouched; stage only explicit
+pathspecs in the worktree. If the target repo cannot use a worktree or branch, stop
+and explain the blocker instead of continuing on the dirty checkout.
+
 ## Full reconcile (default — sweep every skill, both directions)
 
 Triggered by a bare invocation or "sync all / 전부 맞춰". Never piecemeal: inventory the
