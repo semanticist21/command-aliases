@@ -236,18 +236,28 @@ coach them toward a desired verdict.
 - If subagents are available, delegate exploration/planning for non-trivial tasks:
   - investigator: locate relevant files, owners, conventions, risk areas.
   - planner: propose steps and acceptance checks.
+- Make tests part of acceptance criteria by default: the plan must name which component
+  and unit tests the change will add/extend (or explicitly justify why none apply).
 - Produce a short plan with acceptance criteria and verification commands.
 
 ### 2. Execute
 
 - Implement the plan in small, reviewable changes.
 - Prefer existing patterns and narrow edits.
-- **After writing the code, add tests when the project has a test surface and the work
-  is testable** — pure functions, mappers, validators, parsers, serializers, behavior
-  changes. Mirror the project's test framework, layout, and conventions (check
-  `package.json`/`Cargo.toml`/test dirs to confirm tests are enabled). For a bug, add a
-  regression test that fails before the fix and passes after. Skip only for markup/
-  visual-only edits, trivial typos, or projects with no test setup — and say why.
+- **Always write tests for what you changed — maximize coverage of the changed surface,
+  not the bare minimum.** Whenever the project has a test surface, add the related tests
+  by default:
+  - **Component tests** for UI-logic changes in `.tsx`/component files — event handlers,
+    guard conditions, conditional rendering, presence/absence of buttons and states.
+    These logic bugs are invisible to util-only tests; cover them with the project's
+    component-test harness (e.g. `*.test.tsx` with `@testing-library/react`).
+  - **Unit tests** for pure functions, mappers, validators, parsers, serializers, view
+    models, and any behavior change.
+  - For a bug, add a regression test that fails before the fix and passes after.
+  Mirror the project's test framework, layout, and conventions (check
+  `package.json`/`Cargo.toml`/test dirs and neighbor test files to confirm what harness
+  is enabled). Skip a test only for purely visual/style/copy edits with no logic, trivial
+  typos, or projects with no test setup — and say explicitly why it was skipped.
 - Delegate isolated edits or parallel file discovery to agents when it saves context
   or reduces risk.
 - Update durable docs with `$update-doc` behavior when the task changes harness docs,
@@ -277,11 +287,15 @@ Run a review loop until findings are zero:
    feature-slice layout, `api/`/`hooks/`/`utils/` ownership, colocated tests, and
    import-boundary rules (no cross-layer or app↔package violations). Treat layering,
    naming, and folder-ownership breaks as findings.
-6. Convert each issue into a finding with severity, file/line when possible, and a
+6. Treat missing tests as a finding: any changed testable logic (component handler/guard/
+   conditional render, pure helper, mapper, behavior change, bug fix) without a covering
+   component or unit test is a required-fix finding unless it falls under the explicit
+   skip cases above.
+7. Convert each issue into a finding with severity, file/line when possible, and a
    required fix.
-7. Fix all actionable findings.
-8. Re-run verification and reviewer pass.
-9. Repeat until the reviewer returns **0 findings**.
+8. Fix all actionable findings.
+9. Re-run verification and reviewer pass.
+10. Repeat until the reviewer returns **0 findings**.
 
 If findings remain after three QA rounds, continue only when progress is still clear.
 If blocked, report the exact blocker, attempted fixes, and remaining findings.
