@@ -77,10 +77,13 @@ Before starting a new microtask, clear or queue against existing task work:
 4. If previous task or microtask work is still in progress, queue the new
    microtask as a sub-item of that active work instead of treating it as a fresh
    base-branch job. Record the active worktree/branch context. Do not ask whether to resume later, do not stop with queued status, and do not wait for another user prompt. Before parent task merge-back/cleanup, drain queued microtasks inside the same active worktree so they land with the parent task.
-5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
-   unfinished git operation, stop and report the blocker. Never stash, reset,
-   checkout, clean, force-merge, or overwrite user changes to make room for the
-   new microtask.
+5. Cleanup/merge-back is blocked only by real merge conflicts, unfinished git
+   operation, unknown base, or ambiguous ownership that would require overwriting
+   user work. Unrelated dirty files inside an agent-owned task worktree are not a
+   reason to leave task garbage: inspect them, classify ownership, split logical
+   commits when needed, merge back all owned work, then clean up. If dirty file is
+   clearly external/user-owned and cannot be carried safely, report exact file and
+   reason. Never stash, reset, checkout, force-merge, or overwrite user changes.
 
 ## Worktree Choice
 
@@ -98,6 +101,12 @@ Choose the write location before planning:
 
 For repo-writing work outside an active parent task worktree, current-branch work
 is the default contract.
+
+Queued microtask override: owned queued work must start and land on `main`
+unless the queue explicitly records a different base. If the current branch is
+not that target, switch to or create work from the target before editing, or
+report the exact blocker; do not finish queued microtask work only on a
+non-target current branch.
 
 1. Resolve project root with `git rev-parse --show-toplevel` when possible.
 2. Record current branch with `git branch --show-current`; treat it as the base
@@ -131,8 +140,11 @@ Use the platform goal mechanism by default.
 - In Claude, use `/goal` before planning to create or select the task goal. If an
   unrelated goal is active, report the conflict before changing it.
 - In Codex, use `update_goal` only for terminal states: `complete` or `blocked`.
-- Mark `complete` only after verification, review, and the intended commit step
-  are done or explicitly skipped for a valid reason.
+- Mark `complete` only after verification, review, intended commit,
+  merge-back/cleanup when applicable, and owned queue drain are done. If any
+  required lifecycle step is blocked, report blocker and keep the goal active
+  unless the repeated-blocker rule below is satisfied; never mark blocked work
+  `complete`.
 - Mark `blocked` only when the same blocker has repeated across required goal
   turns and no meaningful progress is possible without user input or an external
   state change. Do not mark budget exhaustion or partial progress as complete.
@@ -143,13 +155,47 @@ Queued task or microtask requests are already user-approved work. Once an item i
 recorded in `<project-root>/.agent-tmp/task-queue.md`, do not ask whether to run
 it, do not stop with queued-only status, and do not wait for user to prompt again.
 
+When recording an owned queue item, include its target base branch. Inherit the
+active parent task's recorded base when one exists; otherwise record `main`
+unless the user explicitly names a different base. Do not leave owned queue
+items with an implicit or unknown base.
+
+Queue ownership is part of microtask/task ownership, not a reminder list. If
+this agent/session writes a queue item, accepts explicit user queued work, or
+acknowledges an item as owned while running task/microtask work, it owns that
+item until it is fully landed or a real blocker is reported. "Fully landed" means:
+
+- queued `task` work has passed QA, committed on its task branch, squash-merged
+  into `main` unless queue explicitly records a different base, and cleaned up
+  its task worktree/branch;
+- queued `microtask` work has passed QA and committed into the active parent
+  task worktree or target base branch (`main` unless queue explicitly records a
+  different base), then any active parent task is merged back into that target
+  base and cleaned up before final response;
+- no owned pending/in-progress queue item, unmerged task branch, or task
+  worktree is left behind silently at final response.
+
+Do not tell the user a microtask/task is "done" while owned queue items remain
+only in `.agent-tmp/task-queue.md`, a side worktree, or an unmerged branch. If
+a queued item is blocked by unrelated dirty files, conflicts, auth, or missing
+external state, report that exact blocker and the remaining queue; otherwise
+keep draining.
+
 Before sending a final response after completing current microtask:
 
 1. Re-open `<project-root>/.agent-tmp/task-queue.md`.
-2. If pending items exist, take oldest pending item, mark it in-progress or remove
-   it from pending list so it cannot run twice, and execute it by declared mode
-   (`task` items through task skill, `microtask` items through this skill).
-3. When that item completes, repeat from step 1.
+2. If pending items exist, choose the oldest item eligible for the current
+   lifecycle stage, mark it in-progress or remove it from pending list so it
+   cannot run twice, and execute it by declared mode. While an active parent
+   task is unmerged, scan past queued `task` items and drain all eligible
+   `microtask` items for that parent before parent merge-back. Run queued `task`
+   items only after current parent task is committed, merged back, and cleaned
+   up; then start next task from `main` unless queue explicitly records a
+   different base.
+   If no active parent task exists, finish the current microtask commit and
+   cleanup first, then start the queued task from its recorded target base.
+3. When that item completes, mark it completed with landed commit/base details,
+   then repeat from step 1.
 4. Send final response only when queue empty or a real blocker prevents meaningful
    progress. Report blocker and remaining queued item(s).
 
@@ -205,7 +251,8 @@ reviewers toward a desired verdict.
 
 ### 3. QA + Verification
 
-Run the loop until findings are zero or a clear blocker remains.
+Run the loop until findings are zero, valid/actionable findings are zero, or a
+clear blocker remains.
 
 1. Run deterministic checks first: relevant tests, typecheck, lint, build, harness
    checks, and `git diff --check` where available.
@@ -216,21 +263,29 @@ Run the loop until findings are zero or a clear blocker remains.
    Plugin is unavailable after its documented retry/recovery steps, do not
    silently substitute another browser path; report the Chrome blocker and use an
    explicitly labeled fallback only when the user did not require Chrome.
-3. Run an independent QA/reviewer agent pass over the diff and acceptance
-   criteria.
+3. Run at least **two independent QA/reviewer agents** over the diff and
+   acceptance criteria in every QA round. This is a loop, not a one-time
+   sign-off: after each fix round, rerun fresh QA/reviewer agents or explicitly
+   continue both reviewers with the updated diff. Stop only when both reviewers
+   return `0 findings`, or all remaining findings from both reviewers are
+   documented as invalid/non-actionable with concrete reason.
+   If two independent reviewer agents are unavailable, report that as a blocker;
+   do not substitute self-review and do not call the work QA-clean.
 4. For UI changes, check visible information duplication in rows, cards, modals,
    headers, empty states, badges, and CTAs.
 5. Review coding-convention adherence against nearby docs and files.
 6. Convert issues into severity-tagged findings with file/line where possible.
 7. Fix actionable findings and re-run verification.
-8. Repeat until the reviewer returns **0 findings**.
-9. If findings remain after three QA rounds, continue only when progress is still
-   clear. If blocked, report the exact blocker, attempted fixes, and remaining
-   findings.
+8. Repeat until both reviewers return **0 findings** or **0 valid/actionable
+   findings**.
+9. If findings remain after three QA rounds, continue while progress is still
+   clear. If blocked, report the exact blocker, attempted fixes, invalidated
+   findings with reasons, and remaining valid findings.
 
 ### 4. Commit
 
-Once QA returns **0 findings** and verification is green:
+Once QA returns **0 findings** or **0 valid/actionable findings**, and
+verification is green:
 
 1. Stage only files this microtask changed, using explicit paths.
 2. Write one or more Conventional Commits grouped by concern. Check
@@ -257,7 +312,8 @@ Final response should include:
 
 - what changed
 - verification commands/results
-- QA loop count and final finding count (`0` when complete)
+- QA loop count, total final finding count, and valid/actionable final finding
+  count (`0` when complete)
 - final goal status (`complete`, `blocked`, or still active with why)
 - commit subject(s), or why no commit was made
 - any residual risk or explicit blocker

@@ -4,14 +4,16 @@ description: "Run delegated /task work through plan, implementation, QA, and com
 user-invocable: true
 argument-hint: "<task goal and constraints>"
 metadata:
-  short-description: Plan, execute, and QA until findings are zero
+  short-description: Plan, execute, QA until valid findings zero
 ---
 # Task
 
 Act as the orchestrator above the work. Run the user's task through a three-stage
 loop: plan, execute, then QA/verify. Use agents/subagents actively whenever they are
-available and useful. Do not stop until QA findings are zero, the task is truly
-blocked, or the user-defined budget/limit is reached.
+available and useful. Do not stop until QA findings are zero, valid/actionable
+findings are zero, or the task is truly blocked. A user-defined budget/limit may
+pause only after owned queue items are fully landed or the exact blocker and
+remaining queue are reported.
 
 ## Input
 
@@ -43,11 +45,17 @@ Before starting a new task, clear or queue only against task work owned by this 
    continue the new task through Worktree Isolation from current `HEAD`.
    Otherwise queue it explicitly. Do not ask whether to resume later, do not stop
    with queued status, and do not wait for another user prompt. Before parent task
-   merge-back/cleanup, drain queue using **Queue Drain**.
-5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
-   unfinished git operation, stop and report the blocker. Never stash, reset,
-   checkout, clean, force-merge, or overwrite user changes to make room for the
-   new task.
+   merge-back/cleanup, drain queued `microtask` items using **Queue Drain**.
+   Leave queued `task` items pending until the parent task is committed,
+   merged back, and cleaned up; then drain them from `main` unless queue
+   explicitly records a different base.
+5. Cleanup/merge-back is blocked only by real merge conflicts, unfinished git
+   operation, unknown base, or ambiguous ownership that would require overwriting
+   user work. Unrelated dirty files inside an agent-owned task worktree are not a
+   reason to leave task garbage: inspect them, classify ownership, split logical
+   commits when needed, merge back all owned work, then clean up. If dirty file is
+   clearly external/user-owned and cannot be carried safely, report exact file and
+   reason. Never stash, reset, checkout, force-merge, or overwrite user changes.
 
 ## Worktree Isolation
 
@@ -142,8 +150,10 @@ Use the platform goal mechanism by default for every task run.
   planning/execution/QA/commit progress unless the platform explicitly supports
   non-terminal progress states.
 - In Codex, use `update_goal` only for terminal states: `complete` or `blocked`.
-  Mark `complete` only after QA is clean and the commit step is either done or
-  explicitly skipped for a valid reason.
+  Mark `complete` only after QA is clean or valid/actionable findings are zero,
+  and commit, merge-back/cleanup, and owned queue drain are done. If any required
+  lifecycle step is blocked, report blocker and keep the goal active unless the
+  repeated-blocker rule below is satisfied; never mark blocked work `complete`.
 - Mark `blocked` only when the same blocker has repeated across the required goal
   turns and no meaningful progress is possible without user input or external state
   change. Caller-tree dirty files are not a blocker when the task worktree can be
@@ -156,13 +166,48 @@ Queued task or microtask requests are already user-approved work. Once an item i
 recorded in `<project-root>/.agent-tmp/task-queue.md`, do not ask whether to run
 it, do not stop with queued-only status, and do not wait for user to prompt again.
 
-Before parent task merge-back/cleanup and before sending a final response:
+When recording an owned queue item, include its target base branch. Inherit the
+active parent task's recorded base when one exists; otherwise record `main`
+unless the user explicitly names a different base. Do not leave owned queue
+items with an implicit or unknown base.
+
+Queue ownership is part of task ownership, not a reminder list. If this
+agent/session writes a queue item, accepts explicit user queued work, or
+acknowledges an item as owned while running task/microtask work, it owns that
+item until it is fully landed or a real blocker is reported.
+"Fully landed" means:
+
+- queued `task` work has passed QA, committed on its task branch, squash-merged
+  into `main` unless queue explicitly records a different base, and cleaned up
+  its task worktree/branch;
+- queued `microtask` work has passed QA and committed into the active parent
+  task worktree or target base branch (`main` unless queue explicitly records a
+  different base), then the parent task itself is merged back into that target
+  base and cleaned up before final response;
+- no owned pending/in-progress queue item, unmerged task branch, or task
+  worktree is left behind silently at final response.
+
+Do not tell the user a task is "done" while owned queue items remain only in
+`.agent-tmp/task-queue.md`, a side worktree, or an unmerged branch. If a queued
+item is blocked by unrelated dirty files, conflicts, auth, or missing external
+state, report that exact blocker and the remaining queue; otherwise keep
+draining.
+
+At finalization checkpoints and before sending a final response:
 
 1. Re-open `<project-root>/.agent-tmp/task-queue.md`.
-2. If pending items exist, take oldest pending item, mark it in-progress or remove
-   it from pending list so it cannot run twice, and execute it by declared mode
-   (`task` items through this skill, `microtask` items through microtask skill).
-3. When that item completes, repeat from step 1.
+2. If pending items exist, choose the oldest item eligible for the current
+   lifecycle stage, mark it in-progress or remove it from pending list so it
+   cannot run twice, and execute it by declared mode. While an active parent
+   task is unmerged, scan past queued `task` items and drain all eligible
+   `microtask` items for that parent before parent merge-back. Run queued `task`
+   items only after current parent task is committed, merged back, and cleaned
+   up; then start next task from `main` unless queue explicitly records a
+   different base.
+   If no active parent task exists, finish the current task/microtask commit
+   and cleanup first, then start the queued task from its recorded target base.
+3. When that item completes, mark it completed with landed commit/base details,
+   then repeat from step 1.
 4. Send final response only when queue empty or a real blocker prevents meaningful
    progress. Report blocker and remaining queued item(s).
 
@@ -250,7 +295,8 @@ coach them toward a desired verdict.
 
 ### 3. QA + Verification
 
-Run a review loop until findings are zero:
+Run a review loop until findings are zero, valid/actionable findings are zero,
+or a clear blocker remains:
 
 1. Run deterministic checks first: tests, typecheck, lint, build, harness check, and
    `git diff --check` when available.
@@ -261,7 +307,14 @@ Run a review loop until findings are zero:
    Chrome Plugin is unavailable after its documented retry/recovery steps, do not
    silently substitute another browser path; report the Chrome blocker and use an
    explicitly labeled fallback only when the user did not require Chrome.
-3. Run an independent QA/reviewer agent pass over the diff and acceptance criteria.
+3. Run at least **two independent QA/reviewer agents** over the diff and
+   acceptance criteria in every QA round. This is a loop, not a one-time
+   sign-off: after each fix round, rerun fresh QA/reviewer agents or explicitly
+   continue both reviewers with the updated diff. Stop only when both reviewers
+   return `0 findings`, or all remaining findings from both reviewers are
+   documented as invalid/non-actionable with concrete reason.
+   If two independent reviewer agents are unavailable, report that as a blocker;
+   do not substitute self-review and do not call the work QA-clean.
 4. For UI changes, run a visible-information duplication pass: inspect each row,
    card, modal, header, empty state, badge, and CTA for repeated semantic facts.
    Treat duplicate status/value/price/count/date/limit/benefit text in the same UI
@@ -279,15 +332,18 @@ Run a review loop until findings are zero:
 7. Convert each issue into a finding with severity, file/line when possible, and a
    required fix.
 8. Fix all actionable findings.
-9. Re-run verification and reviewer pass.
-10. Repeat until the reviewer returns **0 findings**.
+9. Re-run verification and both reviewer passes.
+10. Repeat until both reviewers return **0 findings** or **0 valid/actionable
+    findings**.
 
-If findings remain after three QA rounds, continue only when progress is still clear.
-If blocked, report the exact blocker, attempted fixes, and remaining findings.
+If findings remain after three QA rounds, continue while progress is still clear.
+If blocked, report the exact blocker, attempted fixes, invalidated findings with
+reasons, and remaining valid findings.
 
 ### 4. Commit
 
-Once QA returns **0 findings** and verification is green, commit the work:
+Once QA returns **0 findings** or **0 valid/actionable findings**, and
+verification is green, commit the work:
 
 1. Stage only the files this task changed — never blanket-stage unrelated edits in a
    dirty tree. In the default task worktree this should be only task-owned files; if
@@ -321,7 +377,8 @@ Final response should include:
 
 - what changed
 - verification commands/results
-- QA loop count and final finding count (`0` when complete)
+- QA loop count, total final finding count, and valid/actionable final finding
+  count (`0` when complete)
 - final goal status (`complete`, `blocked`, or still active with why)
 - commit(s) made (subject lines), or why no commit
 - any residual risk or explicit blocker
