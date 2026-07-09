@@ -41,8 +41,9 @@ Before starting a new task, clear or queue only against task work owned by this 
    `HEAD` / the last commit. In that override case, leave the existing task
    worktree and branch untouched, treat them as read-only external state, and
    continue the new task through Worktree Isolation from current `HEAD`.
-   Otherwise queue it explicitly and report what is already running, what
-   remains before the queue can advance, and where the queued request is recorded.
+   Otherwise queue it explicitly. Do not ask whether to resume later, do not stop
+   with queued status, and do not wait for another user prompt. Before parent task
+   merge-back/cleanup, drain queue using **Queue Drain**.
 5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
    unfinished git operation, stop and report the blocker. Never stash, reset,
    checkout, clean, force-merge, or overwrite user changes to make room for the
@@ -148,6 +149,25 @@ Use the platform goal mechanism by default for every task run.
   change. Caller-tree dirty files are not a blocker when the task worktree can be
   created from committed `HEAD`; proceed from the last commit instead. Do not mark
   budget exhaustion or partial progress as complete.
+
+## Queue Drain
+
+Queued task or microtask requests are already user-approved work. Once an item is
+recorded in `<project-root>/.agent-tmp/task-queue.md`, do not ask whether to run
+it, do not stop with queued-only status, and do not wait for user to prompt again.
+
+Before parent task merge-back/cleanup and before sending a final response:
+
+1. Re-open `<project-root>/.agent-tmp/task-queue.md`.
+2. If pending items exist, take oldest pending item, mark it in-progress or remove
+   it from pending list so it cannot run twice, and execute it by declared mode
+   (`task` items through this skill, `microtask` items through microtask skill).
+3. When that item completes, repeat from step 1.
+4. Send final response only when queue empty or a real blocker prevents meaningful
+   progress. Report blocker and remaining queued item(s).
+
+Do not drain queue entries clearly owned by another agent/session or project root.
+Treat them external and leave untouched.
 
 ## Agent Briefing
 

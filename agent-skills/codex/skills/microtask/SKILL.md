@@ -41,10 +41,7 @@ Before starting a new microtask, clear or queue against existing task work:
    ask.
 4. If previous task or microtask work is still in progress, queue the new
    microtask as a sub-item of that active work instead of treating it as a fresh
-   base-branch job. Record the active worktree/branch context, report what is
-   already running, what remains before the queue can advance, and where the
-   queued request is recorded. When active work resumes, handle the queued
-   microtask inside the same worktree so it lands with the parent task.
+   base-branch job. Record the active worktree/branch context. Do not ask whether to resume later, do not stop with queued status, and do not wait for another user prompt. Before parent task merge-back/cleanup, drain queued microtasks inside the same active worktree so they land with the parent task.
 5. If cleanup or merge-back is blocked by conflicts, unrelated dirty files, or an
    unfinished git operation, stop and report the blocker. Never stash, reset,
    checkout, clean, force-merge, or overwrite user changes to make room for the
@@ -104,6 +101,25 @@ Use the platform goal mechanism by default.
 - Mark `blocked` only when the same blocker has repeated across required goal
   turns and no meaningful progress is possible without user input or an external
   state change. Do not mark budget exhaustion or partial progress as complete.
+
+## Queue Drain
+
+Queued task or microtask requests are already user-approved work. Once an item is
+recorded in `<project-root>/.agent-tmp/task-queue.md`, do not ask whether to run
+it, do not stop with queued-only status, and do not wait for user to prompt again.
+
+Before sending a final response after completing current microtask:
+
+1. Re-open `<project-root>/.agent-tmp/task-queue.md`.
+2. If pending items exist, take oldest pending item, mark it in-progress or remove
+   it from pending list so it cannot run twice, and execute it by declared mode
+   (`task` items through task skill, `microtask` items through this skill).
+3. When that item completes, repeat from step 1.
+4. Send final response only when queue empty or a real blocker prevents meaningful
+   progress. Report blocker and remaining queued item(s).
+
+Do not drain queue entries clearly owned by another agent/session or project root.
+Treat them external and leave untouched.
 
 ## Agent Briefing
 

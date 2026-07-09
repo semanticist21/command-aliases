@@ -53,17 +53,24 @@ non-duplicative should be left unchanged and reported as skipped.
    - Do not invent new project lore or infer history from code shape. If a fact is
      ambiguous, report it instead of encoding it.
 
-4. **Run the per-document review loop.**
-   - After editing each document, run an independent review before moving on:
-     use a review subagent when available, or a clearly separate review pass when
-     the runtime has no subagent tool. Do not count the edit pass as review.
-   - Ask the reviewer for severity-tagged findings on lost constraints, weakened
-     safety, contradicted owner docs, stale references, over-compression, unclear
-     triggers, and remaining redundant content.
+4. **Run the per-document review loop as a before/after comparison.**
+   - After editing each document, run an independent review that compares the
+     BEFORE and AFTER side by side — not the AFTER in isolation. BEFORE comes
+     from `git show HEAD:<path>` (or a saved pre-edit copy for files outside the
+     repo); AFTER is the working-tree file. Use a review subagent when available,
+     or a clearly separate review pass when the runtime has no subagent tool. Do
+     not count the edit pass as review.
+   - Give the reviewer both versions and ask for severity-tagged findings on
+     durable rules, commands, paths, ownership/safety constraints, and
+     Why-trade-offs present in BEFORE but missing or weakened in AFTER; plus
+     over-compression, unclear triggers, stale references, contradicted owner
+     docs, and remaining redundant content. Have it confirm the line-count goal
+     was met (tolerate over-target when content is necessary — do not demand
+     cutting a rule to hit a number).
    - Fix confirmed findings, then review the same document again.
-   - Repeat `agent edit -> agent review` until the reviewer returns zero findings.
-     If findings stop decreasing or require product/ownership judgment, stop and
-     report the blocker instead of guessing.
+   - Repeat `agent edit -> before/after review` until the reviewer returns zero
+     findings. If findings stop decreasing or require product/ownership judgment,
+     stop and report the blocker instead of guessing.
 
 5. **Global pass.**
    - Re-read the index after all per-document loops. Confirm every duplicated
@@ -75,8 +82,8 @@ non-duplicative should be left unchanged and reported as skipped.
 6. **Report.**
    - List docs changed and the reason each changed.
    - List docs skipped because they were already optimized.
-   - Report review convergence: number of rounds per changed doc and final
-     findings count, which should be zero unless a blocker was surfaced.
+   - Report review convergence: rounds per changed doc, final findings count
+     (zero unless a blocker was surfaced), and the before/after line-count delta.
    - Mention verification commands and any unresolved ownership questions.
 
 ## Guardrails
