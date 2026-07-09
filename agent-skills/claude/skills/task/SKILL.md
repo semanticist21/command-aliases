@@ -165,9 +165,15 @@ intended base from user prompt or stop and ask.
    - Before merge-back, re-check base worktree status. If unrelated dirty files
      exist, continue only when merge can be done without staging, reverting, or
      overwriting them; otherwise stop/report exact blocker.
-     Never stash, reset, or force-resolve user changes.
-   - Stop/report on merge conflict; never force-resolve. Do not push unless
-     explicitly asked.
+    Never stash, reset, or force-resolve user changes.
+  - Cleanup clarification: unrelated dirty files in an agent-owned task worktree
+    are not a reason to leave task garbage. Inspect them, classify ownership,
+    split logical commits when needed, merge back all owned work, and clean up.
+    If normal `git worktree remove` fails only because ignored/generated
+    leftovers remain, verify tracked status is clean and use scoped force
+    cleanup for that task worktree.
+  - Stop/report on merge conflict; never force-resolve. Do not push unless
+    explicitly asked.
 
 ## Goal Tracking
 

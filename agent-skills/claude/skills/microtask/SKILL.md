@@ -89,9 +89,11 @@ Before starting a new microtask, clear or queue against existing task work:
 
 Choose the write location before planning:
 
-1. If active unmerged task work exists and the new microtask belongs to that
-   work, run or queue it inside the active task worktree as a child scope. Keep
-   the parent task's base branch and merge-back contract.
+1. If one owned active unmerged task worktree exists, run or queue the microtask
+   inside that task worktree as a child scope. If the microtask is unrelated to
+   the parent task, keep it as a separate logical commit rather than bundling
+   unrelated changes, but still honor the parent task's base-branch merge-back
+   and cleanup contract before final response.
 2. If the earlier task work has already merged back, or no active task work
    exists, use the caller's current base branch worktree.
 3. If multiple active task worktrees could own the microtask, stop and ask which
