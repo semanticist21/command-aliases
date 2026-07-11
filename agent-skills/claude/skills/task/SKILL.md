@@ -57,8 +57,9 @@ constraints, target paths, acceptance criteria, and "do not" instructions.
 
 ## Mechanical worktree guard
 
-Install `scripts/task-worktree-guard.mjs` as `UserPromptSubmit`, `PreToolUse`, and
-`Stop` hooks. Match `PreToolUse` against `Bash|apply_patch|Edit|Write|MultiEdit`.
+Install `scripts/task-worktree-guard.mjs` as `UserPromptSubmit` (`.*`),
+`PreToolUse` (`Bash|apply_patch|Edit|Write|MultiEdit`), `PostToolUse` (`Bash`),
+`PostToolUseFailure` (`Bash`), and `Stop` (`.*`) hooks.
 Use `node scripts/install-task-worktree-guard.mjs claude` for an idempotent install
 that preserves existing hook entries.
 The prompt hook activates only for explicit `$task` or `/task` invocations; the

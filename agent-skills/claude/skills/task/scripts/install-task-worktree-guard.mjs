@@ -3,7 +3,6 @@
 import {mkdirSync, readFileSync, renameSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {dirname, join} from 'node:path';
-import {fileURLToPath} from 'node:url';
 
 const runtime = process.argv[2];
 if (!['claude', 'codex'].includes(runtime)) {
@@ -11,7 +10,7 @@ if (!['claude', 'codex'].includes(runtime)) {
 }
 
 const configPath = process.argv[3] ?? join(homedir(), `.${runtime}`, runtime === 'codex' ? 'hooks.json' : 'settings.json');
-const guardPath = join(dirname(fileURLToPath(import.meta.url)), 'task-worktree-guard.mjs');
+const guardPath = join(homedir(), `.${runtime}`, 'skills', 'task', 'scripts', 'task-worktree-guard.mjs');
 const command = `${JSON.stringify(process.execPath)} ${JSON.stringify(guardPath)}`;
 
 // Reads an existing hook configuration without discarding unrelated settings.
@@ -28,6 +27,10 @@ function readConfig() {
 function addHook(config, event, matcher) {
   config.hooks ??= {};
   config.hooks[event] ??= [];
+  for (const entry of config.hooks[event]) {
+    entry.hooks = entry.hooks?.filter((hook) => !String(hook.command).includes('task-worktree-guard.mjs'));
+  }
+  config.hooks[event] = config.hooks[event].filter((entry) => entry.hooks?.length);
   const exists = config.hooks[event].some((entry) =>
     entry.matcher === matcher && entry.hooks?.some((hook) => hook.command === command),
   );
@@ -39,6 +42,8 @@ function addHook(config, event, matcher) {
 const config = readConfig();
 addHook(config, 'UserPromptSubmit', '.*');
 addHook(config, 'PreToolUse', 'Bash|apply_patch|Edit|Write|MultiEdit');
+addHook(config, 'PostToolUse', 'Bash');
+addHook(config, 'PostToolUseFailure', 'Bash');
 addHook(config, 'Stop', '.*');
 mkdirSync(dirname(configPath), {recursive: true});
 const temporaryPath = `${configPath}.${process.pid}.tmp`;

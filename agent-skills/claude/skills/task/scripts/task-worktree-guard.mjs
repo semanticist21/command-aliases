@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import {execFileSync} from 'node:child_process';
-import {mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, isAbsolute, join, resolve} from 'node:path';
 
@@ -45,6 +46,87 @@ function gitBranch(directory) {
   }
 }
 
+// Resolves the current commit checked out in a worktree.
+function gitHead(directory) {
+  try {
+    return execFileSync('git', ['-C', directory, 'rev-parse', 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Hashes sorted Git tree-style entries into one deterministic content identity.
+function contentFingerprint(entries) {
+  return createHash('sha256').update(entries.sort().join('\0')).digest('hex');
+}
+
+// Fingerprints all tracked and relevant untracked content independently of HEAD and staging.
+function workspaceFingerprint(directory) {
+  try {
+    const paths = execFileSync('git', ['-C', directory, 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], {encoding: 'utf8'}).split('\0').filter(Boolean).sort();
+    const indexRecords = execFileSync('git', ['-C', directory, 'ls-files', '--stage', '-z'], {encoding: 'utf8'}).split('\0').filter(Boolean);
+    const index = new Map(indexRecords.map((record) => {
+      const match = record.match(/^(\d+) ([0-9a-f]+) 0\t(.+)$/u);
+      return match ? [match[3], {mode: match[1], hash: match[2]}] : [record, null];
+    }));
+    const tags = new Map(execFileSync('git', ['-C', directory, 'ls-files', '-t', '-z'], {encoding: 'utf8'}).split('\0').filter(Boolean).map((record) => [record.slice(2), record[0]]));
+    const entries = paths.map((path) => {
+      const indexed = index.get(path);
+      if (indexed?.mode === '160000') {
+        try {
+          const submodule = join(directory, path);
+          const head = execFileSync('git', ['-C', submodule, 'rev-parse', 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
+          const dirty = execFileSync('git', ['-C', submodule, 'status', '--porcelain', '--untracked-files=normal'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']});
+          return dirty ? `160000\0dirty:${head}:${createHash('sha256').update(dirty).digest('hex')}\0${path}` : `160000\0${head}\0${path}`;
+        } catch {
+          return `160000\0${indexed.hash}\0${path}`;
+        }
+      }
+      try {
+        const hash = execFileSync('git', ['-C', directory, 'hash-object', '--', path], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
+        const stat = lstatSync(join(directory, path));
+        const mode = stat.isSymbolicLink() ? '120000' : stat.mode & 0o111 ? '100755' : '100644';
+        return `${mode}\0${hash}\0${path}`;
+      } catch {
+        return tags.get(path) === 'S' && indexed ? `${indexed.mode}\0${indexed.hash}\0${path}` : null;
+      }
+    }).filter(Boolean);
+    return contentFingerprint(entries);
+  } catch {
+    return null;
+  }
+}
+
+// Fingerprints the exact stage-zero index content.
+function indexFingerprint(directory) {
+  try {
+    const records = execFileSync('git', ['-C', directory, 'ls-files', '--stage', '-z'], {encoding: 'utf8'}).split('\0').filter(Boolean);
+    const entries = records.map((record) => {
+      const match = record.match(/^(\d+) ([0-9a-f]+) 0\t(.+)$/u);
+      if (!match) throw new Error('index contains non-stage-zero entries');
+      return `${match[1]}\0${match[2]}\0${match[3]}`;
+    });
+    return contentFingerprint(entries);
+  } catch {
+    return null;
+  }
+}
+
+// Fingerprints the complete tree stored by the current task commit.
+function headTreeFingerprint(directory) {
+  try {
+    const records = execFileSync('git', ['-C', directory, 'ls-tree', '-r', '-z', 'HEAD'], {encoding: 'utf8'}).split('\0').filter(Boolean);
+    const entries = records.map((record) => {
+      const match = record.match(/^(\d+) \S+ ([0-9a-f]+)\t(.+)$/u);
+      if (!match) throw new Error('invalid tree entry');
+      return `${match[1]}\0${match[2]}\0${match[3]}`;
+    });
+    return contentFingerprint(entries);
+  } catch {
+    return null;
+  }
+}
+
 // Detects explicit task skill invocations in a submitted prompt.
 function invokesTask(prompt) {
   return /(?:^|\s)(?:\$|\/)task(?:\s|$)/u.test(prompt);
@@ -71,9 +153,9 @@ function isBootstrapShell(command) {
 // Returns every target directory exposed by a tool payload.
 function toolDirectories(payload) {
   const input = payload.tool_input ?? {};
-  const cwd = resolve(input.workdir ?? input.cwd ?? payload.cwd ?? process.cwd());
+  const cwd = resolve(input.workdir ?? input.cwd ?? payload.workdir ?? payload.cwd ?? process.cwd());
   if (payload.tool_name === 'Bash') {
-    const command = String(input.command ?? '');
+    const command = String(input.command ?? input.cmd ?? '');
     const match = command.match(/^\s*cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))\s*&&/u);
     if (match) return [resolve(cwd, match[1] ?? match[2] ?? match[3])];
   }
@@ -87,6 +169,71 @@ function toolDirectories(payload) {
     if (paths.length > 0) return paths.map((path) => dirname(path));
   }
   return [cwd];
+}
+
+// Returns verification gates named by a shell command.
+function verificationGates(command) {
+  const normalized = command.trim();
+  if (!normalized || /[;&|\n]/u.test(normalized)) return [];
+  const tokens = normalized.split(/\s+/u);
+  if (tokens.some((token) => ['--help', '-h', '--version', '-V', '--no-run', '--collect-only', '--showConfig'].includes(token))) return [];
+  const aliases = new Map([
+    ['test', 'test'], ['tests', 'test'], ['lint', 'lint'],
+    ['typecheck', 'typecheck'], ['type-check', 'typecheck'], ['build', 'build'],
+  ]);
+  if (tokens[0] === 'make') {
+    const targetStart = tokens[1] === '-C' && tokens.length >= 4 && /^[a-zA-Z0-9_./-]+$/u.test(tokens[2]) ? 3 : 1;
+    const targets = tokens.slice(targetStart);
+    if (targets.length === 1 && targets[0] === 'verify') return ['test', 'lint', 'typecheck', 'build'];
+    if (targets.length < 1 || targets.some((token) => !aliases.has(token))) return [];
+    return [...new Set(targets.map((token) => aliases.get(token)))];
+  }
+  if (['npm', 'pnpm', 'yarn'].includes(tokens[0])) {
+    const targetIndex = tokens[1] === 'run' ? 2 : 1;
+    const target = tokens[targetIndex];
+    const options = tokens.slice(targetIndex + 1);
+    if (options.length > 0 && (options[0] !== '--' || options.slice(1).some((token) => token !== '--runInBand'))) return [];
+    if (target === 'verify') return ['test', 'lint', 'typecheck', 'build'];
+    return aliases.has(target) ? [aliases.get(target)] : [];
+  }
+  const cargoOptions = new Set(['--workspace', '--all', '--all-targets', '--release', '--locked', '--offline', '--quiet']);
+  if (tokens[0] === 'cargo' && tokens.length >= 2 && tokens.slice(2).every((token) => cargoOptions.has(token))) {
+    return {test: ['test'], clippy: ['lint'], check: ['typecheck'], build: ['build']}[tokens[1]] ?? [];
+  }
+  if (tokens[0] === 'pytest' && tokens.slice(1).every((token) => !token.startsWith('-') && /^[a-zA-Z0-9_./=-]+$/u.test(token))) return ['test'];
+  const tscOptions = tokens[0] === 'npx' && tokens[1] === 'tsc' ? tokens.slice(2) : tokens[0] === 'tsc' ? tokens.slice(1) : null;
+  if (tscOptions?.every((token) => token === '--noEmit')) return ['typecheck'];
+  return [];
+}
+
+// Classifies one exact guarded merge-back command for the current state.
+function finalizeAction(command, cwd, state) {
+  if (!state.taskRoot || !state.taskBranch || gitRoot(cwd) !== state.callerRoot || gitBranch(cwd) !== state.callerBranch) return null;
+  const normalized = command.trim();
+  const verified = ['test', 'lint', 'typecheck', 'build'].every((gate) => state.verified?.includes(gate));
+  const unchanged = workspaceFingerprint(state.taskRoot) === state.verifiedFingerprint;
+  const committed = state.verifiedTaskHead && gitHead(state.taskRoot) === state.verifiedTaskHead;
+  if (verified && unchanged && committed && state.finalizePhase === undefined && normalized === `git merge --squash ${state.taskBranch}`) return 'squash';
+  if (state.finalizePhase === 'squashed' && /^git\s+commit\s+-m\s+(?:"[^"\n]+"|'[^'\n]+'|[^\s]+)$/u.test(normalized)) return 'commit';
+  if (state.finalizePhase === 'committed' && [
+    `git worktree remove ${state.taskRoot}`,
+    `git worktree remove "${state.taskRoot}"`,
+    `git worktree remove '${state.taskRoot}'`,
+  ].includes(normalized)) return 'remove';
+  if (state.finalizePhase === 'removed' && normalized === `git branch -D ${state.taskBranch}`) return 'delete';
+  return null;
+}
+
+// Classifies task-branch staging, commit, and read-only commands that preserve verified content.
+function taskLifecycleAction(command, cwd, state) {
+  if (!state.taskRoot || gitRoot(cwd) !== state.taskRoot || gitBranch(cwd) !== state.taskBranch) return null;
+  if (!['test', 'lint', 'typecheck', 'build'].every((gate) => state.verified?.includes(gate))) return null;
+  if (workspaceFingerprint(cwd) !== state.verifiedFingerprint) return null;
+  const normalized = command.trim();
+  if (/^git\s+add\s+(?:-A|--all|\.|[a-zA-Z0-9_./-]+(?:\s+[a-zA-Z0-9_./-]+)*)$/u.test(normalized)) return 'add';
+  if (state.stagedFingerprint === state.verifiedFingerprint && /^git\s+commit\s+-m\s+(?:"[^"\n]+"|'[^'\n]+'|[^\s]+)$/u.test(normalized)) return 'taskCommit';
+  if (/^git\s+(?:status(?:\s+--(?:short|porcelain(?:=v1)?|branch))*|diff(?:\s+--(?:stat|check|cached|staged))*)$/u.test(normalized)) return 'read';
+  return null;
 }
 
 // Detects a second shell directory change after the validated leading task cd.
@@ -107,8 +254,68 @@ function deny(reason) {
   })}\n`);
 }
 
+// Reports whether a post-tool payload carries no explicit failure result.
+function toolSucceeded(payload) {
+  const response = payload.tool_response ?? payload.tool_result ?? {};
+  const exitCode = response.exit_code ?? response.exitCode ?? payload.exit_code;
+  return exitCode === undefined ? response.success !== false && response.status !== 'failed' : Number(exitCode) === 0;
+}
+
 // Handles task activation and cleanup lifecycle events.
 function handleLifecycle(payload, file) {
+  if (payload.hook_event_name === 'PostToolUseFailure') {
+    try {
+      const state = JSON.parse(readFileSync(file, 'utf8'));
+      delete state.pendingVerification;
+      delete state.pendingFinalize;
+      delete state.pendingTaskAction;
+      writeFileSync(file, JSON.stringify(state));
+    } catch {
+      // Missing state needs no update.
+    }
+    return true;
+  }
+  if (payload.hook_event_name === 'PostToolUse') {
+    try {
+      const state = JSON.parse(readFileSync(file, 'utf8'));
+      const command = String(payload.tool_input?.command ?? payload.tool_input?.cmd ?? '');
+      if (toolSucceeded(payload) && state.pendingVerification?.command === command) {
+        state.verified = [...new Set([...(state.verified ?? []), ...state.pendingVerification.gates])];
+        state.verifiedFingerprint = workspaceFingerprint(state.taskRoot);
+        delete state.verifiedTaskHead;
+        delete state.stagedFingerprint;
+        delete state.pendingVerification;
+      }
+      if (!toolSucceeded(payload) && state.pendingVerification?.command === command) delete state.pendingVerification;
+      if (toolSucceeded(payload) && state.pendingFinalize?.command === command) {
+        const phases = {squash: 'squashed', commit: 'committed', remove: 'removed', delete: 'complete'};
+        if (state.pendingFinalize.action !== 'remove' || !gitRoot(state.taskRoot)) {
+          state.finalizePhase = phases[state.pendingFinalize.action];
+        }
+        delete state.pendingFinalize;
+      }
+      if (toolSucceeded(payload) && state.pendingTaskAction?.command === command) {
+        if (state.pendingTaskAction.action === 'add') {
+          if (workspaceFingerprint(state.taskRoot) === state.verifiedFingerprint && indexFingerprint(state.taskRoot) === state.verifiedFingerprint) {
+            state.stagedFingerprint = state.verifiedFingerprint;
+          } else delete state.stagedFingerprint;
+        } else if (state.pendingTaskAction.action === 'taskCommit') {
+          if (workspaceFingerprint(state.taskRoot) === state.verifiedFingerprint && headTreeFingerprint(state.taskRoot) === state.verifiedFingerprint) state.verifiedTaskHead = gitHead(state.taskRoot);
+          else {
+            delete state.verified;
+            delete state.verifiedFingerprint;
+            delete state.verifiedTaskHead;
+          }
+          delete state.stagedFingerprint;
+        }
+        delete state.pendingTaskAction;
+      }
+      writeFileSync(file, JSON.stringify(state));
+    } catch {
+      // Missing state needs no update.
+    }
+    return true;
+  }
   if (payload.hook_event_name === 'Stop') {
     try {
       const state = JSON.parse(readFileSync(file, 'utf8'));
@@ -130,7 +337,7 @@ function handleLifecycle(payload, file) {
   }
   const cwd = resolve(payload.cwd ?? process.cwd());
   mkdirSync(stateDirectory, {recursive: true});
-  writeFileSync(file, JSON.stringify({callerPath: cwd, callerRoot: gitRoot(cwd), activatedAt: new Date().toISOString()}));
+  writeFileSync(file, JSON.stringify({callerPath: cwd, callerRoot: gitRoot(cwd), callerBranch: gitBranch(cwd), activatedAt: new Date().toISOString()}));
   return true;
 }
 
@@ -144,8 +351,23 @@ function enforce(payload, file) {
   }
 
   const toolName = String(payload.tool_name ?? '');
-  const command = String(payload.tool_input?.command ?? '');
+  const command = String(payload.tool_input?.command ?? payload.tool_input?.cmd ?? '');
   if (!['Bash', 'apply_patch', 'Edit', 'Write', 'MultiEdit'].includes(toolName)) return;
+
+  const input = payload.tool_input ?? {};
+  const cwd = resolve(input.workdir ?? input.cwd ?? payload.workdir ?? payload.cwd ?? process.cwd());
+  if (toolName === 'Bash') {
+    const action = finalizeAction(command, cwd, state);
+    if (action) {
+      writeFileSync(file, JSON.stringify({...state, pendingFinalize: {action, command}}));
+      return;
+    }
+    const taskAction = taskLifecycleAction(command, cwd, state);
+    if (taskAction) {
+      writeFileSync(file, JSON.stringify({...state, pendingTaskAction: {action: taskAction, command}}));
+      return;
+    }
+  }
 
   const protectedPaths = [state.callerPath, state.callerRoot].filter(Boolean);
   if (toolName === 'Bash' && (protectedPaths.some((path) => referencesPath(command, path)) || escapesShellDirectory(command))) {
@@ -158,9 +380,32 @@ function enforce(payload, file) {
     const root = gitRoot(directory);
     return root && root !== state.callerRoot && gitBranch(directory).startsWith('task/');
   });
+  if (isolated && state.taskRoot && directories.some((directory) => gitRoot(directory) !== state.taskRoot)) {
+    deny('TASK WORKTREE MISMATCH: this session is bound to its first task worktree.');
+    return;
+  }
   if (isolated) {
     const taskRoot = gitRoot(directories[0]);
-    writeFileSync(file, JSON.stringify({...state, taskRoot}));
+    const gates = toolName === 'Bash' ? verificationGates(command) : [];
+    const nextState = {
+      ...state,
+      taskRoot,
+      taskBranch: gitBranch(taskRoot),
+    };
+    if (gates.length > 0) {
+      nextState.verified = (nextState.verified ?? []).filter((gate) => !gates.includes(gate));
+      nextState.pendingVerification = {command, gates};
+    } else {
+      delete nextState.verified;
+      delete nextState.verifiedFingerprint;
+      delete nextState.verifiedTaskHead;
+      delete nextState.stagedFingerprint;
+      delete nextState.pendingVerification;
+      delete nextState.finalizePhase;
+      delete nextState.pendingFinalize;
+      delete nextState.pendingTaskAction;
+    }
+    writeFileSync(file, JSON.stringify(nextState));
     return;
   }
   if (toolName === 'Bash' && isBootstrapShell(command)) return;
