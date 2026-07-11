@@ -1,6 +1,6 @@
 ---
 name: "task"
-description: "Run delegated /task work through plan, implementation, QA, and commit."
+description: "Run /task work in an isolated worktree through plan, implementation, QA, merge-back, and cleanup."
 user-invocable: true
 argument-hint: "<task goal and constraints>"
 metadata:
@@ -19,6 +19,23 @@ remaining queue are reported.
 
 Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
+
+## Mechanical worktree guard
+
+Install `scripts/task-worktree-guard.mjs` as `UserPromptSubmit`, `PreToolUse`, and
+`Stop` hooks. Match `PreToolUse` against `Bash|apply_patch|Edit|Write|MultiEdit`.
+Use `node scripts/install-task-worktree-guard.mjs codex` for an idempotent install
+that preserves existing hook entries.
+The prompt hook activates only for explicit `$task` or `/task` invocations; the
+tool hook then denies writes in the caller checkout until the tool runs from a
+different worktree on a `task/*` branch. The Stop hook clears state after the
+recorded task worktree has been removed.
+If an activated task is abandoned before creating a worktree, submit
+`/task-cancel` to release the session guard explicitly.
+
+The guard is mandatory when the runtime supports these hooks. Do not treat it as
+an OS security boundary: Codex documentation says some unified-exec paths are not
+fully intercepted. Keep the workflow rules below as a second enforcement layer.
 
 ## Start Gate
 
