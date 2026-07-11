@@ -329,6 +329,13 @@ coach them toward a desired verdict.
   `package.json`/`Cargo.toml`/test dirs and neighbor test files to confirm what harness
   is enabled). Skip a test only for purely visual/style/copy edits with no logic, trivial
   typos, or projects with no test setup — and say explicitly why it was skipped.
+- For stateful or sequenced behavior, write the observable transition path before testing
+  (for example: idle → accepted → in progress → success/failure/canceled). Cover each
+  user-visible state and every observable boundary between consecutive operations, including
+  the state after operation A succeeds but before operation B finishes. Explicitly justify
+  any boundary that is unobservable or inapplicable. An all-immediate
+  mock does not prove intermediate behavior; use controllable promises, clocks, deferred
+  responses, or an equivalent harness to hold and assert non-terminal states.
 - Delegate isolated edits or parallel file discovery to agents when it saves context
   or reduces risk.
 - Update durable docs with `$update-doc` behavior when the task changes harness docs,
@@ -341,14 +348,20 @@ or a clear blocker remains:
 
 1. Run deterministic checks first: tests, typecheck, lint, build, harness check, and
    `git diff --check` when available.
-2. UI changes require live browser verification, not code inspection alone. In
+2. For changed behavior or a user journey, replay every applicable observable checkpoint:
+   immediately after the action, after each accepted/partial-success boundary, while work
+   remains in progress, and after success, failure, and cancellation where applicable.
+   Non-behavior edits may state that no observable checkpoints apply. Verify that removed
+   or replaced state variables/components still have a replacement for every visible
+   behavior they previously owned.
+3. UI changes require live browser verification, not code inspection alone. In
    Codex, attempt Chrome Plugin verification first: load the Chrome control skill,
    connect to the user's Chrome extension backend, open/reload the changed route,
    and inspect the actual rendered screen with DOM or screenshot evidence. If the
    Chrome Plugin is unavailable after its documented retry/recovery steps, do not
    silently substitute another browser path; report the Chrome blocker and use an
    explicitly labeled fallback only when the user did not require Chrome.
-3. Run at least **two independent QA/reviewer agents** over the diff and
+4. Run at least **two independent QA/reviewer agents** over the diff and
    acceptance criteria in every QA round. This is a loop, not a one-time
    sign-off: after each fix round, rerun fresh QA/reviewer agents or explicitly
    continue both reviewers with the updated diff. Stop only when both reviewers
@@ -356,25 +369,27 @@ or a clear blocker remains:
    documented as invalid/non-actionable with concrete reason.
    If two independent reviewer agents are unavailable, report that as a blocker;
    do not substitute self-review and do not call the work QA-clean.
-4. For UI changes, run a visible-information duplication pass: inspect each row,
+5. For UI changes, run a visible-information duplication pass: inspect each row,
    card, modal, header, empty state, badge, and CTA for repeated semantic facts.
    Treat duplicate status/value/price/count/date/limit/benefit text in the same UI
    unit as a finding even when tests pass.
-5. Review coding-convention adherence, not just correctness: read the project's
+6. Review coding-convention adherence, not just correctness: read the project's
    `AGENTS.md`/`CLAUDE.md`/`docs/coding-rule.md` and matching neighbor files, and check
    the diff follows the documented architecture. For Bulletproof-style projects verify
    feature-slice layout, `api/`/`hooks/`/`utils/` ownership, colocated tests, and
    import-boundary rules (no cross-layer or app↔package violations). Treat layering,
    naming, and folder-ownership breaks as findings.
-6. Treat missing tests as a finding: any changed testable logic (component handler/guard/
+7. Treat missing tests as a finding: any changed testable logic (component handler/guard/
    conditional render, pure helper, mapper, behavior change, bug fix) without a covering
    component or unit test is a required-fix finding unless it falls under the explicit
    skip cases above.
-7. Convert each issue into a finding with severity, file/line when possible, and a
+8. Convert each issue into a finding with severity, file/line when possible, and a
    required fix.
-8. Fix all actionable findings.
-9. Re-run verification and both reviewer passes.
-10. Repeat until both reviewers return **0 findings** or **0 valid/actionable
+9. Fix all actionable findings.
+10. Any behavior-affecting edit after a QA pass invalidates that pass. Re-run deterministic
+    verification, journey checkpoints, live UI verification when applicable, and both
+    reviewers against the updated diff; do not carry forward an earlier sign-off.
+11. Repeat until both reviewers return **0 findings** or **0 valid/actionable
     findings**.
 
 If findings remain after three QA rounds, continue while progress is still clear.
