@@ -21,6 +21,17 @@ function git(directory, ...args) {
   assert.equal(result.status, 0, result.stderr);
 }
 
+// Runs the exact recorded-local-base merge through both guard hook phases.
+function runBaseMerge(root, worktree, sessionId) {
+  const baseBranch = spawnSync('git', ['-C', root, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim();
+  const command = `git merge --no-edit ${baseBranch}`;
+  assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}}).stdout, '');
+  const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+  assert.equal(JSON.parse(readFileSync(stateFile, 'utf8')).pendingBaseMerge?.command, command);
+  assert.equal(spawnSync('sh', ['-c', command], {cwd: worktree}).status, 0);
+  runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+}
+
 test('blocks task apply_patch in the caller checkout', () => {
   const root = mkdtempSync(join(tmpdir(), 'task-guard-test-'));
   try {
@@ -97,6 +108,9 @@ test('executes verified merge-back and forced cleanup in exact order', () => {
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
     const premature = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git merge --squash task/fixture-finalize'}});
     assert.equal(JSON.parse(premature.stdout).hookSpecificOutput.permissionDecision, 'deny');
+    runBaseMerge(root, worktree, sessionId);
+    const baseStateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+    assert.ok(JSON.parse(readFileSync(baseStateFile, 'utf8')).baseMergedTip);
     const verification = 'make test lint typecheck build';
     assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: verification}}).stdout, '');
     assert.equal(spawnSync('sh', ['-c', verification], {cwd: worktree}).status, 0);
@@ -141,6 +155,7 @@ test('rejects commit-hook content changes until gates and commit rerun', () => {
     const verification = 'make test lint typecheck build';
     const merge = 'git merge --squash task/fixture-hook';
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    runBaseMerge(root, worktree, sessionId);
     runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: verification}});
     assert.equal(spawnSync('sh', ['-c', verification], {cwd: worktree}).status, 0);
     runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: verification}});
@@ -194,6 +209,7 @@ test('rejects a directly committed stale index after verifying newer workspace c
     const commit = 'git commit -m "stale A"';
     const merge = 'git merge --squash task/stale-index';
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    runBaseMerge(root, worktree, sessionId);
     runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: verification}});
     assert.equal(spawnSync('sh', ['-c', verification], {cwd: worktree}).status, 0);
     runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: verification}});
@@ -250,6 +266,7 @@ test('supports clean submodules and sparse checkout paths through task commit bi
       const commit = `git commit -m "${fixture} change"`;
       const merge = `git merge --squash task/${fixture}`;
       runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+      runBaseMerge(root, worktree, sessionId);
       runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: verification}});
       runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: verification}, tool_response: {exit_code: 0}});
       for (const command of [add, commit]) {
@@ -282,6 +299,7 @@ test('rejects incomplete verification and off-scope finalization commands', () =
     const canonicalUnrelated = spawnSync('git', ['-C', unrelated, 'rev-parse', '--show-toplevel'], {encoding: 'utf8'}).stdout.trim();
     const sessionId = `negative-${root}`;
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    runBaseMerge(root, worktree, sessionId);
     const partial = 'npm test';
     runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: partial}});
     runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: partial}, tool_response: {exit_code: 1}});
@@ -441,6 +459,190 @@ test('recognizes safe option-bearing verification commands exactly', () => {
       runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: command}, tool_response: {exit_code: 0}});
       assert.deepEqual(JSON.parse(readFileSync(stateFile, 'utf8')).verified ?? [], [], command);
     }
+  } finally {
+    rmSync(worktree, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('recognizes exact Bun verification commands and rejects lookalikes', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-bun-'));
+  const worktree = `${root}-worktree`;
+  try {
+    git(root, 'init', '-q');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    git(root, 'worktree', 'add', '-qb', 'task/bun', worktree, 'HEAD');
+    const sessionId = `bun-${root}`;
+    const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    for (const [command, gate] of [
+      ['bun run --cwd demo lint', 'lint'],
+      ['bun run --cwd demo typecheck', 'typecheck'],
+      ['bun run --cwd demo build', 'build'],
+      ['bun run --cwd demo test', 'test'],
+    ]) {
+      runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}});
+      runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+      assert.ok(JSON.parse(readFileSync(stateFile, 'utf8')).verified.includes(gate), command);
+    }
+    for (const command of [
+      'bun test --help',
+      'bun test --no-run',
+      'bun run --cwd demo lint && echo fake',
+      'bun run --cwd demo lint:fake',
+      'bun run --cwd demo test:unit',
+      'bun run --cwd demo dev',
+      'bun run --cwd demo test --run',
+      'bun test',
+      'bun test demo/src/App.test.tsx',
+      'bun test --test-name-pattern=focused',
+    ]) {
+      runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}});
+      runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+      assert.deepEqual(JSON.parse(readFileSync(stateFile, 'utf8')).verified ?? [], [], command);
+    }
+  } finally {
+    rmSync(worktree, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('binds an existing clean task HEAD after all gates without a new commit', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-clean-head-'));
+  const worktree = `${root}-worktree`;
+  try {
+    git(root, 'init', '-q');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    git(root, 'worktree', 'add', '-qb', 'task/existing-clean', worktree, 'HEAD');
+    writeFileSync(join(worktree, 'file'), 'already committed task content\n');
+    git(worktree, 'add', 'file');
+    git(worktree, 'commit', '-qm', 'existing task commit');
+    const canonicalWorktree = spawnSync('git', ['-C', worktree, 'rev-parse', '--show-toplevel'], {encoding: 'utf8'}).stdout.trim();
+    const sessionId = `clean-head-${root}`;
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task finish existing work'});
+    runBaseMerge(root, worktree, sessionId);
+    for (const command of ['bun run --cwd demo test', 'bun run --cwd demo lint', 'bun run --cwd demo typecheck', 'bun run --cwd demo build']) {
+      runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}});
+      runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+    }
+    for (const command of [
+      'git merge --squash task/existing-clean',
+      'git commit -m "merge existing task"',
+      `git worktree remove "${canonicalWorktree}"`,
+      'git branch -D task/existing-clean',
+    ]) {
+      assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command}}).stdout, '', command);
+      assert.equal(spawnSync('sh', ['-c', command], {cwd: root}).status, 0, command);
+      runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+    }
+    assert.equal(spawnSync('git', ['-C', root, 'branch', '--list', 'task/existing-clean'], {encoding: 'utf8'}).stdout, '');
+  } finally {
+    rmSync(worktree, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('does not bind dirty or changed task content as an existing clean HEAD', () => {
+  for (const mutation of ['dirty-worktree', 'dirty-index', 'head-after-gates']) {
+    const root = mkdtempSync(join(tmpdir(), `task-guard-${mutation}-`));
+    const worktree = `${root}-worktree`;
+    try {
+      git(root, 'init', '-q');
+      git(root, 'config', 'user.email', 'guard@example.test');
+      git(root, 'config', 'user.name', 'Guard Test');
+      writeFileSync(join(root, 'file'), 'fixture\n');
+      git(root, 'add', '.');
+      git(root, 'commit', '-qm', 'fixture');
+      git(root, 'worktree', 'add', '-qb', `task/${mutation}`, worktree, 'HEAD');
+      writeFileSync(join(worktree, 'file'), 'committed task content\n');
+      git(worktree, 'add', 'file');
+      git(worktree, 'commit', '-qm', 'existing task commit');
+      if (mutation === 'dirty-worktree') writeFileSync(join(worktree, 'file'), 'unstaged content\n');
+      if (mutation === 'dirty-index') {
+        writeFileSync(join(worktree, 'file'), 'staged content\n');
+        git(worktree, 'add', 'file');
+      }
+      const sessionId = `${mutation}-${root}`;
+      runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task finish existing work'});
+      for (const command of ['make test', 'make lint', 'make typecheck', 'make build']) {
+        runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}});
+        runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+      }
+      if (mutation === 'head-after-gates') {
+        writeFileSync(join(worktree, 'other'), 'new HEAD\n');
+        git(worktree, 'add', 'other');
+        git(worktree, 'commit', '-qm', 'change head after gates');
+      }
+      const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: `git merge --squash task/${mutation}`}});
+      assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny', mutation);
+    } finally {
+      rmSync(worktree, {recursive: true, force: true});
+      rmSync(root, {recursive: true, force: true});
+    }
+  }
+});
+
+test('invalidates verification for the recorded base merge and binds the merged HEAD', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-base-merge-'));
+  const worktree = `${root}-worktree`;
+  try {
+    git(root, 'init', '-q');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    const baseBranch = spawnSync('git', ['-C', root, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim();
+    git(root, 'worktree', 'add', '-qb', 'task/base-refresh', worktree, 'HEAD');
+    writeFileSync(join(worktree, 'task-file'), 'task\n');
+    git(worktree, 'add', 'task-file');
+    git(worktree, 'commit', '-qm', 'task change');
+    writeFileSync(join(root, 'base-file'), 'base\n');
+    git(root, 'add', 'base-file');
+    git(root, 'commit', '-qm', 'base change');
+    const sessionId = `base-merge-${root}`;
+    const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+    const gates = ['make test', 'make lint', 'make typecheck', 'make build'];
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task refresh base'});
+    for (const command of gates) {
+      runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}});
+      runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+    }
+    let result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git merge --squash task/base-refresh'}});
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
+    const baseMerge = `git merge --no-edit ${baseBranch}`;
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: baseMerge}}).stdout, '');
+    assert.deepEqual(JSON.parse(readFileSync(stateFile, 'utf8')).verified ?? [], []);
+    assert.equal(spawnSync('sh', ['-c', baseMerge], {cwd: worktree}).status, 0);
+    runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: baseMerge}, tool_response: {exit_code: 0}});
+    result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git merge --squash task/base-refresh'}});
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
+    for (const command of gates) {
+      runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}});
+      runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+    }
+    writeFileSync(join(root, 'later-base-file'), 'later base\n');
+    git(root, 'add', 'later-base-file');
+    git(root, 'commit', '-qm', 'later base change');
+    result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git merge --squash task/base-refresh'}});
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: baseMerge}}).stdout, '');
+    assert.equal(spawnSync('sh', ['-c', baseMerge], {cwd: worktree}).status, 0);
+    runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command: baseMerge}, tool_response: {exit_code: 0}});
+    for (const command of gates) {
+      runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}});
+      runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+    }
+    result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git merge --squash task/base-refresh'}});
+    assert.equal(result.stdout, '');
   } finally {
     rmSync(worktree, {recursive: true, force: true});
     rmSync(root, {recursive: true, force: true});

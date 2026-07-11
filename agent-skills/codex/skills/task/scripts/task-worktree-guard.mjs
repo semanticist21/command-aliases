@@ -55,6 +55,16 @@ function gitHead(directory) {
   }
 }
 
+// Reports whether one commit is contained in another commit's history.
+function isAncestor(directory, ancestor, descendant) {
+  try {
+    execFileSync('git', ['-C', directory, 'merge-base', '--is-ancestor', ancestor, descendant], {stdio: 'ignore'});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Hashes sorted Git tree-style entries into one deterministic content identity.
 function contentFingerprint(entries) {
   return createHash('sha256').update(entries.sort().join('\0')).digest('hex');
@@ -196,6 +206,17 @@ function verificationGates(command) {
     if (target === 'verify') return ['test', 'lint', 'typecheck', 'build'];
     return aliases.has(target) ? [aliases.get(target)] : [];
   }
+  if (tokens[0] === 'bun') {
+    if (tokens[1] === 'test') return [];
+    if (tokens[1] === 'run') {
+      const targetIndex = tokens[2] === '--cwd' && tokens.length >= 5 && /^[a-zA-Z0-9_./-]+$/u.test(tokens[3]) ? 4 : 2;
+      const target = tokens[targetIndex];
+      const options = tokens.slice(targetIndex + 1);
+      if (options.length > 0) return [];
+      return aliases.has(target) ? [aliases.get(target)] : [];
+    }
+    return [];
+  }
   const cargoOptions = new Set(['--workspace', '--all', '--all-targets', '--release', '--locked', '--offline', '--quiet']);
   if (tokens[0] === 'cargo' && tokens.length >= 2 && tokens.slice(2).every((token) => cargoOptions.has(token))) {
     return {test: ['test'], clippy: ['lint'], check: ['typecheck'], build: ['build']}[tokens[1]] ?? [];
@@ -206,6 +227,28 @@ function verificationGates(command) {
   return [];
 }
 
+// Classifies the exact recorded-local-base merge required before final verification.
+function baseMergeAction(command, cwd, state) {
+  if (!state.callerRoot || !state.callerBranch) return false;
+  const taskRoot = gitRoot(cwd);
+  const taskBranch = gitBranch(cwd);
+  if (!taskRoot || taskRoot === state.callerRoot || !taskBranch.startsWith('task/')) return false;
+  if (state.taskRoot && (taskRoot !== state.taskRoot || taskBranch !== state.taskBranch)) return false;
+  if (gitRoot(state.callerRoot) !== state.callerRoot || gitBranch(state.callerRoot) !== state.callerBranch) return false;
+  return command.trim() === `git merge --no-edit ${state.callerBranch}`;
+}
+
+// Binds a fully verified clean task worktree to its exact current commit.
+function bindCleanTaskHead(state) {
+  if (!state.taskRoot || !state.taskBranch || !state.callerRoot || !state.callerBranch) return null;
+  if (gitRoot(state.taskRoot) !== state.taskRoot || gitBranch(state.taskRoot) !== state.taskBranch) return null;
+  if (gitRoot(state.callerRoot) !== state.callerRoot || gitBranch(state.callerRoot) !== state.callerBranch) return null;
+  if (!['test', 'lint', 'typecheck', 'build'].every((gate) => state.verified?.includes(gate))) return null;
+  const workspace = workspaceFingerprint(state.taskRoot);
+  if (!workspace || workspace !== indexFingerprint(state.taskRoot) || workspace !== headTreeFingerprint(state.taskRoot)) return null;
+  return gitHead(state.taskRoot);
+}
+
 // Classifies one exact guarded merge-back command for the current state.
 function finalizeAction(command, cwd, state) {
   if (!state.taskRoot || !state.taskBranch || gitRoot(cwd) !== state.callerRoot || gitBranch(cwd) !== state.callerBranch) return null;
@@ -213,7 +256,9 @@ function finalizeAction(command, cwd, state) {
   const verified = ['test', 'lint', 'typecheck', 'build'].every((gate) => state.verified?.includes(gate));
   const unchanged = workspaceFingerprint(state.taskRoot) === state.verifiedFingerprint;
   const committed = state.verifiedTaskHead && gitHead(state.taskRoot) === state.verifiedTaskHead;
-  if (verified && unchanged && committed && state.finalizePhase === undefined && normalized === `git merge --squash ${state.taskBranch}`) return 'squash';
+  const baseTip = gitHead(state.callerRoot);
+  const baseMerged = state.baseMergedTip && baseTip === state.baseMergedTip && isAncestor(state.taskRoot, state.baseMergedTip, gitHead(state.taskRoot));
+  if (verified && unchanged && committed && baseMerged && state.finalizePhase === undefined && normalized === `git merge --squash ${state.taskBranch}`) return 'squash';
   if (state.finalizePhase === 'squashed' && /^git\s+commit\s+-m\s+(?:"[^"\n]+"|'[^'\n]+'|[^\s]+)$/u.test(normalized)) return 'commit';
   if (state.finalizePhase === 'committed' && [
     `git worktree remove ${state.taskRoot}`,
@@ -269,6 +314,7 @@ function handleLifecycle(payload, file) {
       delete state.pendingVerification;
       delete state.pendingFinalize;
       delete state.pendingTaskAction;
+      delete state.pendingBaseMerge;
       writeFileSync(file, JSON.stringify(state));
     } catch {
       // Missing state needs no update.
@@ -282,11 +328,18 @@ function handleLifecycle(payload, file) {
       if (toolSucceeded(payload) && state.pendingVerification?.command === command) {
         state.verified = [...new Set([...(state.verified ?? []), ...state.pendingVerification.gates])];
         state.verifiedFingerprint = workspaceFingerprint(state.taskRoot);
-        delete state.verifiedTaskHead;
+        state.verifiedTaskHead = bindCleanTaskHead(state) ?? undefined;
         delete state.stagedFingerprint;
         delete state.pendingVerification;
       }
       if (!toolSucceeded(payload) && state.pendingVerification?.command === command) delete state.pendingVerification;
+      if (toolSucceeded(payload) && state.pendingBaseMerge?.command === command) {
+        const baseTip = gitHead(state.callerRoot);
+        if (baseTip) state.baseMergedTip = baseTip;
+        else delete state.baseMergedTip;
+        delete state.pendingBaseMerge;
+      }
+      if (!toolSucceeded(payload) && state.pendingBaseMerge?.command === command) delete state.pendingBaseMerge;
       if (toolSucceeded(payload) && state.pendingFinalize?.command === command) {
         const phases = {squash: 'squashed', commit: 'committed', remove: 'removed', delete: 'complete'};
         if (state.pendingFinalize.action !== 'remove' || !gitRoot(state.taskRoot)) {
@@ -357,6 +410,17 @@ function enforce(payload, file) {
   const input = payload.tool_input ?? {};
   const cwd = resolve(input.workdir ?? input.cwd ?? payload.workdir ?? payload.cwd ?? process.cwd());
   if (toolName === 'Bash') {
+    if (baseMergeAction(command, cwd, state)) {
+      const nextState = {...state, taskRoot: gitRoot(cwd), taskBranch: gitBranch(cwd), pendingBaseMerge: {command}};
+      delete nextState.verified;
+      delete nextState.verifiedFingerprint;
+      delete nextState.verifiedTaskHead;
+      delete nextState.stagedFingerprint;
+      delete nextState.pendingVerification;
+      delete nextState.baseMergedTip;
+      writeFileSync(file, JSON.stringify(nextState));
+      return;
+    }
     const action = finalizeAction(command, cwd, state);
     if (action) {
       writeFileSync(file, JSON.stringify({...state, pendingFinalize: {action, command}}));

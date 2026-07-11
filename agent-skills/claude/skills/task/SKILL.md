@@ -170,6 +170,14 @@ intended base from user prompt or stop and ask.
    This merge-back is the only normal moment when task changes should land on
    `main`/the caller's branch. All planning, edits, tests, QA, and task-branch
    commit happen in the task worktree first.
+   - The recorded local base branch is authoritative for finalization. Immediately
+     before final consistency checks, capture its current local tip and run the exact
+     `git merge --no-edit <recorded-base>` inside the task worktree. An already-up-to-date
+     merge counts. Stop and report any conflict; never guess another base or force-resolve
+     it. Treat the merge as a content change that invalidates all earlier verification.
+     Audit consistency on the merged HEAD and rerun the full test, lint, typecheck, and
+     build gates before squash. If the local base tip changes afterward, repeat the base
+     merge and every gate. Fetching alone does not advance the recorded local base.
    - Squash-merge into base
      (`git switch <base> && git merge --squash <task-branch> && git commit`),
      then remove worktree with `git worktree remove <path>` and delete the
