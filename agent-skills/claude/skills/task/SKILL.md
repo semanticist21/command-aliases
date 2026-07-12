@@ -69,8 +69,10 @@ recorded task worktree has been removed.
 Safe startup reads may be batched with `&&`; the successful `git worktree add`
 binds the session to that exact worktree, including when the target repository
 differs from the caller repository.
-If an activated task is abandoned before creating a worktree, submit
-`/task-cancel` to release the session guard explicitly.
+Guard state lives in `~/.claude/task-worktree-guard-state/`, expires after 24
+hours of inactivity, and self-clears when its bound worktree disappears.
+If an activated task is abandoned, submit `task-cancel`, `/task-cancel`, or
+`$task-cancel` to release the session guard explicitly.
 
 The guard is mandatory when the runtime supports these hooks. It is a mechanical
 guardrail, while the workflow rules below remain the full lifecycle contract.

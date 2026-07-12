@@ -3,10 +3,14 @@
 import {execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
-import {tmpdir} from 'node:os';
+import {homedir} from 'node:os';
 import {dirname, isAbsolute, join, resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
 
-const stateDirectory = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`);
+const scriptPath = fileURLToPath(import.meta.url);
+const runtime = /[/\\]codex[/\\]skills[/\\]/u.test(scriptPath) ? 'codex' : 'claude';
+const stateDirectory = process.env.TASK_WORKTREE_GUARD_STATE_DIR ?? join(homedir(), `.${runtime}`, 'task-worktree-guard-state');
+const stateTtlMilliseconds = 24 * 60 * 60 * 1000;
 
 // Reads the hook payload from standard input.
 function readPayload() {
@@ -20,6 +24,11 @@ function readPayload() {
 // Returns the persistent state path for one agent session.
 function statePath(sessionId) {
   return join(stateDirectory, `${String(sessionId).replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+}
+
+// Writes session state while refreshing its inactivity timestamp.
+function persistState(file, state) {
+  writeFileSync(file, JSON.stringify({...state, updatedAt: new Date().toISOString()}));
 }
 
 // Resolves the Git worktree root containing a directory.
@@ -166,7 +175,15 @@ function invokesTask(prompt) {
 
 // Detects an explicit request to release an abandoned task guard.
 function cancelsTask(prompt) {
-  return /(?:^|\s)(?:\$|\/)task-cancel(?:\s|$)/u.test(prompt);
+  return /^(?:\$|\/)?task-cancel$/u.test(prompt.trim());
+}
+
+// Reports whether persisted session state is too old or no longer names its bound worktree.
+function isStaleState(state) {
+  const updatedAt = Date.parse(state.updatedAt ?? state.activatedAt);
+  if (!Number.isFinite(updatedAt) || Date.now() - updatedAt > stateTtlMilliseconds) return true;
+  if (!state.taskRoot) return false;
+  return gitRoot(state.taskRoot) !== state.taskRoot;
 }
 
 // Detects a protected absolute path without matching sibling path prefixes.
@@ -340,7 +357,7 @@ function handleLifecycle(payload, file) {
       delete state.pendingTaskAction;
       delete state.pendingBaseMerge;
       delete state.pendingWorktree;
-      writeFileSync(file, JSON.stringify(state));
+      persistState(file, state);
     } catch {
       // Missing state needs no update.
     }
@@ -404,7 +421,7 @@ function handleLifecycle(payload, file) {
         }
         delete state.pendingTaskAction;
       }
-      writeFileSync(file, JSON.stringify(state));
+      persistState(file, state);
     } catch {
       // Missing state needs no update.
     }
@@ -414,7 +431,7 @@ function handleLifecycle(payload, file) {
     try {
       const state = JSON.parse(readFileSync(file, 'utf8'));
       if (state.taskRoot && !gitRoot(state.taskRoot)) rmSync(file, {force: true});
-      else writeFileSync(file, JSON.stringify({...state, stopped: true}));
+      else persistState(file, {...state, stopped: true});
     } catch {
       // Missing state needs no cleanup.
     }
@@ -431,7 +448,7 @@ function handleLifecycle(payload, file) {
   }
   const cwd = resolve(payload.cwd ?? process.cwd());
   mkdirSync(stateDirectory, {recursive: true});
-  writeFileSync(file, JSON.stringify({callerPath: cwd, callerRoot: gitRoot(cwd), callerBranch: gitBranch(cwd), activatedAt: new Date().toISOString()}));
+  persistState(file, {callerPath: cwd, callerRoot: gitRoot(cwd), callerBranch: gitBranch(cwd), activatedAt: new Date().toISOString()});
   return true;
 }
 
@@ -441,6 +458,10 @@ function enforce(payload, file) {
   try {
     state = JSON.parse(readFileSync(file, 'utf8'));
   } catch {
+    return;
+  }
+  if (isStaleState(state)) {
+    rmSync(file, {force: true});
     return;
   }
 
@@ -461,7 +482,7 @@ function enforce(payload, file) {
       const baseRoot = gitRoot(baseDirectory);
       const branch = match[4];
       const path = resolve(baseDirectory, match[5] ?? match[6] ?? match[7]);
-      writeFileSync(file, JSON.stringify({...state, pendingWorktree: {command, branch, path, baseRoot, baseBranch: gitBranch(baseRoot)}}));
+      persistState(file, {...state, pendingWorktree: {command, branch, path, baseRoot, baseBranch: gitBranch(baseRoot)}});
     }
     return;
   }
@@ -474,17 +495,17 @@ function enforce(payload, file) {
       delete nextState.stagedFingerprint;
       delete nextState.pendingVerification;
       delete nextState.baseMergedTip;
-      writeFileSync(file, JSON.stringify(nextState));
+      persistState(file, nextState);
       return;
     }
     const action = finalizeAction(command, cwd, state);
     if (action) {
-      writeFileSync(file, JSON.stringify({...state, pendingFinalize: {action, command}}));
+      persistState(file, {...state, pendingFinalize: {action, command}});
       return;
     }
     const taskAction = taskLifecycleAction(command, cwd, state);
     if (taskAction) {
-      writeFileSync(file, JSON.stringify({...state, pendingTaskAction: {action: taskAction, command}}));
+      persistState(file, {...state, pendingTaskAction: {action: taskAction, command}});
       return;
     }
   }
@@ -528,13 +549,15 @@ function enforce(payload, file) {
       delete nextState.pendingFinalize;
       delete nextState.pendingTaskAction;
     }
-    writeFileSync(file, JSON.stringify(nextState));
+    persistState(file, nextState);
     return;
   }
   deny('TASK WORKTREE REQUIRED: create and use a task/* worktree before writing. The caller checkout is read-only.');
 }
 
 const payload = readPayload();
-const sessionId = payload.session_id ?? payload.transcript_path ?? 'unknown-session';
-const file = statePath(sessionId);
-if (!handleLifecycle(payload, file)) enforce(payload, file);
+const sessionId = payload.session_id ?? payload.transcript_path;
+if (sessionId) {
+  const file = statePath(sessionId);
+  if (!handleLifecycle(payload, file)) enforce(payload, file);
+}

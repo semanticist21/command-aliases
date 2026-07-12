@@ -7,10 +7,11 @@ import test from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 const script = fileURLToPath(new URL('./task-worktree-guard.mjs', import.meta.url));
+const stateDirectory = mkdtempSync(join(tmpdir(), 'task-worktree-guard-state-'));
 
 // Runs one hook event against the guard script.
 function runHook(payload) {
-  const result = spawnSync(process.execPath, [script], {input: JSON.stringify(payload), encoding: 'utf8'});
+  const result = spawnSync(process.execPath, [script], {input: JSON.stringify(payload), encoding: 'utf8', env: {...process.env, TASK_WORKTREE_GUARD_STATE_DIR: stateDirectory}});
   assert.equal(result.status, 0, result.stderr);
   return result;
 }
@@ -31,7 +32,7 @@ function bindTaskWorktree(root, worktree, sessionId) {
 
 // Runs the exact recorded-local-base merge through both guard hook phases.
 function runBaseMerge(root, worktree, sessionId) {
-  const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+  const stateFile = join(stateDirectory, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
   if (!JSON.parse(readFileSync(stateFile, 'utf8')).taskRoot) bindTaskWorktree(root, worktree, sessionId);
   const baseBranch = spawnSync('git', ['-C', root, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim();
   const command = `git merge --no-edit ${baseBranch}`;
@@ -52,6 +53,128 @@ test('blocks task apply_patch in the caller checkout', () => {
     assert.equal(response.hookSpecificOutput.permissionDecision, 'deny');
     assert.match(response.hookSpecificOutput.permissionDecisionReason, /TASK WORKTREE REQUIRED/);
   } finally {
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('releases expired session state before enforcing a write', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-expired-'));
+  const sessionId = `expired-${Date.now()}`;
+  const stateFile = join(stateDirectory, `${sessionId}.json`);
+  try {
+    git(root, 'init', '-q');
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    writeFileSync(stateFile, JSON.stringify({...state, activatedAt: '2000-01-01T00:00:00.000Z', updatedAt: '2000-01-01T00:00:00.000Z'}));
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'apply_patch', tool_input: {command: 'patch'}}).stdout, '');
+    assert.throws(() => readFileSync(stateFile, 'utf8'), {code: 'ENOENT'});
+  } finally {
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('releases state when its bound task worktree no longer exists', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-missing-worktree-'));
+  const worktree = `${root}-worktree`;
+  const sessionId = `missing-${Date.now()}`;
+  try {
+    git(root, 'init', '-q');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    git(root, 'worktree', 'add', '-qb', 'task/missing', worktree, 'HEAD');
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
+    git(root, 'worktree', 'remove', worktree);
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'apply_patch', tool_input: {command: 'patch'}}).stdout, '');
+  } finally {
+    rmSync(worktree, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('accepts plain task-cancel as an explicit guard release', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-cancel-'));
+  const sessionId = `cancel-${Date.now()}`;
+  try {
+    git(root, 'init', '-q');
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: 'task-cancel'});
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'apply_patch', tool_input: {command: 'patch'}}).stdout, '');
+  } finally {
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('does not cancel from a prose mention of task-cancel', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-cancel-prose-'));
+  const sessionId = `cancel-prose-${Date.now()}`;
+  try {
+    git(root, 'init', '-q');
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: 'document task-cancel behavior'});
+    const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'apply_patch', tool_input: {command: 'patch'}});
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
+  } finally {
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('does not persist guard state when the runtime omits session identity', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-no-session-'));
+  try {
+    git(root, 'init', '-q');
+    runHook({hook_event_name: 'UserPromptSubmit', cwd: root, prompt: '$task change code'});
+    assert.equal(runHook({hook_event_name: 'PreToolUse', cwd: root, tool_name: 'apply_patch', tool_input: {command: 'patch'}}).stdout, '');
+  } finally {
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('keeps the guard active when the bound worktree changes branch', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-branch-change-'));
+  const worktree = `${root}-worktree`;
+  const sessionId = `branch-change-${Date.now()}`;
+  try {
+    git(root, 'init', '-q');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    git(root, 'worktree', 'add', '-qb', 'task/branch-change', worktree, 'HEAD');
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
+    git(worktree, 'switch', '-c', 'other/branch');
+    const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'apply_patch', tool_input: {command: 'patch'}});
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
+  } finally {
+    rmSync(worktree, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('allows concurrent sessions to bind separate task worktrees from one caller', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-concurrent-'));
+  const worktrees = [`${root}-one`, `${root}-two`];
+  try {
+    git(root, 'init', '-q');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    for (const [offset, worktree] of worktrees.entries()) {
+      git(root, 'worktree', 'add', '-qb', `task/concurrent-${offset}`, worktree, 'HEAD');
+      const sessionId = `concurrent-${offset}-${Date.now()}`;
+      runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+      bindTaskWorktree(root, worktree, sessionId);
+      assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'apply_patch', tool_input: {command: 'patch'}}).stdout, '');
+    }
+  } finally {
+    for (const worktree of worktrees) rmSync(worktree, {recursive: true, force: true});
     rmSync(root, {recursive: true, force: true});
   }
 });
@@ -139,7 +262,7 @@ test('executes verified merge-back and forced cleanup in exact order', () => {
     const premature = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git merge --squash task/fixture-finalize'}});
     assert.equal(JSON.parse(premature.stdout).hookSpecificOutput.permissionDecision, 'deny');
     runBaseMerge(root, worktree, sessionId);
-    const baseStateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+    const baseStateFile = join(stateDirectory, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     assert.ok(JSON.parse(readFileSync(baseStateFile, 'utf8')).baseMergedTip);
     const verification = 'make test lint typecheck build';
     assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: verification}}).stdout, '');
@@ -479,7 +602,7 @@ test('does not bind an unrelated repository task worktree before its worktree ad
     assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: caller, tool_name: 'Bash', tool_input: {command: add}}).stdout, '');
     git(target, 'worktree', 'add', '-qb', 'task/owned', owned, 'HEAD');
     runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: caller, tool_name: 'Bash', tool_input: {command: add}, tool_response: {exit_code: 0}});
-    const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId}.json`);
+    const stateFile = join(stateDirectory, `${sessionId}.json`);
     const state = JSON.parse(readFileSync(stateFile, 'utf8'));
     assert.equal(state.callerRoot, spawnSync('git', ['-C', target, 'rev-parse', '--show-toplevel'], {encoding: 'utf8'}).stdout.trim());
     assert.equal(state.callerBranch, spawnSync('git', ['-C', target, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim());
@@ -505,7 +628,7 @@ test('recognizes safe option-bearing verification commands exactly', () => {
     git(root, 'commit', '-qm', 'fixture');
     git(root, 'worktree', 'add', '-qb', 'task/options', worktree, 'HEAD');
     const sessionId = `options-${root}`;
-    const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+    const stateFile = join(stateDirectory, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
     bindTaskWorktree(root, worktree, sessionId);
     for (const [command, gate] of [
@@ -551,7 +674,7 @@ test('recognizes exact Bun verification commands and rejects lookalikes', () => 
     git(root, 'commit', '-qm', 'fixture');
     git(root, 'worktree', 'add', '-qb', 'task/bun', worktree, 'HEAD');
     const sessionId = `bun-${root}`;
-    const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+    const stateFile = join(stateDirectory, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
     bindTaskWorktree(root, worktree, sessionId);
     for (const [command, gate] of [
@@ -684,7 +807,7 @@ test('invalidates verification for the recorded base merge and binds the merged 
     git(root, 'add', 'base-file');
     git(root, 'commit', '-qm', 'base change');
     const sessionId = `base-merge-${root}`;
-    const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+    const stateFile = join(stateDirectory, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     const gates = ['make test', 'make lint', 'make typecheck', 'make build'];
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task refresh base'});
     for (const command of gates) {
