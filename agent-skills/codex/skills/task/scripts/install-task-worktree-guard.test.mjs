@@ -31,6 +31,7 @@ test('installs all five task guard hooks with exact matchers', () => {
       assert.equal(hooks[event][0].matcher, matcher, event);
       assert.equal(hooks[event][0].hooks.length, 1, event);
       assert.match(hooks[event][0].hooks[0].command, /\.codex\/skills\/task\/scripts\/task-worktree-guard\.mjs/u, event);
+      assert.equal(hooks[event][0].hooks[0].timeout, 30, event);
     }
   } finally {
     rmSync(directory, {recursive: true, force: true});

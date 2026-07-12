@@ -80,6 +80,28 @@ function workspaceFingerprint(directory) {
       return match ? [match[3], {mode: match[1], hash: match[2]}] : [record, null];
     }));
     const tags = new Map(execFileSync('git', ['-C', directory, 'ls-files', '-t', '-z'], {encoding: 'utf8'}).split('\0').filter(Boolean).map((record) => [record.slice(2), record[0]]));
+    const hashablePaths = paths.filter((path) => {
+      if (index.get(path)?.mode === '160000' || path.includes('\n')) return false;
+      try {
+        lstatSync(join(directory, path));
+        return true;
+      } catch {
+        return false;
+      }
+    });
+    let bulkHashes = [];
+    try {
+      bulkHashes = hashablePaths.length > 0 ? execFileSync('git', ['-C', directory, 'hash-object', '--stdin-paths'], {
+        encoding: 'utf8',
+        input: `${hashablePaths.join('\n')}\n`,
+        stdio: ['pipe', 'pipe', 'ignore'],
+      }).trimEnd().split('\n') : [];
+    } catch {
+      // A concurrently changed path falls back to the isolated per-file behavior below.
+    }
+    const hashes = bulkHashes.length === hashablePaths.length
+      ? new Map(hashablePaths.map((path, offset) => [path, bulkHashes[offset]]))
+      : new Map();
     const entries = paths.map((path) => {
       const indexed = index.get(path);
       if (indexed?.mode === '160000') {
@@ -93,7 +115,7 @@ function workspaceFingerprint(directory) {
         }
       }
       try {
-        const hash = execFileSync('git', ['-C', directory, 'hash-object', '--', path], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
+        const hash = hashes.get(path) ?? execFileSync('git', ['-C', directory, 'hash-object', '--', path], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
         const stat = lstatSync(join(directory, path));
         const mode = stat.isSymbolicLink() ? '120000' : stat.mode & 0o111 ? '100755' : '100644';
         return `${mode}\0${hash}\0${path}`;

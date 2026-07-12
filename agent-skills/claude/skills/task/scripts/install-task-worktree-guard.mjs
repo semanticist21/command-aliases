@@ -5,6 +5,7 @@ import {homedir} from 'node:os';
 import {dirname, join} from 'node:path';
 
 const runtime = process.argv[2];
+const hookTimeoutSeconds = 30;
 if (!['claude', 'codex'].includes(runtime)) {
   throw new Error('Usage: install-task-worktree-guard.mjs <claude|codex> [config-path]');
 }
@@ -35,7 +36,7 @@ function addHook(config, event, matcher) {
     entry.matcher === matcher && entry.hooks?.some((hook) => hook.command === command),
   );
   if (!exists) {
-    config.hooks[event].push({matcher, hooks: [{type: 'command', command, timeout: 10}]});
+    config.hooks[event].push({matcher, hooks: [{type: 'command', command, timeout: hookTimeoutSeconds}]});
   }
 }
 
