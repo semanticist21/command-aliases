@@ -43,6 +43,33 @@ The guard is mandatory when the runtime supports these hooks. Do not treat it as
 an OS security boundary: Codex documentation says some unified-exec paths are not
 fully intercepted. Keep the workflow rules below as a second enforcement layer.
 
+## One-command changed-surface verification
+
+After merging the recorded local base into the task worktree, prefer the bundled
+verifier for the final deterministic gate:
+
+```bash
+cd <task-worktree> && node ~/.codex/skills/task/scripts/task-verify.mjs --base <recorded-base>
+```
+
+It discovers changed JavaScript packages and Rust crates, then runs each available
+package-level test, lint, typecheck/check, and build command once. Rust crates with
+soft-skipping DB integration tests require `DATABASE_URL`; detected
+`skip: no local postgres`-style output fails the verifier even when the test
+process exits zero. Results are written to the ignored
+`.agent-tmp/task-verification.json` receipt.
+
+The verifier is standalone and remains the source of verification evidence when
+the current Codex surface does not dispatch hooks. When hooks are available, the
+guard recognizes this exact command and repeats it in a merge-time denial message.
+
+Use `--dry-run` only to inspect the command plan; it never satisfies merge
+verification. Project-owned canonical verification commands still win when they
+cover additional stacks or services. Run those in addition to this verifier.
+A pre-existing or out-of-scope red gate explains the failure but never turns it
+green: fix it within scope or report the task blocked.
+
+
 ## Start Gate
 
 Before starting a new task, clear or queue only against task work owned by this agent/session:

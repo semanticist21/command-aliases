@@ -9,6 +9,7 @@ import {fileURLToPath} from 'node:url';
 
 const scriptPath = fileURLToPath(import.meta.url);
 const runtime = /[/\\]codex[/\\]skills[/\\]/u.test(scriptPath) ? 'codex' : 'claude';
+const verifierPath = join(homedir(), `.${runtime}`, 'skills', 'task', 'scripts', 'task-verify.mjs');
 const stateDirectory = process.env.TASK_WORKTREE_GUARD_STATE_DIR ?? join(homedir(), `.${runtime}`, 'task-worktree-guard-state');
 const stateTtlMilliseconds = 24 * 60 * 60 * 1000;
 
@@ -223,11 +224,18 @@ function toolDirectories(payload) {
 }
 
 // Returns verification gates named by a shell command.
-function verificationGates(command) {
-  const normalized = command.trim();
+function verificationGates(command, state) {
+  const normalized = command.trim().replace(/^cd\s+(?:"[^"$`]+"|'[^'$`]+'|[a-zA-Z0-9_./-]+)\s*&&\s*/u, '');
   if (!normalized || /[;&|\n]/u.test(normalized)) return [];
   const tokens = normalized.split(/\s+/u);
   if (tokens.some((token) => ['--help', '-h', '--version', '-V', '--no-run', '--collect-only', '--showConfig'].includes(token))) return [];
+  if (
+    tokens[0] === 'node'
+    && [verifierPath, `~/.${runtime}/skills/task/scripts/task-verify.mjs`].includes(tokens[1])
+    && tokens.length === 4
+    && tokens[2] === '--base'
+    && tokens[3] === state.callerBranch
+  ) return ['test', 'lint', 'typecheck', 'build'];
   const aliases = new Map([
     ['test', 'test'], ['tests', 'test'], ['lint', 'lint'],
     ['typecheck', 'typecheck'], ['type-check', 'typecheck'], ['build', 'build'],
@@ -503,6 +511,10 @@ function enforce(payload, file) {
       persistState(file, {...state, pendingFinalize: {action, command}});
       return;
     }
+    if (/^git\s+merge\s+--squash\s+task\//u.test(command.trim())) {
+      deny(`TASK VERIFICATION REQUIRED: merge-back is not ready. From the task worktree run \`node ~/.${runtime}/skills/task/scripts/task-verify.mjs --base <base>\`, resolve every red or soft-skipped gate, commit the verified content, then retry merge.`);
+      return;
+    }
     const taskAction = taskLifecycleAction(command, cwd, state);
     if (taskAction) {
       persistState(file, {...state, pendingTaskAction: {action: taskAction, command}});
@@ -530,7 +542,7 @@ function enforce(payload, file) {
   });
   if (isolated) {
     const taskRoot = gitRoot(directories[0]);
-    const gates = toolName === 'Bash' ? verificationGates(command) : [];
+    const gates = toolName === 'Bash' ? verificationGates(command, state) : [];
     const nextState = {
       ...state,
       taskRoot,

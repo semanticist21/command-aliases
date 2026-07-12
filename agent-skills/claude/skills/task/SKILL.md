@@ -77,6 +77,32 @@ If an activated task is abandoned, submit `task-cancel`, `/task-cancel`, or
 The guard is mandatory when the runtime supports these hooks. It is a mechanical
 guardrail, while the workflow rules below remain the full lifecycle contract.
 
+## One-command changed-surface verification
+
+After merging the recorded local base into the task worktree, prefer the bundled
+verifier for the final deterministic gate:
+
+```bash
+cd <task-worktree> && node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base>
+```
+
+It discovers changed JavaScript packages and Rust crates, then runs each available
+package-level test, lint, typecheck/check, and build command once. Rust crates with
+soft-skipping DB integration tests require `DATABASE_URL`; detected
+`skip: no local postgres`-style output fails the verifier even when the test
+process exits zero. Results are written to the ignored
+`.agent-tmp/task-verification.json` receipt.
+
+The verifier is standalone. When Claude hooks are installed, the guard recognizes
+this exact command and repeats it in a merge-time denial message.
+
+Use `--dry-run` only to inspect the command plan; it never satisfies merge
+verification. Project-owned canonical verification commands still win when they
+cover additional stacks or services. Run those in addition to this verifier.
+A pre-existing or out-of-scope red gate explains the failure but never turns it
+green: fix it within scope or report the task blocked.
+
+
 ## Start Gate
 
 Before starting a new task, clear or queue only against task work owned by this agent/session:

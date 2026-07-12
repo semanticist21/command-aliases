@@ -7,6 +7,7 @@ import test from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 const script = fileURLToPath(new URL('./task-worktree-guard.mjs', import.meta.url));
+const runtime = script.includes('/codex/') ? 'codex' : 'claude';
 const stateDirectory = mkdtempSync(join(tmpdir(), 'task-worktree-guard-state-'));
 
 // Runs one hook event against the guard script.
@@ -261,6 +262,7 @@ test('executes verified merge-back and forced cleanup in exact order', () => {
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
     const premature = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git merge --squash task/fixture-finalize'}});
     assert.equal(JSON.parse(premature.stdout).hookSpecificOutput.permissionDecision, 'deny');
+    assert.match(JSON.parse(premature.stdout).hookSpecificOutput.permissionDecisionReason, /task-verify\.mjs/u);
     runBaseMerge(root, worktree, sessionId);
     const baseStateFile = join(stateDirectory, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     assert.ok(JSON.parse(readFileSync(baseStateFile, 'utf8')).baseMergedTip);
@@ -628,10 +630,12 @@ test('recognizes safe option-bearing verification commands exactly', () => {
     git(root, 'commit', '-qm', 'fixture');
     git(root, 'worktree', 'add', '-qb', 'task/options', worktree, 'HEAD');
     const sessionId = `options-${root}`;
+    const baseBranch = spawnSync('git', ['-C', root, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim();
     const stateFile = join(stateDirectory, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
     bindTaskWorktree(root, worktree, sessionId);
     for (const [command, gate] of [
+      [`cd "${worktree}" && node ~/.${runtime}/skills/task/scripts/task-verify.mjs --base ${baseBranch}`, 'test'],
       ['npm test -- --runInBand', 'test'],
       ['pytest tests/', 'test'],
       ['cargo test --workspace', 'test'],
@@ -651,6 +655,9 @@ test('recognizes safe option-bearing verification commands exactly', () => {
       'cargo check -h',
       'cargo build --help',
       'tsc --showConfig',
+      'node ./task-verify.mjs --base main',
+      `node ~/.${runtime}/skills/task/scripts/task-verify.mjs`,
+      `node ~/.${runtime}/skills/task/scripts/task-verify.mjs --base HEAD^`,
     ]) {
       runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: command}});
       runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: command}, tool_response: {exit_code: 0}});
