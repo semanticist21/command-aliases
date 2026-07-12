@@ -21,12 +21,21 @@ function git(directory, ...args) {
   assert.equal(result.status, 0, result.stderr);
 }
 
+// Binds an already-created fixture worktree through the guarded add lifecycle.
+function bindTaskWorktree(root, worktree, sessionId) {
+  const branch = spawnSync('git', ['-C', worktree, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim();
+  const command = `git worktree add -b ${branch} ${worktree} HEAD`;
+  assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command}}).stdout, '');
+  runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
+}
+
 // Runs the exact recorded-local-base merge through both guard hook phases.
 function runBaseMerge(root, worktree, sessionId) {
+  const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+  if (!JSON.parse(readFileSync(stateFile, 'utf8')).taskRoot) bindTaskWorktree(root, worktree, sessionId);
   const baseBranch = spawnSync('git', ['-C', root, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim();
   const command = `git merge --no-edit ${baseBranch}`;
   assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}}).stdout, '');
-  const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
   assert.equal(JSON.parse(readFileSync(stateFile, 'utf8')).pendingBaseMerge?.command, command);
   assert.equal(spawnSync('sh', ['-c', command], {cwd: worktree}).status, 0);
   runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {command}, tool_response: {exit_code: 0}});
@@ -47,6 +56,25 @@ test('blocks task apply_patch in the caller checkout', () => {
   }
 });
 
+test('allows chained read-only bootstrap inspection before worktree creation', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-test-'));
+  try {
+    git(root, 'init', '-q');
+    const sessionId = `bootstrap-${Date.now()}`;
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task inspect repo'});
+    const command = "git rev-parse --show-toplevel && git branch --show-current && git status --short && git status --porcelain=v1 -b && git worktree list && git branch --list 'task/*'";
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command}}).stdout, '');
+    const unsafe = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: 'git status --short && rm file'}});
+    assert.equal(JSON.parse(unsafe.stdout).hookSpecificOutput.permissionDecision, 'deny');
+    for (const command of ['git status --$(touch${IFS}/tmp/task-pwn)', 'git worktree add -b task/pwn "$(touch${IFS}/tmp/task-pwn)" HEAD', 'git worktree add --detach ../other HEAD', 'git worktree add -b task/one ../one HEAD && git worktree add -b task/two ../two HEAD']) {
+      const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command}});
+      assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
+    }
+  } finally {
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
 test('allows writes in a task branch worktree', () => {
   const root = mkdtempSync(join(tmpdir(), 'task-guard-test-'));
   const worktree = `${root}-worktree`;
@@ -61,6 +89,7 @@ test('allows writes in a task branch worktree', () => {
     git(root, 'worktree', 'add', '-qb', 'task/fixture', worktree, 'HEAD');
     const sessionId = `allow-${Date.now()}`;
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '/task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
     const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'apply_patch', tool_input: {command: '*** Begin Patch', workdir: worktree}});
     assert.equal(result.stdout, '');
   } finally {
@@ -82,6 +111,7 @@ test('honors Codex exec cmd and top-level workdir fields', () => {
     git(root, 'worktree', 'add', '-qb', 'task/fixture-exec', worktree, 'HEAD');
     const sessionId = `exec-${root}`;
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
     const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: worktree, tool_name: 'Bash', tool_input: {cmd: 'npm test'}});
     assert.equal(result.stdout, '');
   } finally {
@@ -405,6 +435,11 @@ test('binds one session to its first task worktree', () => {
     git(root, 'worktree', 'add', '-qb', 'task/second', second, 'HEAD');
     const sessionId = `binding-${root}`;
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    const unowned = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: first, tool_name: 'Bash', tool_input: {cmd: 'npm test'}});
+    assert.match(JSON.parse(unowned.stdout).hookSpecificOutput.permissionDecisionReason, /WORKTREE REQUIRED/);
+    bindTaskWorktree(root, first, sessionId);
+    const rebind = `git worktree add -b task/second ${second} HEAD`;
+    assert.match(JSON.parse(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: rebind}}).stdout).hookSpecificOutput.permissionDecisionReason, /WORKTREE MISMATCH/);
     assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, workdir: first, tool_name: 'Bash', tool_input: {cmd: 'npm test'}}).stdout, '');
     for (const payload of [
       {tool_name: 'apply_patch', tool_input: {workdir: second, command: '*** Begin Patch'}},
@@ -417,6 +452,44 @@ test('binds one session to its first task worktree', () => {
     rmSync(second, {recursive: true, force: true});
     rmSync(first, {recursive: true, force: true});
     rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('does not bind an unrelated repository task worktree before its worktree add', () => {
+  const caller = mkdtempSync(join(tmpdir(), 'task-guard-caller-'));
+  const target = mkdtempSync(join(tmpdir(), 'task-guard-target-'));
+  const unrelated = `${target}-unrelated`;
+  const owned = `${target}-owned`;
+  try {
+    for (const root of [caller, target]) {
+      git(root, 'init', '-q');
+      git(root, 'config', 'user.email', 'guard@example.test');
+      git(root, 'config', 'user.name', 'Guard Test');
+      writeFileSync(join(root, 'file'), 'fixture\n');
+      git(root, 'add', '.');
+      git(root, 'commit', '-qm', 'fixture');
+    }
+    git(target, 'worktree', 'add', '-qb', 'task/unrelated', unrelated, 'HEAD');
+    const sessionId = `cross-repo-${Date.now()}`;
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: caller, prompt: '$task update another repo'});
+    const denied = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: caller, workdir: unrelated, tool_name: 'Bash', tool_input: {command: 'npm test'}});
+    assert.match(JSON.parse(denied.stdout).hookSpecificOutput.permissionDecisionReason, /WORKTREE REQUIRED/);
+
+    const add = `git -C ${target} worktree add -b task/owned ../${owned.slice(owned.lastIndexOf('/') + 1)} HEAD`;
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: caller, tool_name: 'Bash', tool_input: {command: add}}).stdout, '');
+    git(target, 'worktree', 'add', '-qb', 'task/owned', owned, 'HEAD');
+    runHook({hook_event_name: 'PostToolUse', session_id: sessionId, cwd: caller, tool_name: 'Bash', tool_input: {command: add}, tool_response: {exit_code: 0}});
+    const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId}.json`);
+    const state = JSON.parse(readFileSync(stateFile, 'utf8'));
+    assert.equal(state.callerRoot, spawnSync('git', ['-C', target, 'rev-parse', '--show-toplevel'], {encoding: 'utf8'}).stdout.trim());
+    assert.equal(state.callerBranch, spawnSync('git', ['-C', target, 'branch', '--show-current'], {encoding: 'utf8'}).stdout.trim());
+    assert.equal(state.originalCallerRoot, spawnSync('git', ['-C', caller, 'rev-parse', '--show-toplevel'], {encoding: 'utf8'}).stdout.trim());
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: caller, workdir: owned, tool_name: 'Bash', tool_input: {command: 'npm test'}}).stdout, '');
+  } finally {
+    rmSync(owned, {recursive: true, force: true});
+    rmSync(unrelated, {recursive: true, force: true});
+    rmSync(target, {recursive: true, force: true});
+    rmSync(caller, {recursive: true, force: true});
   }
 });
 
@@ -434,6 +507,7 @@ test('recognizes safe option-bearing verification commands exactly', () => {
     const sessionId = `options-${root}`;
     const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
     for (const [command, gate] of [
       ['npm test -- --runInBand', 'test'],
       ['pytest tests/', 'test'],
@@ -479,6 +553,7 @@ test('recognizes exact Bun verification commands and rejects lookalikes', () => 
     const sessionId = `bun-${root}`;
     const stateFile = join(tmpdir(), `task-worktree-guard-${process.getuid?.() ?? 'user'}`, `${sessionId.replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
     for (const [command, gate] of [
       ['bun run --cwd demo lint', 'lint'],
       ['bun run --cwd demo typecheck', 'typecheck'],
@@ -698,6 +773,7 @@ test('allows Claude-style cd into a task worktree', () => {
     git(root, 'worktree', 'add', '-qb', 'task/fixture-cd', worktree, 'HEAD');
     const sessionId = `cd-${Date.now()}`;
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
     const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: `cd "${worktree}" && npm test`}});
     assert.equal(result.stdout, '');
   } finally {
@@ -719,6 +795,7 @@ test('blocks commands that reference the caller root from a task worktree', () =
     git(root, 'worktree', 'add', '-qb', 'task/fixture-cross', worktree, 'HEAD');
     const sessionId = `cross-${Date.now()}`;
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
     const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command: `cd "${worktree}" && rm "${root}/file"`}});
     assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
   } finally {
@@ -758,6 +835,7 @@ test('blocks relative shell escapes from a task worktree', () => {
     git(root, 'worktree', 'add', '-qb', 'task/fixture-relative', worktree, 'HEAD');
     const sessionId = `relative-${Date.now()}`;
     runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: root, prompt: '$task change code'});
+    bindTaskWorktree(root, worktree, sessionId);
     for (const command of [`cd "${worktree}" && cd ../elsewhere && rm file`, `cd "${worktree}" && git -C ../elsewhere commit`]) {
       const result = runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: root, tool_name: 'Bash', tool_input: {command}});
       assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');

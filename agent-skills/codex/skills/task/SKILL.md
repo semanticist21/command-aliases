@@ -31,6 +31,9 @@ The prompt hook activates only for explicit `$task` or `/task` invocations; the
 tool hook then denies writes in the caller checkout until the tool runs from a
 different worktree on a `task/*` branch. The Stop hook clears state after the
 recorded task worktree has been removed.
+Safe startup reads may be batched with `&&`; the successful `git worktree add`
+binds the session to that exact worktree, including when the target repository
+differs from the caller repository.
 If an activated task is abandoned before creating a worktree, submit
 `/task-cancel` to release the session guard explicitly.
 
@@ -93,7 +96,11 @@ recover by creating the task worktree before any edit or commit. Continuing to
 edit current checkout is a task-skill violation, even when staging explicit
 pathspecs would avoid unrelated files.
 
-1. Resolve the project root with `git rev-parse --show-toplevel`.
+1. Resolve the repository that owns the files to be written, then its root with
+   `git rev-parse --show-toplevel`. Explicit target paths and named skill sources
+   override the caller repository. For cross-repository work, run the guarded
+   `git worktree add` against that target repository so the session binds to the
+   created worktree instead of an unrelated existing `task/*` worktree.
 2. Record caller's current branch with `git branch --show-current`; this is the
 base branch task work must merge back into after commit. If detached, resolve
 intended base from user prompt or stop and ask.
@@ -122,6 +129,9 @@ intended base from user prompt or stop and ask.
 8. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
    apply changes there.
+   In Codex unified exec, prefix every shell command with
+   `cd <task-worktree> &&` because the hook payload may omit the tool API's
+   `workdir` field even when execution itself honors it.
 9. Skip worktree creation only when the safety gate fails, the user explicitly
    asks not to use a worktree, the repo is not a git repo, the task is
    read-only/no-file-change, or `git worktree add` fails. If the task still

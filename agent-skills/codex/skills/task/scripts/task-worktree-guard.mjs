@@ -178,8 +178,10 @@ function referencesPath(command, path) {
 // Allows only worktree discovery and creation before isolation exists.
 function isBootstrapShell(command) {
   const normalized = command.trim();
-  if (/[;&|\n]|(?:^|[^<])>{1,2}(?!>)/u.test(normalized)) return false;
-  return /^(?:pwd|git(?:\s+-C\s+\S+)?\s+(?:status(?:\s+--\S+)*|rev-parse\s+(?:--show-toplevel|--git-common-dir)|branch\s+(?:--show-current|--list(?:\s+\S+)?)|worktree\s+(?:list|add\b.*)))$/u.test(normalized);
+  if (/[;|\n]|(?:^|[^<])>{1,2}(?!>)/u.test(normalized)) return false;
+  const parts = normalized.split(/\s*&&\s*/u);
+  const worktreeAdds = parts.filter((part) => /\sworktree\s+add\s/u.test(part));
+  return worktreeAdds.length <= 1 && parts.every((part) => /^(?:pwd|git(?:\s+-C\s+(?:"[^"$`]+"|'[^'$`]+'|[a-zA-Z0-9_./-]+))?\s+(?:status(?:\s+(?:--short|--porcelain(?:=v1)?|--branch|-b))*|rev-parse\s+(?:--show-toplevel|--git-common-dir)|branch\s+(?:--show-current|--list(?:\s+(?:"[^"$`]+"|'[^'$`]+'|[a-zA-Z0-9_.*?/-]+))?)|worktree\s+(?:list|add\s+-b\s+task\/[a-zA-Z0-9._/-]+\s+(?:"[^"$`]+"|'[^'$`]+'|[a-zA-Z0-9_./-]+)\s+HEAD)))$/u.test(part));
 }
 
 // Returns every target directory exposed by a tool payload.
@@ -337,6 +339,7 @@ function handleLifecycle(payload, file) {
       delete state.pendingFinalize;
       delete state.pendingTaskAction;
       delete state.pendingBaseMerge;
+      delete state.pendingWorktree;
       writeFileSync(file, JSON.stringify(state));
     } catch {
       // Missing state needs no update.
@@ -347,6 +350,22 @@ function handleLifecycle(payload, file) {
     try {
       const state = JSON.parse(readFileSync(file, 'utf8'));
       const command = String(payload.tool_input?.command ?? payload.tool_input?.cmd ?? '');
+      if (state.pendingWorktree?.command === command) {
+        if (toolSucceeded(payload)) {
+          const taskRoot = gitRoot(state.pendingWorktree.path);
+          const taskBranch = taskRoot ? gitBranch(taskRoot) : '';
+          if (taskRoot && taskBranch === state.pendingWorktree.branch) {
+            if (state.pendingWorktree.baseRoot !== state.callerRoot) {
+              state.originalCallerRoot = state.callerRoot;
+              state.callerRoot = state.pendingWorktree.baseRoot;
+              state.callerBranch = state.pendingWorktree.baseBranch;
+            }
+            state.taskRoot = taskRoot;
+            state.taskBranch = taskBranch;
+          }
+        }
+        delete state.pendingWorktree;
+      }
       if (toolSucceeded(payload) && state.pendingVerification?.command === command) {
         state.verified = [...new Set([...(state.verified ?? []), ...state.pendingVerification.gates])];
         state.verifiedFingerprint = workspaceFingerprint(state.taskRoot);
@@ -431,6 +450,21 @@ function enforce(payload, file) {
 
   const input = payload.tool_input ?? {};
   const cwd = resolve(input.workdir ?? input.cwd ?? payload.workdir ?? payload.cwd ?? process.cwd());
+  if (toolName === 'Bash' && isBootstrapShell(command)) {
+    const match = command.match(/(?:^|&&\s*)git(?:\s+-C\s+(?:"([^"$`]+)"|'([^'$`]+)'|([a-zA-Z0-9_./-]+)))?\s+worktree\s+add\s+-b\s+(task\/[a-zA-Z0-9._/-]+)\s+(?:"([^"$`]+)"|'([^'$`]+)'|([a-zA-Z0-9_./-]+))\s+HEAD/u);
+    if (match) {
+      if (state.taskRoot || state.pendingWorktree) {
+        deny('TASK WORKTREE MISMATCH: this session is already bound to its task worktree.');
+        return;
+      }
+      const baseDirectory = resolve(cwd, match[1] ?? match[2] ?? match[3] ?? '.');
+      const baseRoot = gitRoot(baseDirectory);
+      const branch = match[4];
+      const path = resolve(baseDirectory, match[5] ?? match[6] ?? match[7]);
+      writeFileSync(file, JSON.stringify({...state, pendingWorktree: {command, branch, path, baseRoot, baseBranch: gitBranch(baseRoot)}}));
+    }
+    return;
+  }
   if (toolName === 'Bash') {
     if (baseMergeAction(command, cwd, state)) {
       const nextState = {...state, taskRoot: gitRoot(cwd), taskBranch: gitBranch(cwd), pendingBaseMerge: {command}};
@@ -455,21 +489,24 @@ function enforce(payload, file) {
     }
   }
 
-  const protectedPaths = [state.callerPath, state.callerRoot].filter(Boolean);
+  const protectedPaths = [state.callerPath, state.originalCallerRoot, state.callerRoot].filter(Boolean);
   if (toolName === 'Bash' && (protectedPaths.some((path) => referencesPath(command, path)) || escapesShellDirectory(command))) {
     deny('TASK CALLER CHECKOUT IS READ-ONLY: the shell command references the protected caller root.');
     return;
   }
 
   const directories = toolDirectories(payload);
-  const isolated = directories.every((directory) => {
+  if (state.taskRoot && directories.some((directory) => {
     const root = gitRoot(directory);
-    return root && root !== state.callerRoot && gitBranch(directory).startsWith('task/');
-  });
-  if (isolated && state.taskRoot && directories.some((directory) => gitRoot(directory) !== state.taskRoot)) {
+    return root && root !== state.taskRoot && gitBranch(directory).startsWith('task/');
+  })) {
     deny('TASK WORKTREE MISMATCH: this session is bound to its first task worktree.');
     return;
   }
+  const isolated = directories.every((directory) => {
+    const root = gitRoot(directory);
+    return state.taskRoot && root === state.taskRoot && root !== state.callerRoot && gitBranch(directory) === state.taskBranch;
+  });
   if (isolated) {
     const taskRoot = gitRoot(directories[0]);
     const gates = toolName === 'Bash' ? verificationGates(command) : [];
@@ -494,8 +531,6 @@ function enforce(payload, file) {
     writeFileSync(file, JSON.stringify(nextState));
     return;
   }
-  if (toolName === 'Bash' && isBootstrapShell(command)) return;
-
   deny('TASK WORKTREE REQUIRED: create and use a task/* worktree before writing. The caller checkout is read-only.');
 }
 
