@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {spawnSync} from 'node:child_process';
+import {spawn, spawnSync} from 'node:child_process';
 import {chmodSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
@@ -32,6 +32,18 @@ function fixtureRepository(prefix) {
 // Extracts one labeled value from creator output.
 function outputValue(output, label) {
   return output.match(new RegExp(`^${label}: (.+)$`, 'mu'))?.[1];
+}
+
+// Captures one asynchronous creator process result.
+function runCreator(args, options) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, args, options);
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('close', (status) => resolve({status, stdout, stderr}));
+  });
 }
 
 test('creates an isolated worktree from HEAD without changing a dirty caller', () => {
@@ -325,7 +337,7 @@ test('rejects conflicting tracked JavaScript lockfiles without choosing a manage
   }
 });
 
-test('retains and records a worktree when dependency setup fails', () => {
+test('retains and atomically resumes an owned worktree when dependency setup fails', async () => {
   const root = fixtureRepository('task-create-fail-');
   const bin = mkdtempSync(join(tmpdir(), 'task-create-bin-'));
   writeFileSync(join(root, 'package.json'), '{"name":"fixture"}\n');
@@ -334,14 +346,41 @@ test('retains and records a worktree when dependency setup fails', () => {
   git(root, 'commit', '-qm', 'add npm package');
   writeFileSync(join(bin, 'npm'), '#!/bin/sh\nexit 7\n');
   chmodSync(join(bin, 'npm'), 0o755);
+  const args = [script, 'failure', '--id', 'fixed-id', '--summary', 'Retry failed setup'];
+  const env = {...process.env, PATH: `${bin}:${process.env.PATH}`, CODEX_SESSION_ID: 'resume-owner'};
   let worktree;
   try {
-    const result = spawnSync(process.execPath, [script, 'failure'], {cwd: root, encoding: 'utf8', env: {...process.env, PATH: `${bin}:${process.env.PATH}`}});
+    const result = spawnSync(process.execPath, args, {cwd: root, encoding: 'utf8', env});
     assert.notEqual(result.status, 0);
     worktree = result.stderr.match(/retry: (.+)$/mu)?.[1];
     assert.ok(worktree);
-    assert.match(readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8'), /- setup: failed/u);
+    const failedState = readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8');
+    assert.match(failedState, /- setup: failed/u);
     assert.match(result.stderr, /npm ci --ignore-scripts failed/u);
+    writeFileSync(join(bin, 'npm'), '#!/bin/sh\nexit 0\n');
+    writeFileSync(join(worktree, 'foreign-untracked'), 'not setup-owned\n');
+    const dirtyRetry = spawnSync(process.execPath, args, {cwd: root, encoding: 'utf8', env});
+    assert.notEqual(dirtyRetry.status, 0);
+    assert.match(dirtyRetry.stderr, /not the same clean failed setup/u);
+    rmSync(join(worktree, 'foreign-untracked'));
+    const statePath = join(worktree, '.agent-tmp', 'task-state.md');
+    writeFileSync(statePath, readFileSync(statePath, 'utf8').replace('- setup: failed', '- setup: in-progress'));
+    writeFileSync(join(worktree, '.agent-tmp', 'setup-resume.lock'), `${JSON.stringify({pid: 2147483647, created: '2026-01-01T00:00:00.000Z'})}\n`);
+    writeFileSync(join(bin, 'npm'), '#!/bin/sh\nsleep 1\nexit 0\n');
+    const retries = await Promise.all([
+      runCreator(args, {cwd: root, env}),
+      runCreator(args, {cwd: root, env}),
+    ]);
+    const [retry] = retries.filter((candidate) => candidate.status === 0);
+    const [contended] = retries.filter((candidate) => candidate.status !== 0);
+    assert.ok(retry, JSON.stringify(retries));
+    assert.ok(contended, JSON.stringify(retries));
+    assert.match(contended.stderr, /already being resumed/u);
+    assert.equal(outputValue(retry.stdout, 'worktree'), worktree);
+    const completedState = readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8');
+    assert.match(completedState, /- setup: complete/u);
+    assert.equal(completedState.match(/^- created time: .+$/mu)?.[0], failedState.match(/^- created time: .+$/mu)?.[0]);
+    assert.equal(completedState.match(/^- owner: .+$/mu)?.[0], failedState.match(/^- owner: .+$/mu)?.[0]);
   } finally {
     if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
     rmSync(bin, {recursive: true, force: true});

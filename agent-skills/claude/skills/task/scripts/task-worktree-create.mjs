@@ -2,7 +2,7 @@
 
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {appendFileSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
+import {appendFileSync, closeSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
 import {basename, dirname, join, posix, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -80,6 +80,64 @@ function writeState(worktree, values) {
   }
   const lines = Object.entries(values).map(([key, value]) => `- ${key}: ${String(value).replace(/[\r\n]+/gu, ' ')}`);
   writeFileSync(statePath, `# Task state\n\n${lines.join('\n')}\n`);
+}
+
+// Reads labeled values from an existing retained task state file.
+function readState(worktree) {
+  const stateDirectory = join(worktree, '.agent-tmp');
+  const statePath = join(worktree, '.agent-tmp', 'task-state.md');
+  if (!lstatSync(stateDirectory).isDirectory() || lstatSync(stateDirectory).isSymbolicLink()
+    || !lstatSync(statePath).isFile() || lstatSync(statePath).isSymbolicLink()) {
+    throw new Error('Retained task-state.md must be a regular file');
+  }
+  return new Map(readFileSync(statePath, 'utf8').split(/\r?\n/u).flatMap((line) => {
+    const match = line.match(/^- ([^:]+): (.*)$/u);
+    return match ? [[match[1], match[2]]] : [];
+  }));
+}
+
+// Atomically claims setup retry ownership and reclaims locks owned by dead processes.
+function acquireResumeLock(lockPath) {
+  let reclaimed = false;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const candidatePath = `${lockPath}.${process.pid}.${process.hrtime.bigint()}`;
+    try {
+      writeFileSync(candidatePath, `${JSON.stringify({pid: process.pid, created: new Date().toISOString()})}\n`, {flag: 'wx', mode: 0o600});
+      try {
+        linkSync(candidatePath, lockPath);
+      } finally {
+        rmSync(candidatePath, {force: true});
+      }
+      const fd = openSync(lockPath, 'r');
+      return {fd, reclaimed};
+    } catch (error) {
+      rmSync(candidatePath, {force: true});
+      if (error.code !== 'EEXIST') throw error;
+      let owner;
+      try {
+        owner = JSON.parse(readFileSync(lockPath, 'utf8'));
+      } catch {
+        throw new Error('Existing failed task setup has an invalid resume lock');
+      }
+      if (!Number.isSafeInteger(owner.pid) || owner.pid <= 0) throw new Error('Existing failed task setup has an invalid resume lock');
+      try {
+        process.kill(owner.pid, 0);
+        throw new Error('Existing failed task setup is already being resumed');
+      } catch (processError) {
+        if (processError.message === 'Existing failed task setup is already being resumed' || processError.code === 'EPERM') {
+          throw new Error('Existing failed task setup is already being resumed');
+        }
+        if (processError.code !== 'ESRCH') throw processError;
+      }
+      try {
+        unlinkSync(lockPath);
+        reclaimed = true;
+      } catch (unlinkError) {
+        if (unlinkError.code !== 'ENOENT') throw unlinkError;
+      }
+    }
+  }
+  throw new Error('Existing failed task setup resume lock changed concurrently');
 }
 
 // Refuses repositories that already own the task-local state namespace.
@@ -191,6 +249,9 @@ assertStateNamespaceUntracked(caller);
 const suffix = taskId ?? timestamp();
 const taskBranch = `task/${slug}-${suffix}`;
 const worktree = join(dirname(caller), `${basename(caller)}-task-${slug}-${suffix}`);
+const originalCaller = realpathSync(process.cwd());
+const runtime = /[/\\]claude[/\\]skills[/\\]/u.test(fileURLToPath(import.meta.url)) ? 'claude' : 'codex';
+const sessionId = process.env.CODEX_THREAD_ID ?? process.env.CODEX_SESSION_ID ?? process.env.CLAUDE_SESSION_ID;
 const reservationPath = join(git(caller, ['rev-parse', '--absolute-git-dir']), 'task-worktree-reservations', `${slug}-${suffix}.nonce`);
 let reservationNonce;
 let reservationBaseHead;
@@ -210,6 +271,10 @@ try {
 }
 const baseBranch = reservationBaseBranch ?? callerBranch;
 if (!baseBranch) throw new Error('Task worktree creation requires an attached base branch or a guarded base reservation');
+let retainedState;
+let retainedHead;
+let resumeLockPath;
+let resumeLockFd;
 if (reservationNonce) {
   const reservedHead = reservationBaseHead ?? git(caller, ['rev-parse', `refs/heads/${taskBranch}`]);
   if (!/^[0-9a-f]{40,64}$/u.test(reservedHead) || git(caller, ['rev-parse', `refs/heads/${taskBranch}`]) !== reservedHead) {
@@ -226,12 +291,42 @@ if (reservationNonce) {
     run('git', ['-C', caller, 'worktree', 'add', worktree, taskBranch], caller);
   }
 } else {
-  run('git', ['-C', caller, 'worktree', 'add', '-b', taskBranch, worktree, 'HEAD'], caller);
+  const existing = spawnSync('git', ['-C', worktree, 'rev-parse', '--show-toplevel'], {encoding: 'utf8'});
+  if (existing.status === 0) {
+    retainedState = readState(worktree);
+    retainedHead = git(worktree, ['rev-parse', 'HEAD']);
+    const retainedOwner = retainedState.get('owner') ?? '';
+    const expectedOwner = sessionId ? `${runtime}:${sessionId}` : null;
+    const fallbackOwnerSuffix = `:${originalCaller}:${taskSummary}`;
+    if (existing.stdout.trim() !== realpathSync(worktree)
+      || git(worktree, ['branch', '--show-current']) !== taskBranch
+      || retainedHead !== git(caller, ['rev-parse', `refs/heads/${taskBranch}`])
+      || git(worktree, ['status', '--porcelain=v1'])
+      || !['failed', 'in-progress'].includes(retainedState.get('setup'))
+      || retainedState.get('base branch') !== baseBranch
+      || retainedState.get('task branch') !== taskBranch
+      || retainedState.get('worktree path') !== worktree
+      || retainedState.get('original caller path') !== originalCaller
+      || retainedState.get('task summary') !== taskSummary
+      || retainedState.get('creator id') !== suffix
+      || retainedState.get('plan only') !== String(planOnly)
+      || (expectedOwner ? retainedOwner !== expectedOwner : !retainedOwner.startsWith(`${runtime}:`) || !retainedOwner.endsWith(fallbackOwnerSuffix))) {
+      throw new Error('Existing task worktree is not the same clean failed setup owned by this invocation');
+    }
+    resumeLockPath = join(worktree, '.agent-tmp', 'setup-resume.lock');
+    const lock = acquireResumeLock(resumeLockPath);
+    resumeLockFd = lock.fd;
+    if (retainedState.get('setup') === 'in-progress' && !lock.reclaimed) {
+      closeSync(resumeLockFd);
+      resumeLockFd = undefined;
+      unlinkSync(resumeLockPath);
+      throw new Error('In-progress task setup can resume only after reclaiming its dead owner lock');
+    }
+  } else {
+    run('git', ['-C', caller, 'worktree', 'add', '-b', taskBranch, worktree, 'HEAD'], caller);
+  }
 }
-const originalCaller = realpathSync(process.cwd());
-const runtime = /[/\\]claude[/\\]skills[/\\]/u.test(fileURLToPath(import.meta.url)) ? 'claude' : 'codex';
-const sessionId = process.env.CODEX_THREAD_ID ?? process.env.CODEX_SESSION_ID ?? process.env.CLAUDE_SESSION_ID;
-const createdTime = new Date().toISOString();
+const createdTime = retainedState?.get('created time') ?? new Date().toISOString();
 const state = {
   'base branch': baseBranch,
   'task branch': taskBranch,
@@ -242,7 +337,7 @@ const state = {
   'creator id': suffix,
   ...(reservationNonce ? {'guard nonce': reservationNonce} : {}),
   'plan only': planOnly,
-  owner: sessionId ? `${runtime}:${sessionId}` : `${runtime}:${createdTime}:${originalCaller}:${taskSummary}`,
+  owner: retainedState?.get('owner') ?? (sessionId ? `${runtime}:${sessionId}` : `${runtime}:${createdTime}:${originalCaller}:${taskSummary}`),
 };
 
 let bindableState = false;
@@ -252,11 +347,18 @@ try {
   ensureAgentTempIgnored(worktree);
   run('git', ['submodule', 'update', '--init', '--recursive'], worktree);
   for (const [command, args, cwd] of dependencyCommands(worktree)) run(command, args, cwd);
+  const ignoredBaseline = recursiveIgnoredFingerprint(worktree);
+  const ignoredSuperprojectBaseline = ignoredFingerprint(worktree);
+  if (retainedHead && (git(worktree, ['branch', '--show-current']) !== taskBranch
+    || git(worktree, ['rev-parse', 'HEAD']) !== retainedHead
+    || git(caller, ['rev-parse', `refs/heads/${taskBranch}`]) !== retainedHead)) {
+    throw new Error('Retained task branch changed while setup was running');
+  }
   writeState(worktree, {
     ...state,
     setup: 'complete',
-    'ignored baseline': recursiveIgnoredFingerprint(worktree),
-    'ignored superproject baseline': ignoredFingerprint(worktree),
+    'ignored baseline': ignoredBaseline,
+    'ignored superproject baseline': ignoredSuperprojectBaseline,
   });
   process.stdout.write(`[task-worktree] ready\nworktree: ${worktree}\nbranch: ${taskBranch}\nbase: ${baseBranch}\ncd ${JSON.stringify(worktree)}\n`);
 } catch (error) {
@@ -269,5 +371,13 @@ try {
   process.stderr.write(`[task-worktree] setup failed; worktree retained for diagnosis and retry: ${worktree}\nworktree: ${worktree}\nbranch: ${taskBranch}\n`);
   throw error;
 } finally {
+  if (resumeLockFd !== undefined) {
+    closeSync(resumeLockFd);
+    try {
+      unlinkSync(resumeLockPath);
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+    }
+  }
   if (reservationNonce && bindableState) rmSync(reservationPath, {force: true});
 }
