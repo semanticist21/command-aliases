@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
-import {spawnSync} from 'node:child_process';
-import {createHash} from 'node:crypto';
-import {appendFileSync, closeSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
+import {execFileSync, spawnSync} from 'node:child_process';
+import {createHash, randomUUID} from 'node:crypto';
+import {appendFileSync, closeSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
 import {basename, dirname, join, posix, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -58,6 +58,13 @@ function git(cwd, args) {
   return result.stdout.trim();
 }
 
+// Returns the immutable branch tip recorded by its oldest reflog entry.
+function branchCreationHead(repository, branch) {
+  const head = git(repository, ['reflog', 'show', '--format=%H', `refs/heads/${branch}`]).split('\n').filter(Boolean).at(-1);
+  if (!head) throw new Error(`Task branch ${branch} has no recoverable creation reflog`);
+  return head;
+}
+
 // Formats a UTC timestamp suitable for branch and directory names.
 function timestamp() {
   return new Date().toISOString().replace(/[-:.]/gu, '').replace('T', '-');
@@ -96,44 +103,77 @@ function readState(worktree) {
   }));
 }
 
+// Returns a stable operating-system identity for one live process.
+function processIdentity(pid) {
+  try {
+    return execFileSync('ps', ['-p', String(pid), '-o', 'lstart='], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+// Reports whether a resume lock still belongs to its recorded live process.
+function resumeLockOwnerIsLive(owner) {
+  try {
+    process.kill(owner.pid, 0);
+  } catch (error) {
+    if (error.code === 'ESRCH') return false;
+    throw error;
+  }
+  const identity = processIdentity(owner.pid);
+  return !owner.identity || !identity || owner.identity === identity;
+}
+
 // Atomically claims setup retry ownership and reclaims locks owned by dead processes.
 function acquireResumeLock(lockPath) {
   let reclaimed = false;
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  const token = randomUUID();
+  for (let attempt = 0; attempt < 4; attempt += 1) {
     const candidatePath = `${lockPath}.${process.pid}.${process.hrtime.bigint()}`;
     try {
-      writeFileSync(candidatePath, `${JSON.stringify({pid: process.pid, created: new Date().toISOString()})}\n`, {flag: 'wx', mode: 0o600});
+      writeFileSync(candidatePath, `${JSON.stringify({pid: process.pid, identity: processIdentity(process.pid), token, created: new Date().toISOString()})}\n`, {flag: 'wx', mode: 0o600});
       try {
         linkSync(candidatePath, lockPath);
       } finally {
         rmSync(candidatePath, {force: true});
       }
       const fd = openSync(lockPath, 'r');
-      return {fd, reclaimed};
+      return {fd, reclaimed, token};
     } catch (error) {
       rmSync(candidatePath, {force: true});
       if (error.code !== 'EEXIST') throw error;
       let owner;
       try {
         owner = JSON.parse(readFileSync(lockPath, 'utf8'));
-      } catch {
+      } catch (readError) {
+        if (readError.code === 'ENOENT') continue;
         throw new Error('Existing failed task setup has an invalid resume lock');
       }
       if (!Number.isSafeInteger(owner.pid) || owner.pid <= 0) throw new Error('Existing failed task setup has an invalid resume lock');
+      if (resumeLockOwnerIsLive(owner)) throw new Error('Existing failed task setup is already being resumed');
+      const retiredPath = `${lockPath}.stale-${token}`;
       try {
-        process.kill(owner.pid, 0);
-        throw new Error('Existing failed task setup is already being resumed');
-      } catch (processError) {
-        if (processError.message === 'Existing failed task setup is already being resumed' || processError.code === 'EPERM') {
-          throw new Error('Existing failed task setup is already being resumed');
-        }
-        if (processError.code !== 'ESRCH') throw processError;
+        renameSync(lockPath, retiredPath);
+      } catch (recoveryError) {
+        if (recoveryError.code === 'ENOENT') continue;
+        throw recoveryError;
       }
+      let changedOwner = false;
       try {
-        unlinkSync(lockPath);
+        const retiredOwner = JSON.parse(readFileSync(retiredPath, 'utf8'));
+        changedOwner = owner.token ? retiredOwner.token !== owner.token : resumeLockOwnerIsLive(retiredOwner);
+      } catch {
+        changedOwner = true;
+      }
+      if (changedOwner) {
+        try {
+          renameSync(retiredPath, lockPath);
+        } catch {
+          // A newer lock wins while the independently owned retired lock is preserved.
+        }
+      } else {
+        rmSync(retiredPath, {force: true});
         reclaimed = true;
-      } catch (unlinkError) {
-        if (unlinkError.code !== 'ENOENT') throw unlinkError;
       }
     }
   }
@@ -273,10 +313,13 @@ const baseBranch = reservationBaseBranch ?? callerBranch;
 if (!baseBranch) throw new Error('Task worktree creation requires an attached base branch or a guarded base reservation');
 let retainedState;
 let retainedHead;
+let creationHead;
 let resumeLockPath;
 let resumeLockFd;
+let resumeLockToken;
 if (reservationNonce) {
   const reservedHead = reservationBaseHead ?? git(caller, ['rev-parse', `refs/heads/${taskBranch}`]);
+  creationHead = reservedHead;
   if (!/^[0-9a-f]{40,64}$/u.test(reservedHead) || git(caller, ['rev-parse', `refs/heads/${taskBranch}`]) !== reservedHead) {
     throw new Error('Guard-reserved task branch no longer matches its reserved base');
   }
@@ -295,12 +338,14 @@ if (reservationNonce) {
   if (existing.status === 0) {
     retainedState = readState(worktree);
     retainedHead = git(worktree, ['rev-parse', 'HEAD']);
+    creationHead = retainedState.get('creation head') ?? branchCreationHead(caller, taskBranch);
     const retainedOwner = retainedState.get('owner') ?? '';
     const expectedOwner = sessionId ? `${runtime}:${sessionId}` : null;
     const fallbackOwnerSuffix = `:${originalCaller}:${taskSummary}`;
     if (existing.stdout.trim() !== realpathSync(worktree)
       || git(worktree, ['branch', '--show-current']) !== taskBranch
       || retainedHead !== git(caller, ['rev-parse', `refs/heads/${taskBranch}`])
+      || retainedHead !== creationHead
       || git(worktree, ['status', '--porcelain=v1'])
       || !['failed', 'in-progress'].includes(retainedState.get('setup'))
       || retainedState.get('base branch') !== baseBranch
@@ -316,16 +361,12 @@ if (reservationNonce) {
     resumeLockPath = join(worktree, '.agent-tmp', 'setup-resume.lock');
     const lock = acquireResumeLock(resumeLockPath);
     resumeLockFd = lock.fd;
-    if (retainedState.get('setup') === 'in-progress' && !lock.reclaimed) {
-      closeSync(resumeLockFd);
-      resumeLockFd = undefined;
-      unlinkSync(resumeLockPath);
-      throw new Error('In-progress task setup can resume only after reclaiming its dead owner lock');
-    }
+    resumeLockToken = lock.token;
   } else {
     run('git', ['-C', caller, 'worktree', 'add', '-b', taskBranch, worktree, 'HEAD'], caller);
   }
 }
+creationHead ??= git(worktree, ['rev-parse', 'HEAD']);
 const createdTime = retainedState?.get('created time') ?? new Date().toISOString();
 const state = {
   'base branch': baseBranch,
@@ -335,6 +376,7 @@ const state = {
   'created time': createdTime,
   'task summary': taskSummary,
   'creator id': suffix,
+  'creation head': creationHead,
   ...(reservationNonce ? {'guard nonce': reservationNonce} : {}),
   'plan only': planOnly,
   owner: retainedState?.get('owner') ?? (sessionId ? `${runtime}:${sessionId}` : `${runtime}:${createdTime}:${originalCaller}:${taskSummary}`),
@@ -374,9 +416,9 @@ try {
   if (resumeLockFd !== undefined) {
     closeSync(resumeLockFd);
     try {
-      unlinkSync(resumeLockPath);
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
+      if (JSON.parse(readFileSync(resumeLockPath, 'utf8')).token === resumeLockToken) unlinkSync(resumeLockPath);
+    } catch {
+      // A recovered or already-released lock is never removed by a former owner.
     }
   }
   if (reservationNonce && bindableState) rmSync(reservationPath, {force: true});

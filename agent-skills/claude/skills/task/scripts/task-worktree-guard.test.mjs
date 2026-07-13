@@ -536,6 +536,49 @@ test('does not delete a competing creator reservation before its ref appears', (
   }
 });
 
+test('binds and allows an exact same-session retained creator retry', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-creator-resume-'));
+  let existing;
+  const sessionId = `creator-resume-${Date.now()}`;
+  try {
+    git(root, 'init', '-q', '-b', 'main');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    const canonicalRoot = spawnSync('git', ['-C', root, 'rev-parse', '--show-toplevel'], {encoding: 'utf8'}).stdout.trim();
+    const branch = 'task/resume-fixed-id';
+    existing = join(dirname(canonicalRoot), `${basename(canonicalRoot)}-task-resume-fixed-id`);
+    git(root, 'worktree', 'add', '-qb', branch, existing, 'HEAD');
+    const creationHead = git(existing, 'rev-parse', 'HEAD');
+    mkdirSync(join(existing, '.agent-tmp'), {recursive: true});
+    writeFileSync(join(existing, '.agent-tmp', 'task-state.md'), `# Task state
+
+- base branch: main
+- task branch: ${branch}
+- worktree path: ${existing}
+- original caller path: ${canonicalRoot}
+- task summary: Retry setup
+- creator id: fixed-id
+- creation head: ${creationHead}
+- plan only: false
+- owner: ${runtime}:${sessionId}
+- setup: failed
+`);
+    runHook({hook_event_name: 'UserPromptSubmit', session_id: sessionId, cwd: canonicalRoot, prompt: '$task retry setup'});
+    const command = `node ~/.${runtime}/skills/task/scripts/task-worktree-create.mjs resume --id fixed-id --repo "${canonicalRoot}" --summary "Retry setup"`;
+    assert.equal(runHook({hook_event_name: 'PreToolUse', session_id: sessionId, cwd: canonicalRoot, tool_name: 'Bash', tool_input: {command}}).stdout, '');
+    const state = JSON.parse(readFileSync(sessionStatePath(sessionId), 'utf8'));
+    assert.equal(state.taskRoot, existing);
+    assert.equal(state.taskBranch, branch);
+    assert.equal(state.taskCreationHead, git(existing, 'rev-parse', 'HEAD'));
+  } finally {
+    if (existing) git(root, 'worktree', 'remove', '--force', existing);
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
 test('rejects a reused creator id instead of binding its existing worktree', () => {
   const root = mkdtempSync(join(tmpdir(), 'task-guard-creator-reused-'));
   let existing;

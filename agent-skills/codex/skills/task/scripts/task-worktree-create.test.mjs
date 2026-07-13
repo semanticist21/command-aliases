@@ -365,7 +365,7 @@ test('retains and atomically resumes an owned worktree when dependency setup fai
     rmSync(join(worktree, 'foreign-untracked'));
     const statePath = join(worktree, '.agent-tmp', 'task-state.md');
     writeFileSync(statePath, readFileSync(statePath, 'utf8').replace('- setup: failed', '- setup: in-progress'));
-    writeFileSync(join(worktree, '.agent-tmp', 'setup-resume.lock'), `${JSON.stringify({pid: 2147483647, created: '2026-01-01T00:00:00.000Z'})}\n`);
+    writeFileSync(join(worktree, '.agent-tmp', 'setup-resume.lock'), `${JSON.stringify({pid: 2147483647, identity: null, token: 'stale-owner', created: '2026-01-01T00:00:00.000Z'})}\n`);
     writeFileSync(join(bin, 'npm'), '#!/bin/sh\nsleep 1\nexit 0\n');
     const retries = await Promise.all([
       runCreator(args, {cwd: root, env}),

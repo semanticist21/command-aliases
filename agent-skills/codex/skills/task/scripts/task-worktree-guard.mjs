@@ -2,7 +2,7 @@
 
 import {execFileSync} from 'node:child_process';
 import {createHash, randomUUID} from 'node:crypto';
-import {lstatSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync} from 'node:fs';
+import {lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
 import {basename, dirname, isAbsolute, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -331,7 +331,46 @@ function taskCreatorInvocation(command, cwd) {
   if (/[;&|\n>`$()]/u.test(normalized)) return null;
   const match = normalized.match(/^node\s+(\S+)\s+([a-z0-9][a-z0-9._-]*)\s+--id\s+([a-z0-9][a-z0-9._-]*)(?:\s+--repo\s+(?:"([^"`$]+)"|'([^'`$]+)'|([a-zA-Z0-9_./-]+)))?(?:\s+--summary\s+(?:"([^"`$]+)"|'([^'`$]+)'|([^\s;&|>`$()]+)))?(\s+--plan-only)?$/u);
   if (!match || ![creatorPath, `~/.${runtime}/skills/task/scripts/task-worktree-create.mjs`].includes(match[1])) return null;
-  return {slug: match[2], id: match[3], repository: resolve(cwd, match[4] ?? match[5] ?? match[6] ?? '.'), planOnly: Boolean(match[10])};
+  return {
+    slug: match[2],
+    id: match[3],
+    repository: resolve(cwd, match[4] ?? match[5] ?? match[6] ?? '.'),
+    summary: match[7] ?? match[8] ?? match[9] ?? match[2],
+    callerPath: realpathSync(cwd),
+    planOnly: Boolean(match[10]),
+  };
+}
+
+// Validates an exact same-session retry of one retained failed creator worktree.
+function retainedCreatorResume(creator, baseRoot, expectedPath, branch, sessionId) {
+  if (gitRoot(expectedPath) !== expectedPath || gitBranch(expectedPath) !== branch) return null;
+  const head = gitHead(expectedPath);
+  if (!head || gitRef(baseRoot, branch) !== head) return null;
+  let taskState;
+  try {
+    taskState = readFileSync(join(expectedPath, '.agent-tmp', 'task-state.md'), 'utf8');
+  } catch {
+    return null;
+  }
+  let recordedCreationHead = taskState.match(/^- creation head: ([0-9a-f]{40,64})$/mu)?.[1];
+  try {
+    recordedCreationHead ??= execFileSync('git', ['-C', baseRoot, 'reflog', 'show', '--format=%H', `refs/heads/${branch}`], {encoding: 'utf8'}).trim().split('\n').filter(Boolean).at(-1);
+  } catch {
+    return null;
+  }
+  if (!recordedCreationHead || head !== recordedCreationHead) return null;
+  const required = [
+    `- base branch: ${gitBranch(baseRoot)}\n`,
+    `- task branch: ${branch}\n`,
+    `- worktree path: ${expectedPath}\n`,
+    `- original caller path: ${creator.callerPath}\n`,
+    `- task summary: ${creator.summary}\n`,
+    `- creator id: ${creator.id}\n`,
+    `- plan only: ${creator.planOnly}\n`,
+    `- owner: ${runtime}:${sessionId}\n`,
+  ];
+  if (!required.every((line) => taskState.includes(line)) || !/- setup: (?:failed|in-progress)\n/u.test(taskState)) return null;
+  return head;
 }
 
 // Binds a newly-created worktree even when dependency preparation returned failure.
@@ -796,6 +835,17 @@ function enforce(payload, file) {
       const expectedPath = join(dirname(baseRoot), `${basename(baseRoot)}-task-${creator.slug}-${creator.id}`);
       const branch = `task/${creator.slug}-${creator.id}`;
       if (gitRoot(expectedPath) || gitRef(baseRoot, branch)) {
+        const resumeHead = retainedCreatorResume(creator, baseRoot, expectedPath, branch, sessionId);
+        if (resumeHead) {
+          persistState(file, {
+            ...state,
+            taskRoot: expectedPath,
+            taskBranch: branch,
+            taskCreationHead: resumeHead,
+            planOnly: creator.planOnly || state.planOnly,
+          });
+          return;
+        }
         deny('TASK CREATOR ID COLLISION: choose a new unique --id; existing worktree or branch was not rebound.');
         return;
       }
