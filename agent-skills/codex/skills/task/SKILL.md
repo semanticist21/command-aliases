@@ -1,8 +1,6 @@
 ---
 name: "task"
-description: "Run /task work in an isolated worktree through plan, implementation, QA, merge-back, and cleanup."
-user-invocable: true
-argument-hint: "<task goal and constraints>"
+description: "Run repository-changing tasks and any plan that assumes repository changes—including Plan mode and plan-only requests—in an isolated prepared worktree through planning, implementation, QA, merge-back, and cleanup."
 metadata:
   short-description: Plan, execute, QA until valid findings zero
 ---
@@ -20,6 +18,28 @@ remaining queue are reported.
 Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
 
+## Plan-only requests
+
+When the user explicitly asks for a plan without implementation, still create the
+goal and prepared task worktree before implementation-file inspection or detailed
+planning. Run only the Planning stage; do not execute, run implementation QA, or
+commit. After the plan is ready but before delivering it, run the bundled cleanup
+helper from the caller worktree:
+
+```bash
+node ~/.codex/skills/task/scripts/task-worktree-plan-cleanup.mjs --repo "<caller-root>" --worktree "<task-worktree>" --branch <task-branch> --head <creation-commit>
+```
+
+The helper revalidates tracked state and ignored setup artifacts across recursive
+submodules, deinitializes only clean submodules, quarantines the worktree path,
+and removes only unchanged ignored setup artifacts. It uses Git's non-force
+dirty-worktree check for ordinary worktrees and scoped force only after clean
+submodule deinitialization, then deletes the branch with an atomic expected-ref
+check. The guard
+permits only this exact state-bound command. Never discard changes to force
+cleanup; report the exact unexpected state instead. Mark the planning goal
+complete only after clean worktree and branch cleanup, then deliver the plan.
+
 ## Mechanical worktree guard
 
 Install `scripts/task-worktree-guard.mjs` as `UserPromptSubmit` (`.*`),
@@ -27,13 +47,21 @@ Install `scripts/task-worktree-guard.mjs` as `UserPromptSubmit` (`.*`),
 `PostToolUseFailure` (`Bash`), and `Stop` (`.*`) hooks.
 Use `node scripts/install-task-worktree-guard.mjs codex` for an idempotent install
 that preserves existing hook entries.
-The prompt hook activates only for explicit `$task` or `/task` invocations; the
-tool hook then denies writes in the caller checkout until the tool runs from a
-different worktree on a `task/*` branch. The Stop hook clears state after the
+The prompt hook activates for explicit `$task` or `/task` invocations. For an
+implicit skill selection, the exact worktree creator command atomically activates
+the same guard before reserving its branch. The tool hook then denies writes in
+the caller checkout until the tool runs from a different worktree on a `task/*`
+branch. The Stop hook clears state after the
 recorded task worktree has been removed.
 Safe startup reads may be batched with `&&`; the successful `git worktree add`
 binds the session to that exact worktree, including when the target repository
 differs from the caller repository.
+The guard also permits only the exact bundled `task-worktree-create.mjs`
+invocation described below. It binds the one new matching worktree after success
+or after a later dependency-setup failure, so recovery continues inside that
+worktree instead of creating another one.
+For plan-only cleanup it permits only the exact state-bound
+`task-worktree-plan-cleanup.mjs` invocation described above.
 Guard state lives in `~/.codex/task-worktree-guard-state/`, expires after 24
 hours of inactivity, and self-clears when its bound worktree disappears.
 If an activated task is abandoned, submit `task-cancel`, `/task-cancel`, or
@@ -109,6 +137,29 @@ Before starting a new task, clear or queue only against task work owned by this 
 
 ## Worktree Isolation
 
+**Mandatory prepared-worktree bootstrap.** For repo-writing tasks and
+repository-changing implementation plans, including Plan mode and plan-only
+requests, run this as the normal startup path before implementation-file
+inspection or detailed planning:
+
+```bash
+node ~/.codex/skills/task/scripts/task-worktree-create.mjs <slug> --id <unique-id> --repo <repo-root> --summary "<task summary>"
+```
+
+Generate one lowercase filesystem-safe unique ID for the invocation, preferably
+from the platform session plus current UTC timestamp. If the guard reports an ID
+collision, generate a new ID; never reuse or take over the existing worktree.
+The script creates the isolated task worktree, records task state, initializes
+recursive submodules, and installs dependencies from recognized tracked lockfiles
+across the superproject and every initialized submodule. JavaScript package
+installs disable repository lifecycle/build scripts during bootstrap. A raw
+`git worktree add` is recovery-only when the script is unavailable or fails
+before creating a worktree. If setup fails after creation, keep and use that
+created worktree and repair setup there; never create a second worktree or fall
+back to the caller checkout.
+For a plan-only request, append `--plan-only`; this is required for the guard's
+clean no-commit removal path.
+
 **HEAD worktree default.** For new repo-writing tasks, caller worktree state almost never blocks. If committed `HEAD` exists and `git worktree add ... HEAD` can create an isolated task worktree, do it without asking, regardless of caller dirty files, staged files, unmerged paths, merge/rebase/cherry-pick/bisect state, or unrelated task branches. Treat caller tree read-only and proceed from last commit. Ask only when user explicitly says task must include current uncommitted/unmerged changes or explicitly asks work in current tree. If even this rare path fails (no `HEAD`, path/branch collision, transient git lock), report waiting state, sleep/check periodically, and retry until user redirects or the condition clears; do not mark blocked immediately.
 
 Operational/exploratory work that should not create a commit or leave `git log` history does not need a task worktree; run in caller context while preserving user changes.
@@ -141,16 +192,18 @@ intended base from user prompt or stop and ask.
    - repo is a git repo with a resolved branch base, not detached or unborn
    - task will write repo files
    - user did not explicitly ask to work in the caller's current tree
-   - sibling worktree path and `task/<slug>-<timestamp>` branch name are unused
+   - sibling worktree path and `task/<slug>-<unique-id>` branch name are unused
 5. If caller tree is dirty, do not treat that as a blocker when a worktree can be
    created from committed `HEAD`. The default is to ignore caller-tree dirty
    files, branch from the last commit, include the dirty status in briefs, and
    treat the original tree as read-only context. Ask only when the user
    explicitly says the task must incorporate uncommitted tracked changes or
    untracked files, or explicitly asks to work in the current tree.
-6. Create a sibling worktree from the current `HEAD`, using a task branch:
-   `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`.
-   Keep the slug short, lowercase, and filesystem-safe.
+6. Use the prepared-worktree bootstrap above. It creates a sibling worktree from
+   current `HEAD` on `task/<slug>-<unique-id>` and keeps the slug short,
+   lowercase, and filesystem-safe. Use
+   `git worktree add -b task/<slug>-<timestamp> ../<repo>-task-<slug>-<timestamp> HEAD`
+   only as the documented recovery path.
 7. Immediately record task state in
    `<task-worktree>/.agent-tmp/task-state.md`: base branch, task branch,
    worktree path, original caller path, created time, task summary, and mandatory owner/session marker. If no platform session id is available, derive a stable marker from runtime name + created timestamp + caller path + concise task summary. Keep
@@ -186,7 +239,7 @@ intended base from user prompt or stop and ask.
    - Squash-merge into base
      (`git switch <base> && git merge --squash <task-branch> && git commit`),
      then remove worktree with `git worktree remove <path>` and delete the
-     task branch with `git branch -D <task-branch>` after confirming the
+     task branch with `git update-ref -d refs/heads/<task-branch> <verified-task-head>` after confirming the
      squash commit exists. Confirm worktree removal and branch deletion.
      Reuse task branch commit subject appropriate, keep final base history one commit.
    - Task cleanup mandatory: do not mark task complete while this task's worktree or
@@ -474,8 +527,10 @@ Final response should include:
 - For `/task`/`$task`, creating the task worktree branch is allowed only after
   the worktree safety gate passes. Do not create additional branches beyond that
   unless the user explicitly asks.
-- Do not use destructive git commands, except scoped `git branch -D <task-branch>`
-  cleanup after successful squash-merge commit. Squash merges do not mark source
+- Do not use destructive git commands, except expected-OID scoped `git update-ref -d refs/heads/<task-branch> <verified-task-head>`
+  cleanup after successful squash-merge commit or after verified clean plan-only
+  cleanup where task and base still point to the creation commit. Squash merges
+  do not mark source
   branch merged by ancestry, so `git branch -d` may incorrectly refuse cleanup;
   only force-delete task branch after squash commit is present on recorded base
   and no worktree still uses that branch.

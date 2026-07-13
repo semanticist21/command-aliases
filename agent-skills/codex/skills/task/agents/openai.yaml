@@ -1,7 +1,7 @@
 interface:
   display_name: "Task"
-  short_description: "Plan, execute, and QA until findings are zero"
-  default_prompt: "Use $task to plan, execute, and verify this task with an agent-backed QA loop until findings are zero."
+  short_description: "Prepare a worktree, then plan, execute, and QA"
+  default_prompt: "Use $task to create a prepared isolated worktree, then plan, execute, and verify this task until findings are zero."
 
 policy:
   allow_implicit_invocation: true

@@ -1,15 +1,17 @@
 #!/usr/bin/env node
 
 import {execFileSync} from 'node:child_process';
-import {createHash} from 'node:crypto';
-import {lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {createHash, randomUUID} from 'node:crypto';
+import {lstatSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync} from 'node:fs';
 import {homedir} from 'node:os';
-import {dirname, isAbsolute, join, resolve} from 'node:path';
+import {basename, dirname, isAbsolute, join, resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 const scriptPath = fileURLToPath(import.meta.url);
 const runtime = /[/\\]codex[/\\]skills[/\\]/u.test(scriptPath) ? 'codex' : 'claude';
 const verifierPath = join(homedir(), `.${runtime}`, 'skills', 'task', 'scripts', 'task-verify.mjs');
+const creatorPath = join(homedir(), `.${runtime}`, 'skills', 'task', 'scripts', 'task-worktree-create.mjs');
+const planCleanupPath = join(homedir(), `.${runtime}`, 'skills', 'task', 'scripts', 'task-worktree-plan-cleanup.mjs');
 const stateDirectory = process.env.TASK_WORKTREE_GUARD_STATE_DIR ?? join(homedir(), `.${runtime}`, 'task-worktree-guard-state');
 const stateTtlMilliseconds = 24 * 60 * 60 * 1000;
 
@@ -24,12 +26,109 @@ function readPayload() {
 
 // Returns the persistent state path for one agent session.
 function statePath(sessionId) {
-  return join(stateDirectory, `${String(sessionId).replace(/[^a-zA-Z0-9._-]/g, '_')}.json`);
+  return join(stateDirectory, `${createHash('sha256').update(String(sessionId)).digest('hex')}.json`);
+}
+
+// Returns a stable operating-system identity for one live process.
+function processIdentity(pid) {
+  try {
+    return execFileSync('ps', ['-p', String(pid), '-o', 'lstart='], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim() || null;
+  } catch {
+    return null;
+  }
 }
 
 // Writes session state while refreshing its inactivity timestamp.
 function persistState(file, state) {
-  writeFileSync(file, JSON.stringify({...state, updatedAt: new Date().toISOString()}));
+  const temporary = `${file}.${process.pid}.${randomUUID()}.tmp`;
+  writeFileSync(temporary, JSON.stringify({...state, updatedAt: new Date().toISOString()}));
+  renameSync(temporary, file);
+}
+
+// Reads either the atomic file-lock format or a legacy directory owner marker.
+function readLockOwner(lock) {
+  const ownerPath = lstatSync(lock).isDirectory() ? join(lock, 'owner.json') : lock;
+  return JSON.parse(readFileSync(ownerPath, 'utf8'));
+}
+
+// Reports whether a recorded lock owner is still the same live process.
+function lockOwnerIsLive(owner) {
+  try {
+    process.kill(owner.pid, 0);
+  } catch (error) {
+    if (error.code === 'ESRCH') return false;
+    throw error;
+  }
+  const identity = processIdentity(owner.pid);
+  return !owner.identity || !identity || owner.identity === identity;
+}
+
+// Serializes hook transitions with an atomic file lock and recovers legacy locks safely.
+function withSessionLock(file, callback) {
+  mkdirSync(stateDirectory, {recursive: true});
+  const lock = `${file}.lock`;
+  const token = randomUUID();
+  const owner = {pid: process.pid, identity: processIdentity(process.pid), token};
+  const deadline = Date.now() + 10_000;
+  while (true) {
+    try {
+      writeFileSync(lock, JSON.stringify(owner), {flag: 'wx'});
+      break;
+    } catch (error) {
+      if (error.code !== 'EEXIST') throw error;
+      let observed;
+      try {
+        observed = readLockOwner(lock);
+      } catch {
+        try {
+          if (Date.now() - statSync(lock).mtimeMs <= 250) observed = null;
+          else observed = {token: null};
+        } catch (statError) {
+          if (statError.code === 'ENOENT') continue;
+          throw statError;
+        }
+      }
+      if (observed && (observed.token === null || !lockOwnerIsLive(observed))) {
+        const retired = `${lock}.stale-${token}`;
+        try {
+          renameSync(lock, retired);
+        } catch (recoveryError) {
+          if (recoveryError.code === 'ENOENT') continue;
+          throw recoveryError;
+        }
+        let changedOwner = false;
+        try {
+          const retiredOwner = readLockOwner(retired);
+          changedOwner = observed.token !== null && retiredOwner.token !== observed.token;
+          if (observed.token === null && lockOwnerIsLive(retiredOwner)) changedOwner = true;
+        } catch {
+          // A still-markerless retired legacy lock has no owner to preserve.
+        }
+        if (changedOwner) {
+          try {
+            renameSync(retired, lock);
+          } catch {
+            // A newer lock wins; the independently owned retired lock is preserved.
+          }
+        } else rmSync(retired, {recursive: true, force: true});
+        continue;
+      }
+      if (Date.now() >= deadline) {
+        deny('TASK WORKTREE BUSY: another hook transition is still updating this session. Retry the command.');
+        return;
+      }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 20);
+    }
+  }
+  try {
+    callback();
+  } finally {
+    try {
+      if (readLockOwner(lock).token === token) rmSync(lock, {recursive: true, force: true});
+    } catch {
+      // A recovered or already-released lock is never removed by a former owner.
+    }
+  }
 }
 
 // Resolves the Git worktree root containing a directory.
@@ -60,6 +159,24 @@ function gitBranch(directory) {
 function gitHead(directory) {
   try {
     return execFileSync('git', ['-C', directory, 'rev-parse', 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Resolves one branch ref without requiring its worktree to exist.
+function gitRef(directory, branch) {
+  try {
+    return execFileSync('git', ['-C', directory, 'rev-parse', `refs/heads/${branch}`], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
+  } catch {
+    return null;
+  }
+}
+
+// Resolves one arbitrary Git revision without requiring a branch name.
+function gitRevision(directory, revision) {
+  try {
+    return execFileSync('git', ['-C', directory, 'rev-parse', revision], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
   } catch {
     return null;
   }
@@ -118,7 +235,7 @@ function workspaceFingerprint(directory) {
         try {
           const submodule = join(directory, path);
           const head = execFileSync('git', ['-C', submodule, 'rev-parse', 'HEAD'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim();
-          const dirty = execFileSync('git', ['-C', submodule, 'status', '--porcelain', '--untracked-files=normal'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']});
+          const dirty = execFileSync('git', ['-C', submodule, 'status', '--porcelain', '--untracked-files=normal', '--ignore-submodules=none'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']});
           return dirty ? `160000\0dirty:${head}:${createHash('sha256').update(dirty).digest('hex')}\0${path}` : `160000\0${head}\0${path}`;
         } catch {
           return `160000\0${indexed.hash}\0${path}`;
@@ -174,6 +291,11 @@ function invokesTask(prompt) {
   return /(?:^|\s)(?:\$|\/)task(?:\s|$)/u.test(prompt);
 }
 
+// Detects only the explicit task plan-only mode token.
+function invokesPlanOnly(prompt) {
+  return /(?:^|\s)(?:\$|\/)task\s+plan-only(?:\s|$)/u.test(prompt);
+}
+
 // Detects an explicit request to release an abandoned task guard.
 function cancelsTask(prompt) {
   return /^(?:\$|\/)?task-cancel$/u.test(prompt.trim());
@@ -184,6 +306,7 @@ function isStaleState(state) {
   const updatedAt = Date.parse(state.updatedAt ?? state.activatedAt);
   if (!Number.isFinite(updatedAt) || Date.now() - updatedAt > stateTtlMilliseconds) return true;
   if (!state.taskRoot) return false;
+  if (['removed', 'planRemoved'].includes(state.finalizePhase) && !gitRoot(state.taskRoot)) return false;
   return gitRoot(state.taskRoot) !== state.taskRoot;
 }
 
@@ -200,6 +323,57 @@ function isBootstrapShell(command) {
   const parts = normalized.split(/\s*&&\s*/u);
   const worktreeAdds = parts.filter((part) => /\sworktree\s+add\s/u.test(part));
   return worktreeAdds.length <= 1 && parts.every((part) => /^(?:pwd|git(?:\s+-C\s+(?:"[^"$`]+"|'[^'$`]+'|[a-zA-Z0-9_./-]+))?\s+(?:status(?:\s+(?:--short|--porcelain(?:=v1)?|--branch|-b))*|rev-parse\s+(?:--show-toplevel|--git-common-dir)|branch\s+(?:--show-current|--list(?:\s+(?:"[^"$`]+"|'[^'$`]+'|[a-zA-Z0-9_.*?/-]+))?)|worktree\s+(?:list|add\s+-b\s+task\/[a-zA-Z0-9._/-]+\s+(?:"[^"$`]+"|'[^'$`]+'|[a-zA-Z0-9_./-]+)\s+HEAD)))$/u.test(part));
+}
+
+// Parses the one-command task worktree creator invocation without allowing shell composition.
+function taskCreatorInvocation(command, cwd) {
+  const normalized = command.trim();
+  if (/[;&|\n>`$()]/u.test(normalized)) return null;
+  const match = normalized.match(/^node\s+(\S+)\s+([a-z0-9][a-z0-9._-]*)\s+--id\s+([a-z0-9][a-z0-9._-]*)(?:\s+--repo\s+(?:"([^"`$]+)"|'([^'`$]+)'|([a-zA-Z0-9_./-]+)))?(?:\s+--summary\s+(?:"([^"`$]+)"|'([^'`$]+)'|([^\s;&|>`$()]+)))?(\s+--plan-only)?$/u);
+  if (!match || ![creatorPath, `~/.${runtime}/skills/task/scripts/task-worktree-create.mjs`].includes(match[1])) return null;
+  return {slug: match[2], id: match[3], repository: resolve(cwd, match[4] ?? match[5] ?? match[6] ?? '.'), planOnly: Boolean(match[10])};
+}
+
+// Binds a newly-created worktree even when dependency preparation returned failure.
+function bindCreatedWorktree(state) {
+  if (!state.pendingCreator) return;
+  const taskRoot = gitRoot(state.pendingCreator.path);
+  const taskBranch = taskRoot ? gitBranch(taskRoot) : '';
+  let creatorState = '';
+  try {
+    creatorState = readFileSync(join(state.pendingCreator.path, '.agent-tmp', 'task-state.md'), 'utf8');
+  } catch {
+    // A creator that failed before state creation remains unbound.
+  }
+  const bound = taskRoot === state.pendingCreator.path
+    && taskBranch === state.pendingCreator.branch
+    && gitHead(taskRoot) === state.pendingCreator.baseHead
+    && creatorState.includes(`- creator id: ${state.pendingCreator.id}\n`)
+    && creatorState.includes(`- guard nonce: ${state.pendingCreator.nonce}\n`);
+  const attached = taskRoot === state.pendingCreator.path
+    && taskBranch === state.pendingCreator.branch
+    && gitHead(taskRoot) === state.pendingCreator.baseHead;
+  if (attached && !bound) return;
+  if (bound) {
+    if (state.pendingCreator.baseRoot !== state.callerRoot) {
+      state.originalCallerRoot = state.callerRoot;
+      state.callerRoot = state.pendingCreator.baseRoot;
+      state.callerBranch = state.pendingCreator.baseBranch;
+    }
+    state.taskRoot = taskRoot;
+    state.taskBranch = taskBranch;
+    state.taskCreationHead = state.pendingCreator.baseHead;
+    state.planOnly = state.pendingCreator.planOnly;
+  }
+  if (!bound && gitRef(state.pendingCreator.baseRoot, state.pendingCreator.branch) === state.pendingCreator.baseHead) {
+    try {
+      execFileSync('git', ['-C', state.pendingCreator.baseRoot, 'update-ref', '-d', `refs/heads/${state.pendingCreator.branch}`, state.pendingCreator.baseHead], {stdio: 'ignore'});
+    } catch {
+      // A changed reservation ref is not deleted during failed-creator cleanup.
+    }
+  }
+  rmSync(state.pendingCreator.reservationPath, {force: true});
+  delete state.pendingCreator;
 }
 
 // Returns every target directory exposed by a tool payload.
@@ -307,15 +481,31 @@ function finalizeAction(command, cwd, state) {
   const committed = state.verifiedTaskHead && gitHead(state.taskRoot) === state.verifiedTaskHead;
   const baseTip = gitHead(state.callerRoot);
   const baseMerged = state.baseMergedTip && baseTip === state.baseMergedTip && isAncestor(state.taskRoot, state.baseMergedTip, gitHead(state.taskRoot));
-  if (verified && unchanged && committed && baseMerged && state.finalizePhase === undefined && normalized === `git merge --squash ${state.taskBranch}`) return 'squash';
-  if (state.finalizePhase === 'squashed' && /^git\s+commit\s+-m\s+(?:"[^"\n]+"|'[^'\n]+'|[^\s]+)$/u.test(normalized)) return 'commit';
-  if (state.finalizePhase === 'committed' && [
+  const callerIndexClean = indexFingerprint(state.callerRoot) === headTreeFingerprint(state.callerRoot);
+  if (verified && unchanged && committed && baseMerged && callerIndexClean && state.finalizePhase === undefined && normalized === `git merge --squash ${state.taskBranch}`) return 'squash';
+  if (state.finalizePhase === 'squashed' && state.squashedFingerprint && indexFingerprint(state.callerRoot) === state.squashedFingerprint && /^git\s+commit\s+-m\s+(?:"[^"\n]+"|'[^'\n]+'|[^\s]+)$/u.test(normalized)) return 'commit';
+  const taskRefStable = state.verifiedTaskHead && gitRef(state.callerRoot, state.taskBranch) === state.verifiedTaskHead;
+  const mergedBaseStable = state.mergedBaseHead && gitHead(state.callerRoot) === state.mergedBaseHead;
+  if (state.finalizePhase === 'committed' && taskRefStable && mergedBaseStable && [
     `git worktree remove ${state.taskRoot}`,
     `git worktree remove "${state.taskRoot}"`,
     `git worktree remove '${state.taskRoot}'`,
   ].includes(normalized)) return 'remove';
-  if (state.finalizePhase === 'removed' && normalized === `git branch -D ${state.taskBranch}`) return 'delete';
+  if (state.finalizePhase === 'removed' && taskRefStable && mergedBaseStable && normalized === `git update-ref -d refs/heads/${state.taskBranch} ${state.verifiedTaskHead}`) return 'delete';
   return null;
+}
+
+// Classifies cleanup for a plan-only worktree that never diverged from its base.
+function planCleanupAction(command, cwd, state) {
+  if (!state.planOnly || !state.taskRoot || !state.taskBranch || !state.taskCreationHead || gitRoot(cwd) !== state.callerRoot || gitBranch(cwd) !== state.callerBranch) return null;
+  const normalized = command.trim();
+  if (state.finalizePhase !== undefined || gitHead(state.taskRoot) !== state.taskCreationHead) return null;
+  const workspace = workspaceFingerprint(state.taskRoot);
+  if (!workspace || workspace !== indexFingerprint(state.taskRoot) || workspace !== headTreeFingerprint(state.taskRoot)) return null;
+  return [planCleanupPath, `~/.${runtime}/skills/task/scripts/task-worktree-plan-cleanup.mjs`]
+    .some((script) => normalized === `node ${script} --repo ${JSON.stringify(state.callerRoot)} --worktree ${JSON.stringify(state.taskRoot)} --branch ${state.taskBranch} --head ${state.taskCreationHead}`)
+    ? 'planCleanup'
+    : null;
 }
 
 // Classifies task-branch staging, commit, and read-only commands that preserve verified content.
@@ -360,11 +550,16 @@ function handleLifecycle(payload, file) {
   if (payload.hook_event_name === 'PostToolUseFailure') {
     try {
       const state = JSON.parse(readFileSync(file, 'utf8'));
-      delete state.pendingVerification;
-      delete state.pendingFinalize;
-      delete state.pendingTaskAction;
-      delete state.pendingBaseMerge;
-      delete state.pendingWorktree;
+      const command = String(payload.tool_input?.command ?? payload.tool_input?.cmd ?? '');
+      if (state.pendingVerification?.command === command) delete state.pendingVerification;
+      if (state.pendingFinalize?.command === command) delete state.pendingFinalize;
+      if (state.pendingTaskAction?.command === command) delete state.pendingTaskAction;
+      if (state.pendingBaseMerge?.command === command) delete state.pendingBaseMerge;
+      if (state.pendingWorktree?.command === command) delete state.pendingWorktree;
+      if (state.pendingCreator?.command === command) {
+        bindCreatedWorktree(state);
+        if (state.pendingCreator) state.pendingCreator.retryable = true;
+      }
       persistState(file, state);
     } catch {
       // Missing state needs no update.
@@ -375,6 +570,7 @@ function handleLifecycle(payload, file) {
     try {
       const state = JSON.parse(readFileSync(file, 'utf8'));
       const command = String(payload.tool_input?.command ?? payload.tool_input?.cmd ?? '');
+      if (state.pendingCreator?.command === command) bindCreatedWorktree(state);
       if (state.pendingWorktree?.command === command) {
         if (toolSucceeded(payload)) {
           const taskRoot = gitRoot(state.pendingWorktree.path);
@@ -387,6 +583,7 @@ function handleLifecycle(payload, file) {
             }
             state.taskRoot = taskRoot;
             state.taskBranch = taskBranch;
+            state.taskCreationHead = state.pendingWorktree.baseHead;
           }
         }
         delete state.pendingWorktree;
@@ -407,8 +604,47 @@ function handleLifecycle(payload, file) {
       }
       if (!toolSucceeded(payload) && state.pendingBaseMerge?.command === command) delete state.pendingBaseMerge;
       if (toolSucceeded(payload) && state.pendingFinalize?.command === command) {
-        const phases = {squash: 'squashed', commit: 'committed', remove: 'removed', delete: 'complete'};
-        if (state.pendingFinalize.action !== 'remove' || !gitRoot(state.taskRoot)) {
+        const phases = {squash: 'squashed', commit: 'committed', remove: 'removed', delete: 'complete', planCleanup: 'complete'};
+        if (state.pendingFinalize.action === 'squash') {
+          const expected = headTreeFingerprint(state.taskRoot);
+          let actual = indexFingerprint(state.callerRoot);
+          if (expected && actual !== expected) {
+            try {
+              execFileSync('git', ['-C', state.callerRoot, 'read-tree', state.verifiedTaskHead], {stdio: 'ignore'});
+              actual = indexFingerprint(state.callerRoot);
+            } catch {
+              // A failed safe index repair leaves finalization unavailable.
+            }
+          }
+          if (expected && actual === expected) {
+            state.finalizePhase = 'squashed';
+            state.squashedFingerprint = actual;
+          } else {
+            delete state.finalizePhase;
+            delete state.squashedFingerprint;
+          }
+        } else if (state.pendingFinalize.action === 'commit') {
+          const committedTree = headTreeFingerprint(state.callerRoot);
+          const committedParent = gitRevision(state.callerRoot, 'HEAD^');
+          if (state.squashedFingerprint && committedTree === state.squashedFingerprint && committedParent === state.pendingFinalize.preCommitHead) {
+            state.finalizePhase = 'committed';
+            state.mergedBaseHead = gitHead(state.callerRoot);
+          } else {
+            try {
+              execFileSync('git', ['-C', state.callerRoot, 'reset', '--mixed', state.pendingFinalize.preCommitHead], {stdio: 'ignore'});
+              execFileSync('git', ['-C', state.callerRoot, 'read-tree', state.verifiedTaskHead], {stdio: 'ignore'});
+            } catch {
+              // A failed safe commit rollback leaves finalization unavailable.
+            }
+            if (gitHead(state.callerRoot) === state.pendingFinalize.preCommitHead && indexFingerprint(state.callerRoot) === state.squashedFingerprint) state.finalizePhase = 'squashed';
+            else {
+              delete state.finalizePhase;
+              delete state.squashedFingerprint;
+            }
+          }
+        } else if (state.pendingFinalize.action === 'remove') {
+          if (!gitRoot(state.taskRoot) && gitRef(state.callerRoot, state.taskBranch) === state.verifiedTaskHead && gitHead(state.callerRoot) === state.mergedBaseHead) state.finalizePhase = 'removed';
+        } else {
           state.finalizePhase = phases[state.pendingFinalize.action];
         }
         delete state.pendingFinalize;
@@ -438,7 +674,9 @@ function handleLifecycle(payload, file) {
   if (payload.hook_event_name === 'Stop') {
     try {
       const state = JSON.parse(readFileSync(file, 'utf8'));
-      if (state.taskRoot && !gitRoot(state.taskRoot)) rmSync(file, {force: true});
+      bindCreatedWorktree(state);
+      if (state.pendingCreator) state.pendingCreator.retryable = true;
+      if (state.taskRoot && !gitRoot(state.taskRoot) && !['removed', 'planRemoved'].includes(state.finalizePhase)) rmSync(file, {force: true});
       else persistState(file, {...state, stopped: true});
     } catch {
       // Missing state needs no cleanup.
@@ -448,15 +686,38 @@ function handleLifecycle(payload, file) {
   if (payload.hook_event_name !== 'UserPromptSubmit') return false;
   const prompt = String(payload.prompt ?? payload.user_prompt ?? '');
   if (cancelsTask(prompt)) {
+    try {
+      const state = JSON.parse(readFileSync(file, 'utf8'));
+      bindCreatedWorktree(state);
+      if (state.pendingCreator) {
+        state.pendingCreator.retryable = true;
+        persistState(file, state);
+        process.stderr.write('TASK WORKTREE RECOVERY REQUIRED: the creator attached a worktree before interruption; rerun the same creator command to finish setup.\n');
+        return true;
+      }
+    } catch {
+      // Missing state has no pending reservation to release.
+    }
     rmSync(file, {force: true});
     return true;
   }
   if (!invokesTask(prompt)) {
     return true;
   }
+  try {
+    const active = JSON.parse(readFileSync(file, 'utf8'));
+    const liveTask = active.taskRoot && gitRoot(active.taskRoot) === active.taskRoot && !['complete', 'removed', 'planRemoved'].includes(active.finalizePhase);
+    if (liveTask || active.pendingCreator || active.pendingWorktree) {
+      persistState(file, active);
+      return true;
+    }
+    rmSync(file, {force: true});
+  } catch {
+    // A first task activation has no prior state to preserve.
+  }
   const cwd = resolve(payload.cwd ?? process.cwd());
   mkdirSync(stateDirectory, {recursive: true});
-  persistState(file, {callerPath: cwd, callerRoot: gitRoot(cwd), callerBranch: gitBranch(cwd), activatedAt: new Date().toISOString()});
+  persistState(file, {callerPath: cwd, callerRoot: gitRoot(cwd), callerBranch: gitBranch(cwd), planOnly: invokesPlanOnly(prompt), activatedAt: new Date().toISOString()});
   return true;
 }
 
@@ -466,9 +727,21 @@ function enforce(payload, file) {
   try {
     state = JSON.parse(readFileSync(file, 'utf8'));
   } catch {
-    return;
+    const toolName = String(payload.tool_name ?? '');
+    const command = String(payload.tool_input?.command ?? payload.tool_input?.cmd ?? '');
+    const cwd = resolve(payload.tool_input?.workdir ?? payload.tool_input?.cwd ?? payload.workdir ?? payload.cwd ?? process.cwd());
+    if (toolName !== 'Bash' || !taskCreatorInvocation(command, cwd)) return;
+    state = {callerPath: cwd, callerRoot: gitRoot(cwd), callerBranch: gitBranch(cwd), activatedAt: new Date().toISOString()};
+    persistState(file, state);
   }
   if (isStaleState(state)) {
+    bindCreatedWorktree(state);
+    if (state.pendingCreator) {
+      state.pendingCreator.retryable = true;
+      persistState(file, state);
+      deny('TASK WORKTREE RECOVERY REQUIRED: rerun the same creator command to finish the attached worktree setup.');
+      return;
+    }
     rmSync(file, {force: true});
     return;
   }
@@ -479,6 +752,11 @@ function enforce(payload, file) {
 
   const input = payload.tool_input ?? {};
   const cwd = resolve(input.workdir ?? input.cwd ?? payload.workdir ?? payload.cwd ?? process.cwd());
+  const pendingShellTransitions = [state.pendingVerification, state.pendingFinalize, state.pendingTaskAction, state.pendingBaseMerge, state.pendingWorktree].filter(Boolean);
+  if (toolName === 'Bash' && [state.taskRoot, state.callerRoot].includes(gitRoot(cwd)) && pendingShellTransitions.some((pending) => pending.command === command)) {
+    deny('TASK WORKTREE BUSY: this exact lifecycle command is already awaiting its hook result.');
+    return;
+  }
   if (toolName === 'Bash' && isBootstrapShell(command)) {
     const match = command.match(/(?:^|&&\s*)git(?:\s+-C\s+(?:"([^"$`]+)"|'([^'$`]+)'|([a-zA-Z0-9_./-]+)))?\s+worktree\s+add\s+-b\s+(task\/[a-zA-Z0-9._/-]+)\s+(?:"([^"$`]+)"|'([^'$`]+)'|([a-zA-Z0-9_./-]+))\s+HEAD/u);
     if (match) {
@@ -490,9 +768,74 @@ function enforce(payload, file) {
       const baseRoot = gitRoot(baseDirectory);
       const branch = match[4];
       const path = resolve(baseDirectory, match[5] ?? match[6] ?? match[7]);
-      persistState(file, {...state, pendingWorktree: {command, branch, path, baseRoot, baseBranch: gitBranch(baseRoot)}});
+      persistState(file, {...state, pendingWorktree: {command, branch, path, baseRoot, baseBranch: gitBranch(baseRoot), baseHead: gitHead(baseRoot)}});
     }
     return;
+  }
+  if (toolName === 'Bash') {
+    const creator = taskCreatorInvocation(command, cwd);
+    if (creator) {
+      if (state.pendingCreator?.command === command) {
+        if (state.pendingCreator.retryable) {
+          delete state.pendingCreator.retryable;
+          persistState(file, state);
+          return;
+        }
+        deny('TASK WORKTREE BUSY: this creator command is already running. Wait for its hook result before retrying.');
+        return;
+      }
+      if (state.taskRoot || state.pendingCreator) {
+        deny('TASK WORKTREE MISMATCH: this session is already bound to its task worktree.');
+        return;
+      }
+      const baseRoot = gitRoot(creator.repository);
+      if (!baseRoot) {
+        deny('TASK WORKTREE REQUIRED: --repo must name a Git repository.');
+        return;
+      }
+      const expectedPath = join(dirname(baseRoot), `${basename(baseRoot)}-task-${creator.slug}-${creator.id}`);
+      const branch = `task/${creator.slug}-${creator.id}`;
+      if (gitRoot(expectedPath) || gitRef(baseRoot, branch)) {
+        deny('TASK CREATOR ID COLLISION: choose a new unique --id; existing worktree or branch was not rebound.');
+        return;
+      }
+      const reservationDirectory = join(execFileSync('git', ['-C', baseRoot, 'rev-parse', '--absolute-git-dir'], {encoding: 'utf8'}).trim(), 'task-worktree-reservations');
+      const reservationPath = join(reservationDirectory, `${creator.slug}-${creator.id}.nonce`);
+      const nonce = randomUUID();
+      const baseHead = gitHead(baseRoot);
+      const baseBranch = gitBranch(baseRoot);
+      let createdReservation = false;
+      try {
+        mkdirSync(reservationDirectory, {recursive: true});
+        writeFileSync(reservationPath, `${JSON.stringify({nonce, baseHead, baseBranch})}\n`, {flag: 'wx'});
+        createdReservation = true;
+        execFileSync('git', ['-C', baseRoot, 'update-ref', `refs/heads/${branch}`, baseHead, '0000000000000000000000000000000000000000'], {stdio: 'ignore'});
+      } catch {
+        if (createdReservation) {
+          try {
+            if (JSON.parse(readFileSync(reservationPath, 'utf8')).nonce === nonce) rmSync(reservationPath, {force: true});
+          } catch {
+            // A replaced or already-removed reservation belongs to another transition.
+          }
+        }
+        deny('TASK WORKTREE REQUIRED: could not reserve the requested creator id. Choose a new unique id.');
+        return;
+      }
+      persistState(file, {...state, pendingCreator: {
+        command,
+        slug: creator.slug,
+        id: creator.id,
+        baseRoot,
+        baseBranch,
+        baseHead,
+        branch,
+        path: expectedPath,
+        planOnly: creator.planOnly || state.planOnly,
+        nonce,
+        reservationPath,
+      }});
+      return;
+    }
   }
   if (toolName === 'Bash') {
     if (baseMergeAction(command, cwd, state)) {
@@ -508,7 +851,12 @@ function enforce(payload, file) {
     }
     const action = finalizeAction(command, cwd, state);
     if (action) {
-      persistState(file, {...state, pendingFinalize: {action, command}});
+      persistState(file, {...state, pendingFinalize: {action, command, ...(action === 'squash' ? {preMergeHead: gitHead(state.callerRoot)} : {}), ...(action === 'commit' ? {preCommitHead: gitHead(state.callerRoot)} : {})}});
+      return;
+    }
+    const planAction = planCleanupAction(command, cwd, state);
+    if (planAction) {
+      persistState(file, {...state, pendingFinalize: {action: planAction, command}});
       return;
     }
     if (/^git\s+merge\s+--squash\s+task\//u.test(command.trim())) {
@@ -571,5 +919,7 @@ const payload = readPayload();
 const sessionId = payload.session_id ?? payload.transcript_path;
 if (sessionId) {
   const file = statePath(sessionId);
-  if (!handleLifecycle(payload, file)) enforce(payload, file);
+  withSessionLock(file, () => {
+    if (!handleLifecycle(payload, file)) enforce(payload, file);
+  });
 }
