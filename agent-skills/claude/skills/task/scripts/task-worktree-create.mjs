@@ -6,6 +6,8 @@ import {appendFileSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync
 import {basename, dirname, join, posix, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+const gitOutputMaxBuffer = 256 * 1024 * 1024;
+
 const [slug, ...extraArgs] = process.argv.slice(2);
 if (!slug || !/^[a-z0-9][a-z0-9._-]*$/u.test(slug)) {
   throw new Error('Usage: task-worktree-create.mjs <lowercase-safe-slug> [--id <unique-id>] [--repo <path>] [--summary <text>] [--plan-only]');
@@ -51,7 +53,7 @@ function run(command, args, cwd) {
 
 // Returns one Git command's trimmed output without logging it.
 function git(cwd, args) {
-  const result = spawnSync('git', ['-C', cwd, ...args], {encoding: 'utf8'});
+  const result = spawnSync('git', ['-C', cwd, ...args], {encoding: 'utf8', maxBuffer: gitOutputMaxBuffer});
   if (result.status !== 0) throw new Error(result.stderr.trim() || `git ${args.join(' ')} failed in ${cwd}`);
   return result.stdout.trim();
 }

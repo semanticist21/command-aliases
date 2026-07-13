@@ -62,6 +62,45 @@ test('creates an isolated worktree from HEAD without changing a dirty caller', (
   }
 });
 
+test('fingerprints ignored dependency listings larger than the default child-process buffer', () => {
+  const root = fixtureRepository('task-create-large-ignore-');
+  const bin = mkdtempSync(join(tmpdir(), 'task-create-large-ignore-bin-'));
+  writeFileSync(join(root, '.gitignore'), '.agent-tmp/\nignored/\n');
+  writeFileSync(join(root, 'package.json'), '{"name":"large-ignore"}\n');
+  writeFileSync(join(root, 'package-lock.json'), '{}\n');
+  writeFileSync(join(bin, 'npm'), `#!/usr/bin/env node
+import {mkdirSync, writeFileSync} from 'node:fs';
+mkdirSync('ignored');
+for (let index = 0; index < 4300; index += 1) {
+  writeFileSync(\`ignored/\${String(index).padStart(5, '0')}-\${'x'.repeat(235)}\`, 'ignored\\n');
+}
+`);
+  chmodSync(join(bin, 'npm'), 0o755);
+  git(root, 'add', '.gitignore', 'package.json', 'package-lock.json');
+  git(root, 'commit', '-qm', 'ignore dependency artifacts');
+  let worktree;
+  try {
+    const result = spawnSync(process.execPath, [script, 'large-ignore', '--id', 'fixed-id'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {...process.env, PATH: `${bin}:${process.env.PATH}`},
+    });
+    assert.equal(result.status, 0, result.stderr);
+    worktree = outputValue(result.stdout, 'worktree');
+    const listing = spawnSync('git', ['-C', worktree, 'ls-files', '--others', '--ignored', '--exclude-standard', '-z'], {
+      encoding: 'utf8',
+      maxBuffer: 2 * 1024 * 1024,
+    });
+    assert.equal(listing.status, 0, listing.stderr);
+    assert.ok(Buffer.byteLength(listing.stdout) > 1024 * 1024);
+    assert.match(readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8'), /- setup: complete/u);
+  } finally {
+    if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
 test('retains path and failure state when ignore initialization fails after creation', () => {
   const root = fixtureRepository('task-create-ignore-fail-');
   writeFileSync(join(root, '.gitignore'), '');
