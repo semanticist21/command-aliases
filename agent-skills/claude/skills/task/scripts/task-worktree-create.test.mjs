@@ -113,6 +113,39 @@ for (let index = 0; index < 4300; index += 1) {
   }
 });
 
+test('fingerprints ignored symlinks to dependency directories without dereferencing them', () => {
+  const root = fixtureRepository('task-create-ignore-symlink-');
+  const bin = mkdtempSync(join(tmpdir(), 'task-create-ignore-symlink-bin-'));
+  const target = mkdtempSync(join(tmpdir(), 'task-create-ignore-symlink-target-'));
+  writeFileSync(join(root, '.gitignore'), '.agent-tmp/\nignored-link\n');
+  writeFileSync(join(root, 'package.json'), '{"name":"ignore-symlink"}\n');
+  writeFileSync(join(root, 'package-lock.json'), '{}\n');
+  writeFileSync(join(target, 'dependency'), 'external\n');
+  writeFileSync(join(bin, 'npm'), `#!/usr/bin/env node
+import {symlinkSync} from 'node:fs';
+symlinkSync(process.env.TASK_SYMLINK_TARGET, 'ignored-link', 'dir');
+`);
+  chmodSync(join(bin, 'npm'), 0o755);
+  git(root, 'add', '.gitignore', 'package.json', 'package-lock.json');
+  git(root, 'commit', '-qm', 'add ignored dependency symlink');
+  let worktree;
+  try {
+    const result = spawnSync(process.execPath, [script, 'ignore-symlink', '--id', 'fixed-id'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {...process.env, PATH: `${bin}:${process.env.PATH}`, TASK_SYMLINK_TARGET: target},
+    });
+    assert.equal(result.status, 0, result.stderr);
+    worktree = outputValue(result.stdout, 'worktree');
+    assert.match(readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8'), /- setup: complete/u);
+  } finally {
+    if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(target, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
 test('retains path and failure state when ignore initialization fails after creation', () => {
   const root = fixtureRepository('task-create-ignore-fail-');
   writeFileSync(join(root, '.gitignore'), '');

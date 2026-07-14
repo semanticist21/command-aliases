@@ -2,7 +2,7 @@
 
 import {execFileSync, spawnSync} from 'node:child_process';
 import {createHash, randomUUID} from 'node:crypto';
-import {appendFileSync, closeSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
+import {appendFileSync, closeSync, linkSync, lstatSync, mkdirSync, openSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, unlinkSync, writeFileSync} from 'node:fs';
 import {basename, dirname, join, posix, relative} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -195,14 +195,19 @@ function ignoredFingerprint(worktree) {
   const entries = [];
   for (let offset = 0; offset < files.length; offset += 200) {
     const batch = files.slice(offset, offset + 200);
-    const result = spawnSync('git', ['-C', worktree, 'hash-object', '--', ...batch], {encoding: 'utf8'});
+    const records = batch.map((file) => ({file, stat: lstatSync(join(worktree, file))}));
+    const regularFiles = records.filter(({stat}) => stat.isFile()).map(({file}) => file);
+    const result = spawnSync('git', ['-C', worktree, 'hash-object', '--no-filters', '--', ...regularFiles], {encoding: 'utf8'});
     if (result.status !== 0) throw new Error(result.stderr.trim() || `could not fingerprint ignored setup files in ${worktree}`);
     const hashes = result.stdout.trim().split('\n').filter(Boolean);
-    if (hashes.length !== batch.length) throw new Error(`ignored setup files changed while fingerprinting ${worktree}`);
-    entries.push(...batch.map((file, index) => {
-      const stat = lstatSync(join(worktree, file));
+    if (hashes.length !== regularFiles.length) throw new Error(`ignored setup files changed while fingerprinting ${worktree}`);
+    const fileHashes = new Map(regularFiles.map((file, index) => [file, hashes[index]]));
+    entries.push(...records.map(({file, stat}) => {
       const type = stat.isSymbolicLink() ? 'symlink' : stat.isFile() ? 'file' : 'other';
-      return `${file}\0${type}\0${stat.mode & 0o7777}\0${hashes[index]}`;
+      const hash = stat.isSymbolicLink()
+        ? createHash('sha256').update(readlinkSync(join(worktree, file))).digest('hex')
+        : fileHashes.get(file) ?? '';
+      return `${file}\0${type}\0${stat.mode & 0o7777}\0${hash}`;
     }));
   }
   return createHash('sha256').update(entries.join('\0')).digest('hex');

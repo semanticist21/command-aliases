@@ -2,7 +2,7 @@
 
 import {spawnSync} from 'node:child_process';
 import {createHash, randomUUID} from 'node:crypto';
-import {existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, symlinkSync} from 'node:fs';
+import {existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync} from 'node:fs';
 import {dirname, join, relative, resolve} from 'node:path';
 
 const args = process.argv.slice(2);
@@ -32,49 +32,57 @@ function ignoredFiles(directory) {
     .split('\0').filter((file) => file && file !== '.agent-tmp/task-state.md').sort();
 }
 
-// Fingerprints the supplied ignored artifacts.
-function ignoredFingerprint(directory, files = ignoredFiles(directory)) {
+// Records ignored artifact paths with content identities without following symlinks.
+function ignoredEntries(directory, files = ignoredFiles(directory)) {
   const entries = [];
   for (let offset = 0; offset < files.length; offset += 200) {
     const batch = files.slice(offset, offset + 200);
-    const result = spawnSync('git', ['-C', directory, 'hash-object', '--', ...batch], {encoding: 'utf8'});
+    const records = batch.map((file) => ({file, stat: lstatSync(join(directory, file))}));
+    const regularFiles = records.filter(({stat}) => stat.isFile()).map(({file}) => file);
+    const result = spawnSync('git', ['-C', directory, 'hash-object', '--no-filters', '--', ...regularFiles], {encoding: 'utf8'});
     if (result.status !== 0) throw new Error(result.stderr.trim() || `could not fingerprint ignored files in ${directory}`);
     const hashes = result.stdout.trim().split('\n').filter(Boolean);
-    if (hashes.length !== batch.length) throw new Error(`ignored files changed while fingerprinting ${directory}`);
-    entries.push(...batch.map((file, index) => {
-      const stat = lstatSync(join(directory, file));
-      const type = stat.isSymbolicLink() ? 'symlink' : stat.isFile() ? 'file' : 'other';
-      return `${file}\0${type}\0${stat.mode & 0o7777}\0${hashes[index]}`;
-    }));
-  }
-  return createHash('sha256').update(entries.join('\0')).digest('hex');
-}
-
-// Records ignored artifact paths with their exact Git object identities.
-function ignoredEntries(directory) {
-  const files = ignoredFiles(directory);
-  const entries = [];
-  for (let offset = 0; offset < files.length; offset += 200) {
-    const batch = files.slice(offset, offset + 200);
-    const result = spawnSync('git', ['-C', directory, 'hash-object', '--', ...batch], {encoding: 'utf8'});
-    if (result.status !== 0) throw new Error(result.stderr.trim() || `could not record ignored files in ${directory}`);
-    const hashes = result.stdout.trim().split('\n').filter(Boolean);
-    if (hashes.length !== batch.length) throw new Error(`ignored files changed while recording ${directory}`);
-    entries.push(...batch.map((file, index) => {
-      const stat = lstatSync(join(directory, file));
-      return {file, hash: hashes[index], type: stat.isSymbolicLink() ? 'symlink' : stat.isFile() ? 'file' : 'other', mode: stat.mode & 0o7777};
+    if (hashes.length !== regularFiles.length) throw new Error(`ignored files changed while fingerprinting ${directory}`);
+    const fileHashes = new Map(regularFiles.map((file, index) => [file, hashes[index]]));
+    entries.push(...records.map(({file, stat}) => {
+      const hash = stat.isSymbolicLink()
+        ? createHash('sha256').update(readlinkSync(join(directory, file))).digest('hex')
+        : fileHashes.get(file) ?? '';
+      return {file, hash, type: stat.isSymbolicLink() ? 'symlink' : stat.isFile() ? 'file' : 'other', mode: stat.mode & 0o7777};
     }));
   }
   return entries;
+}
+
+// Fingerprints the supplied ignored artifacts.
+function ignoredFingerprint(directory, files = ignoredFiles(directory)) {
+  const entries = ignoredEntries(directory, files)
+    .map(({file, hash, type, mode}) => `${file}\0${type}\0${mode}\0${hash}`);
+  return createHash('sha256').update(entries.join('\0')).digest('hex');
 }
 
 // Returns the exact content, type, and mode identity of one filesystem artifact.
 function artifactIdentity(artifact) {
   const stat = lstatSync(artifact);
   const type = stat.isSymbolicLink() ? 'symlink' : stat.isFile() ? 'file' : 'other';
+  if (stat.isSymbolicLink()) {
+    return {hash: createHash('sha256').update(readlinkSync(artifact)).digest('hex'), type, mode: stat.mode & 0o7777};
+  }
+  if (!stat.isFile()) return {hash: '', type, mode: stat.mode & 0o7777};
   const result = spawnSync('git', ['hash-object', '--no-filters', artifact], {encoding: 'utf8'});
   if (result.status !== 0) throw new Error(result.stderr.trim() || `could not hash ${artifact}`);
   return {hash: result.stdout.trim(), type, mode: stat.mode & 0o7777};
+}
+
+// Reports whether one path exists without following its final symlink.
+function lexicallyExists(path) {
+  try {
+    lstatSync(path);
+    return true;
+  } catch (error) {
+    if (error.code === 'ENOENT') return false;
+    throw error;
+  }
 }
 
 // Fingerprints every filesystem entry below a quarantined worktree without following symlinks.
@@ -118,7 +126,7 @@ function isolateSubmoduleArtifacts(directory, entries, holdingRoot, repositoryPa
 // Restores isolated submodule artifacts after a failed cleanup attempt.
 function restoreIsolatedArtifacts(entries) {
   for (const entry of entries) {
-    if (!existsSync(entry.isolated)) continue;
+    if (!lexicallyExists(entry.isolated)) continue;
     rmSync(entry.artifact, {recursive: true, force: true});
     mkdirSync(dirname(entry.artifact), {recursive: true});
     renameSync(entry.isolated, entry.artifact);

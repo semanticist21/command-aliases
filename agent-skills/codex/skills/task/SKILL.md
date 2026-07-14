@@ -20,8 +20,8 @@ constraints, target paths, acceptance criteria, and "do not" instructions.
 
 ## Plan-only requests
 
-When the user explicitly asks for a plan without implementation, still create the
-goal and prepared task worktree before implementation-file inspection or detailed
+When the user explicitly asks for a plan without implementation, create the goal
+and prefer a prepared task worktree before implementation-file inspection or detailed
 planning. Run only the Planning stage; do not execute, run implementation QA, or
 commit. After the plan is ready but before delivering it, run the bundled cleanup
 helper from the caller worktree:
@@ -35,41 +35,19 @@ submodules, deinitializes only clean submodules, quarantines the worktree path,
 and removes only unchanged ignored setup artifacts. It uses Git's non-force
 dirty-worktree check for ordinary worktrees and scoped force only after clean
 submodule deinitialization, then deletes the branch with an atomic expected-ref
-check. The guard
-permits only this exact state-bound command. Never discard changes to force
-cleanup; report the exact unexpected state instead. Mark the planning goal
-complete only after clean worktree and branch cleanup, then deliver the plan.
+check. The helper validates this exact state-bound cleanup itself. Never discard
+changes to force cleanup; report the exact unexpected state instead. Mark the
+planning goal complete only after clean worktree and branch cleanup, then deliver
+the plan.
 
-## Mechanical worktree guard
+## Legacy worktree guard cleanup
 
-Install `scripts/task-worktree-guard.mjs` as `UserPromptSubmit` (`.*`),
-`PreToolUse` (`Bash|apply_patch|Edit|Write|MultiEdit`), `PostToolUse` (`Bash`),
-`PostToolUseFailure` (`Bash`), and `Stop` (`.*`) hooks.
-Use `node scripts/install-task-worktree-guard.mjs codex` for an idempotent install
-that preserves existing hook entries.
-The prompt hook activates for explicit `$task` or `/task` invocations. For an
-implicit skill selection, the exact worktree creator command atomically activates
-the same guard before reserving its branch. The tool hook then denies writes in
-the caller checkout until the tool runs from a different worktree on a `task/*`
-branch. The Stop hook clears state after the
-recorded task worktree has been removed.
-Safe startup reads may be batched with `&&`; the successful `git worktree add`
-binds the session to that exact worktree, including when the target repository
-differs from the caller repository.
-The guard also permits only the exact bundled `task-worktree-create.mjs`
-invocation described below. It binds the one new matching worktree after success
-or after a later dependency-setup failure, so recovery continues inside that
-worktree instead of creating another one.
-For plan-only cleanup it permits only the exact state-bound
-`task-worktree-plan-cleanup.mjs` invocation described above.
-Guard state lives in `~/.codex/task-worktree-guard-state/`, expires after 24
-hours of inactivity, and self-clears when its bound worktree disappears.
-If an activated task is abandoned, submit `task-cancel`, `/task-cancel`, or
-`$task-cancel` to release the session guard explicitly.
-
-The guard is mandatory when the runtime supports these hooks. Do not treat it as
-an OS security boundary: Codex documentation says some unified-exec paths are not
-fully intercepted. Keep the workflow rules below as a second enforcement layer.
+`scripts/task-worktree-guard.mjs` is a compatibility no-op: every hook payload
+exits zero with empty output and no permission decision. Run
+`node scripts/install-task-worktree-guard.mjs codex` to remove every legacy hook
+command that references it while preserving unrelated settings and hooks. The
+installer adds no replacement blocking hook. Prepared worktrees remain the
+recommended workflow below, enforced by process discipline rather than hooks.
 
 ## One-command changed-surface verification
 
@@ -87,9 +65,7 @@ soft-skipping DB integration tests require `DATABASE_URL`; detected
 process exits zero. Results are written to the ignored
 `.agent-tmp/task-verification.json` receipt.
 
-The verifier is standalone and remains the source of verification evidence when
-the current Codex surface does not dispatch hooks. When hooks are available, the
-guard recognizes this exact command and repeats it in a merge-time denial message.
+The verifier is standalone and remains the source of verification evidence.
 
 Use `--dry-run` only to inspect the command plan; it never satisfies merge
 verification. Project-owned canonical verification commands still win when they
@@ -137,9 +113,9 @@ Before starting a new task, clear or queue only against task work owned by this 
 
 ## Worktree Isolation
 
-**Mandatory prepared-worktree bootstrap.** For repo-writing tasks and
+**Recommended prepared-worktree bootstrap.** For repo-writing tasks and
 repository-changing implementation plans, including Plan mode and plan-only
-requests, run this as the normal startup path before implementation-file
+requests, prefer this normal startup path before implementation-file
 inspection or detailed planning:
 
 ```bash
@@ -147,7 +123,7 @@ node ~/.codex/skills/task/scripts/task-worktree-create.mjs <slug> --id <unique-i
 ```
 
 Generate one lowercase filesystem-safe unique ID for the invocation, preferably
-from the platform session plus current UTC timestamp. If the guard reports an ID
+from the platform session plus current UTC timestamp. If the creator reports an ID
 collision, generate a new ID; never reuse or take over the existing worktree.
 The script creates the isolated task worktree, records task state, initializes
 recursive submodules, and installs dependencies from recognized tracked lockfiles
@@ -157,30 +133,21 @@ installs disable repository lifecycle/build scripts during bootstrap. A raw
 before creating a worktree. If setup fails after creation, keep and use that
 created worktree and repair setup there; never create a second worktree or fall
 back to the caller checkout.
-For a plan-only request, append `--plan-only`; this is required for the guard's
-clean no-commit removal path.
+For a plan-only request, append `--plan-only`; the cleanup helper uses it for
+the clean no-commit removal path.
 
 **HEAD worktree default.** For new repo-writing tasks, caller worktree state almost never blocks. If committed `HEAD` exists and `git worktree add ... HEAD` can create an isolated task worktree, do it without asking, regardless of caller dirty files, staged files, unmerged paths, merge/rebase/cherry-pick/bisect state, or unrelated task branches. Treat caller tree read-only and proceed from last commit. Ask only when user explicitly says task must include current uncommitted/unmerged changes or explicitly asks work in current tree. If even this rare path fails (no `HEAD`, path/branch collision, transient git lock), report waiting state, sleep/check periodically, and retry until user redirects or the condition clears; do not mark blocked immediately.
 
 Operational/exploratory work that should not create a commit or leave `git log` history does not need a task worktree; run in caller context while preserving user changes.
 
-For any repo-writing task, the task worktree is a mandatory pre-planning
-gate, not a preference. Do not inspect implementation files, draft a detailed
-plan, edit files, run generators, or start subagents until the gate below has
-either created a task worktree or produced an explicit blocked/no-worktree
-decision. The caller's current tree is read-only until merge-back.
-
-**Hard fail guard.** If task will write repo files and no task worktree exists,
-do not continue in caller checkout. Stop, say worktree isolation failed, and
-recover by creating the task worktree before any edit or commit. Continuing to
-edit current checkout is a task-skill violation, even when staging explicit
-pathspecs would avoid unrelated files.
+For repo-writing work, a prepared worktree is the preferred pre-planning default.
+If it cannot be used or the user explicitly chooses the current checkout, state
+that decision, preserve unrelated changes, and stage only explicit task paths.
 
 1. Resolve the repository that owns the files to be written, then its root with
    `git rev-parse --show-toplevel`. Explicit target paths and named skill sources
-   override the caller repository. For cross-repository work, run the guarded
-   `git worktree add` against that target repository so the session binds to the
-   created worktree instead of an unrelated existing `task/*` worktree.
+   override the caller repository. For cross-repository work, run the prepared
+   worktree creator against that target repository.
 2. Record caller's current branch with `git branch --show-current`; this is the
 base branch task work must merge back into after commit. If detached, resolve
 intended base from user prompt or stop and ask.
@@ -188,7 +155,7 @@ intended base from user prompt or stop and ask.
    creating the worktree and include that status in agent briefs. Do not move,
    stash, reset, or otherwise alter pre-existing dirty files in the caller's
    working tree.
-4. Worktree creation is required when all are true:
+4. Worktree creation is the recommended default when all are true:
    - repo is a git repo with a resolved branch base, not detached or unborn
    - task will write repo files
    - user did not explicitly ask to work in the caller's current tree
@@ -206,21 +173,17 @@ intended base from user prompt or stop and ask.
    only as the documented recovery path.
 7. Immediately record task state in
    `<task-worktree>/.agent-tmp/task-state.md`: base branch, task branch,
-   worktree path, original caller path, created time, task summary, and mandatory owner/session marker. If no platform session id is available, derive a stable marker from runtime name + created timestamp + caller path + concise task summary. Keep
+   worktree path, original caller path, created time, task summary, and owner/session marker. If no platform session id is available, derive a stable marker from runtime name + created timestamp + caller path + concise task summary. Keep
    `.agent-tmp/` ignored and never stage it.
 8. Run planning, edits, tests, QA, and commit inside the task worktree. Treat the
    original working tree as read-only task context unless the user explicitly asks to
    apply changes there.
-   In Codex unified exec, prefix every shell command with
-   `cd <task-worktree> &&` because the hook payload may omit the tool API's
-   `workdir` field even when execution itself honors it.
-9. Skip worktree creation only when the safety gate fails, the user explicitly
+   In Codex unified exec, set the tool workdir or prefix shell commands with
+   `cd <task-worktree> &&` so the active checkout stays explicit.
+9. Skip worktree creation when the safety gate fails, the user explicitly
    asks not to use a worktree, the repo is not a git repo, the task is
-   read-only/no-file-change, or `git worktree add` fails. If the task still
-   needs repo writes, do not fall back to `main`/the caller's branch just
-   because it would be convenient. Stop and report the exact no-worktree
-   reason, unless the user explicitly approves current-tree work after seeing
-   that reason.
+   read-only/no-file-change, or `git worktree add` fails. Report the reason and
+   protect unrelated caller-checkout changes if work continues there.
 10. After QA passes and task branch committed, merge it back into recorded
    base branch (`main`, `dev`, or branch caller started from) without asking
    for second approval. This merge-back part default task lifecycle; do not
