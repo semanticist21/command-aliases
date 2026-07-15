@@ -49,6 +49,7 @@ agent-skills/
 | figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
 | agent-review     |   ✓    |   ✓   | Review this session's work via delegated subagent loop    |
 | analysis         |   ✓    |   ✓   | Parallel adversarial root-cause bug investigation         |
+| inspect          |   ✓    |   ✓   | Read-only systemic-risk audit; lists findings to fix      |
 | harness-setup    |   ✓    |   ✓   | Install agent handoff harness (test/doc guards) in a repo |
 | humanize-korean  |   ✓    |       | Natural-writing alias for Korean AI-text cleanup          |
 | humanizer        |   ✓    |       | Natural-writing alias for humanize/less-AI cleanup        |

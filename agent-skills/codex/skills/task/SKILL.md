@@ -18,6 +18,26 @@ remaining queue are reported.
 Treat the `/task` or `$task` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
 
+## Inspect findings as input
+
+`inspect` writes a read-only findings ledger to
+`<caller-root>/.agent-tmp/inspect-findings.md` and fixes nothing. When the user points
+this task at inspect findings (`$task fix inspect F1, F3`, "work the inspect
+findings"), treat that ledger as the work source:
+
+- The ledger sits in the caller checkout under ignored `.agent-tmp/`, which a fresh
+  task worktree does not receive. Read it from the caller root — its path is the
+  original caller path recorded in `task-state.md`, not the worktree root that
+  `git rev-parse --show-toplevel` reports.
+- Act only on the findings the user selected. inspect lists; the user chooses — do not
+  fix the whole ledger unless the user says so.
+- Scope each selected finding (its where/impact/remediation) as one concrete goal and
+  run it through the loop below. Independent findings may become separate task-queue
+  items or commits.
+- After the work has merged back and the worktree is cleaned up, mark each landed
+  finding `status: resolved (<commit>)` in the caller-root ledger; leave unselected or
+  blocked findings `open` with the reason. Never stage or commit the ledger.
+
 ## Plan-only requests
 
 When the user explicitly asks for a plan without implementation, create the goal

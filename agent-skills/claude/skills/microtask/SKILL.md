@@ -57,6 +57,19 @@ itself.**
 Treat `/microtask` or `$microtask` argument as the concrete goal. Preserve explicit
 constraints, target paths, acceptance criteria, and "do not" instructions.
 
+## Inspect findings as input
+
+`inspect` writes a read-only findings ledger to
+`<caller-root>/.agent-tmp/inspect-findings.md` and fixes nothing. When the user points
+this microtask at inspect findings (`$microtask fix inspect F2`), read the ledger and
+act only on the finding(s) the user selected — inspect lists, the user chooses. Scope
+each as one bounded change through the loop below, mark it `status: resolved (<commit>)`
+in the ledger when it lands, and leave the rest `open`. Never stage or commit the
+ledger under ignored `.agent-tmp/`. When microtask runs inside an active parent task
+worktree rather than the caller checkout, the ledger is still the caller checkout's
+file — read and mark it there, since the worktree does not carry ignored `.agent-tmp/`
+files.
+
 ## Start Gate
 
 Before starting a new microtask, clear or queue against existing task work:
