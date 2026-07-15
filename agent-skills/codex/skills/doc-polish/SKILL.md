@@ -1,6 +1,6 @@
 ---
 name: "doc-polish"
-description: "Compact and de-duplicate repo harness docs and LLM memory stores through edit-review cycles."
+description: "Consolidate, correct, de-duplicate, and compact repo harness docs and LLM memory stores against the live repo through edit-review cycles."
 ---
 # Doc Polish
 
@@ -8,8 +8,8 @@ Compact, de-duplicate, and de-stale a project's agent-facing context — repo ha
 docs and LLM memory stores — so future Claude Code or Codex sessions load them with
 less context cost and fewer contradictions.
 
-Use this skill when the user asks to compact, polish, compress, prune, de-dupe, or
-clean up either target:
+Use this skill when the user asks to compact, polish, compress, prune, de-dupe,
+correct, refresh (현행화), or clean up either target:
 - **Harness docs** — repo-local agent rules: `AGENTS.md`, `CLAUDE.md`, `.agents/`,
   `.codex/`, `.claude/`, `harness.config.json`, or handoff docs that define agent
   operating rules.
@@ -20,12 +20,12 @@ clean up either target:
 Do not use it for general product docs, API docs, release notes, or status updates
 unless the user explicitly folds them into scope.
 
-This skill owns **cross-file de-duplication, memory-store cleanup, and the
-before/after review loop**. Route neighbors elsewhere so the right skill fires:
-- Pure freshness sync of docs against the live repo → `doc-update`.
-- Single-file `AGENTS.md` hygiene/refresh → `update-agents-md`.
+This is the one **maintenance** skill for an existing doc/memory set: it consolidates
+duplicates, corrects stale or wrong facts against the live repo, compacts, cleans
+memory stores, and runs the before/after review loop. Correcting and refreshing
+(현행화) are part of the job, not a separate skill. Route only these elsewhere:
 - Creating a doc structure from scratch → `doc-setup`.
-- Adding one new note → the project's doc-add flow.
+- Adding one brand-new note → the project's doc-add flow.
 
 ## Scope
 
@@ -75,7 +75,10 @@ unchanged and reported as skipped.
    - If two docs both claim ownership, or if moving a rule would weaken a local
      constraint, stop and ask instead of choosing a winner.
 
-3. **Compact one document at a time.**
+3. **Consolidate and correct one document at a time.**
+   - Treat the live repo as source of truth: fix stale or wrong facts — commands,
+     paths, APIs, versions, ownership — that no longer match the code. Correcting a
+     wrong rule outranks compacting it; never compact a fact you have not verified.
    - Keep facts that affect future agent behavior: commands, file paths, review
      rules, safety constraints, hidden setup requirements, and durable decisions.
    - Remove redundant restatements, obsolete narration, repeated examples, vague

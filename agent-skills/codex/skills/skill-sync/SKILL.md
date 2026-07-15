@@ -36,11 +36,14 @@ scan, bump version markers, stage explicit pathspecs, commit, switch to the requ
 GitHub identity, push, and restore the previous identity. The same holds when the user
 explicitly asks to commit/push/publish or to handle the sync end-to-end.
 
-Stop and ask ONLY when: the action is destructive, both sides drifted independently (a
-conflict), the secret/private-context scan hits, the required identity cannot be
-activated, or the target is unclear. A bare full reconcile still leaves discovered
-local-only skills quarantined (see Full reconcile) — those need an explicit publish
-naming the skill.
+On drift where both sides changed, **auto-merge by default**: combine non-overlapping
+edits, and for a true line-level clash prefer the newer edit; then commit, push, and
+report exactly what was merged and which side won each clash — do not block. Stop and
+ask ONLY when: the action is destructive, the two edits **semantically contradict**
+(both cannot be true at once), the secret/private-context scan hits, the required
+identity cannot be activated, or the target is unclear. A bare full reconcile still
+leaves discovered local-only skills quarantined (see Full reconcile) — those need an
+explicit publish naming the skill.
 
 ## Required worktree isolation
 
@@ -67,7 +70,8 @@ whole surface first, classify every skill, then act per category.
 2. **Classify** each skill name into one bucket, per runtime:
    - **identical** — `diff -rq` clean → nothing to do.
    - **drift** — exists both sides, differs → decide direction (see Update step 1;
-     ask the user when both sides were independently edited — a conflict).
+     auto-merge when both sides were independently edited, per Autonomous completion;
+     ask only on a semantic contradiction).
    - **repo-only** — in repo, missing locally → install (Replicate).
    - **local-only** — local, not in repo → treat as **local-private** by default.
      Do not publish during a reconcile unless the user explicitly names the skill
@@ -96,8 +100,8 @@ create, revise, rename, compact, or fix an existing skill.
    and do not mirror to `command-aliases` unless a user-scope copy also changes.
 2. **Find every copy before editing.** Check Claude user scope, Codex user scope,
    project `.claude/skills`, project `.codex/skills`, and both mirror runtimes.
-   Surface any pre-existing drift; if both sides changed independently, ask which
-   version wins or merge by hand.
+   Surface any pre-existing drift; if both sides changed independently, auto-merge per
+   Autonomous completion (ask only on a semantic contradiction).
 3. **Create/update the body.** Keep the skill self-contained, concise, and
    runtime-safe. Do not encode one repo's private paths, hostnames, credentials, or
    transient decisions into a user-scope skill.
@@ -228,8 +232,10 @@ updates flow both ways. Classify direction before writing.
    cd <repo> && git add agent-skills && git commit -m "feat(<name>): <what changed>"
    ```
    Then push under the semanticist21 identity above.
-4. **Both sides changed** = conflict. Do NOT silently pick one. Show the user the
-   `diff` and ask which wins (or merge by hand), then sync that direction.
+4. **Both sides changed** = auto-merge (default). Combine non-overlapping edits; for a
+   true line clash prefer the newer, then commit/push and report the merge and each
+   resolved clash. Only when the two edits **semantically contradict** (cannot both
+   hold) do you stop, show the `diff`, and ask which wins.
 
 When publishing a **new** skill, also add its row to `agent-skills/README.md`'s
 skill table (columns: skill, claude ✓, codex ✓, one-line description).
