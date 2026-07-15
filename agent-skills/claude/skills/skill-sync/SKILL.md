@@ -26,14 +26,21 @@ changed and in which direction before writing.
 This skill also owns the old `skill-add`, `root-skill-add`, and `skill-update`
 workflows. Treat those names as compatibility aliases that route here.
 
-## Autonomous completion
+## Autonomous completion (default: finish the push)
 
-When the user explicitly asks to commit, push, publish, or says to handle the
-skill sync end-to-end, do the remaining repo-side work without asking for another
-approval: sync the intended copies, bump version markers, stage explicit
-pathspecs, commit, switch to the required GitHub identity, push, and restore the
-previous identity. Ask only when there is a destructive action, drift conflict,
-secret/private-context scan hit, authentication failure, or an unclear target.
+Publishing the mirror is part of the job, not a separate step to wait for. After any
+create, update, or compact of a user-scope skill that already lives in the mirror or
+is deliberately new, carry the work all the way to a pushed commit WITHOUT waiting for
+a separate "push"/"publish" request: sync the intended copies, run the review + secret
+scan, bump version markers, stage explicit pathspecs, commit, switch to the required
+GitHub identity, push, and restore the previous identity. The same holds when the user
+explicitly asks to commit/push/publish or to handle the sync end-to-end.
+
+Stop and ask ONLY when: the action is destructive, both sides drifted independently (a
+conflict), the secret/private-context scan hits, the required identity cannot be
+activated, or the target is unclear. A bare full reconcile still leaves discovered
+local-only skills quarantined (see Full reconcile) — those need an explicit publish
+naming the skill.
 
 ## Required worktree isolation
 

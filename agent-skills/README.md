@@ -28,7 +28,8 @@ agent-skills/
 | corp-cert-update |   ✓    |   ✓   | Rotate expired corp MITM CA cert                         |
 | dead-code-removal|   ✓    |   ✓   | Remove unused code/deps with evidence and verification   |
 | design           |   ✓    |   ✓   | Minimal, non-duplicative, conventional UI screen rules    |
-| doc-polish       |   ✓    |   ✓   | Compact repo harness docs with edit-review cycles        |
+| doc-polish       |   ✓    |   ✓   | Compact harness docs + LLM memory via edit-review cycles |
+| doc-setup        |   ✓    |   ✓   | Bootstrap layered agent doc architecture (AGENTS.md/doc/)|
 | grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |
 | merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
