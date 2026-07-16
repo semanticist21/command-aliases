@@ -111,8 +111,21 @@ snapshot_pages() {
 }
 
 snapshot_rulesets() {
-  local full_name=$1 directory=$2 ruleset_id
-  api_lines "repos/$full_name/rulesets" '.[].id' "$directory/ruleset-ids"
+  local full_name=$1 directory=$2 ruleset_id list_error="$directory/ruleset-list-error"
+  # Free-plan private repos gate the rulesets feature entirely (HTTP 403 "Upgrade to
+  # GitHub Pro"); treat that as zero rulesets rather than a hard failure.
+  if ! gh_api --method GET "repos/$full_name/rulesets" --paginate --jq '.[].id' \
+      2>"$list_error" | LC_ALL=C sort -u > "$directory/ruleset-ids"; then
+    if grep -q 'Upgrade to GitHub Pro' "$list_error"; then
+      printf 'note: rulesets unavailable on this plan for %s; treating as none\n' "$full_name" >&2
+      : > "$directory/rulesets"
+      rm -f "$directory/ruleset-ids" "$list_error"
+      return
+    fi
+    sed 's/^/GitHub: /' "$list_error" >&2
+    die "failed to read repository rulesets for $full_name"
+  fi
+  rm -f "$list_error"
   : > "$directory/rulesets"
   while IFS= read -r ruleset_id; do
     [[ $ruleset_id =~ ^[0-9]+$ ]] || die 'GitHub returned an invalid ruleset ID'
