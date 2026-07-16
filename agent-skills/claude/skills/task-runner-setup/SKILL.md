@@ -13,8 +13,10 @@ unbounded cache or exposing credentials.
   runner implementation, image, container, VM, or host type to use.
 - Reuse an online runner labeled `orb`, `Linux`, and `ARM64`. When one exists,
   skip runner provisioning and configure only repository access and workflows.
-- Route portable Node, Rust, Flutter/Android, Docker, backend, build, test, and
-  lint work to OrbStack.
+- During multi-worktree work, prefer the GitHub runner for portable heavy Node,
+  Rust, Flutter/Android, Docker, backend, build, test, and lint work to reduce
+  load on the local development machine; keep focused, quick local checks available
+  for feedback.
 - Route Xcode, iOS/macOS signing, Simulator, Keychain, universal Apple builds,
   and other host-only commands to `$task-run-ssh` automatically. Do not present
   this as a backend choice.
@@ -133,6 +135,8 @@ jobs:
 - Dispatch deterministic heavy checks with `gh workflow run`, pinning a pushed ref.
 - Keep code-changing agent work under `$task`; offload its expensive verification
   commands only after the relevant commit is reachable by the runner.
+- When several task worktrees are active, make runner-backed portable checks the
+  normal path rather than competing for local CPU, memory, and disk resources.
 - Use `$task-run-ssh` when the exact command needs host macOS or when GitHub workflow
   dispatch is too rigid. Use exact commits and external-drive worktrees there too.
 - Treat runner output as evidence, not as permission to skip local task lifecycle,
