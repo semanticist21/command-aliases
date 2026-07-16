@@ -1,6 +1,6 @@
 ---
 name: "task-run-ssh"
-description: "Offload heavy repository commands to a key-authenticated SSH host using an external-storage bare object mirror and an exact-commit isolated worktree. Use for ad hoc builds, tests, analysis, or remote agent jobs that do not fit a GitHub Actions runner, including synchronous runs and detached jobs with status or log retrieval."
+description: "Offload heavy repository commands to a key-authenticated SSH host using an external-storage bare object mirror and an exact-commit isolated worktree. Resolve a persistent recorded SSH alias before asking or guessing the remote user. Use for ad hoc builds, tests, analysis, or remote agent jobs that do not fit a GitHub Actions runner, including synchronous runs and detached jobs with status or log retrieval."
 ---
 
 # Task Run SSH
@@ -30,6 +30,41 @@ new detached remote worktree.
 - Choose an absolute remote root on external storage. Supply host and root at
   runtime; never write private hostnames, mount paths, credentials, or keys into
   this skill or a repository.
+
+## Resolve the target without guessing
+
+1. Read `TASK_RUN_SSH_HOST` and `TASK_RUN_SSH_ROOT` when already set.
+2. Otherwise read durable machine context from `~/.codex/memo.md` before asking
+   the user. Reuse the recorded full SSH target and external task root.
+3. Treat the target as an opaque `user@host` or SSH alias. Never prepend local
+   `whoami`, infer a remote account from `/Users/<name>`, or rewrite a recorded
+   account.
+4. Verify the exact recorded target with public-key-only SSH. If authentication
+   fails, inspect `ssh -G <target>` and retry only the recorded target or alias.
+   Do not try guessed usernames, enable password authentication, run
+   `ssh-copy-id`, or claim the public key is unauthorized based on a different
+   user.
+5. Ask the user only when no durable target exists or the exact recorded target
+   remains unreachable after these checks.
+
+## Bootstrap one machine once
+
+Do this only when no verified alias exists:
+
+1. Obtain the exact remote account and host from durable machine context or the
+   user. Never assume the local username is valid remotely.
+2. Create a machine-local SSH config alias with `HostName`, `User`, `Port`,
+   `IdentityFile`, `IdentitiesOnly yes`, `PreferredAuthentications publickey`,
+   `PasswordAuthentication no`, `KbdInteractiveAuthentication no`,
+   `AddKeysToAgent yes`, and macOS `UseKeychain yes`.
+3. Load the key with `ssh-add --apple-use-keychain <identity>` on macOS, then
+   verify `ssh -G <alias>` and a `BatchMode=yes` connection.
+4. Persist the alias and external task root in `TASK_RUN_SSH_HOST` and
+   `TASK_RUN_SSH_ROOT` through the machine's shell profile or equivalent local
+   environment.
+5. Run `ssh-copy-id` only when the exact remote account is confirmed and the
+   key is genuinely absent. Never recommend it for a guessed account, and never
+   request or store the remote password in a skill or note.
 
 ```bash
 export TASK_RUN_SSH_HOST='<ssh-config-alias>'

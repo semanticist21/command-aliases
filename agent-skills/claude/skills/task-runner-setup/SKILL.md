@@ -1,11 +1,25 @@
 ---
 name: "task-runner-setup"
-description: "Configure a repository and remote Mac host for heavy GitHub Actions jobs on an OrbStack Linux ARM64 machine, with an external-disk runner filesystem, bounded persistent caches, and a direct-SSH path for macOS-only work. Use for self-hosted runner setup, repo-specific heavy CI offload, runner cache design, or worktree-based remote task/review preparation."
+description: "Connect a repository to the existing OrbStack Linux ARM64 GitHub Actions runner by default, with external-disk caches and automatic direct-SSH routing for macOS-only work. Use for repo-specific heavy CI offload, runner workflow setup, cache design, or worktree-based remote task/review preparation. Do not ask the user to choose a runner backend when an existing OrbStack runner is available."
 ---
 # Task Runner Setup
 
 Build a repeatable heavy-job path without turning the developer machine into an
 unbounded cache or exposing credentials.
+
+## Fixed defaults
+
+- Default to the existing OrbStack Ubuntu Linux ARM64 machine. Do not ask which
+  runner implementation, image, container, VM, or host type to use.
+- Reuse an online runner labeled `orb`, `Linux`, and `ARM64`. When one exists,
+  skip runner provisioning and configure only repository access and workflows.
+- Route portable Node, Rust, Flutter/Android, Docker, backend, build, test, and
+  lint work to OrbStack.
+- Route Xcode, iOS/macOS signing, Simulator, Keychain, universal Apple builds,
+  and other host-only commands to `$task-run-ssh` automatically. Do not present
+  this as a backend choice.
+- Consider a container implementation only after verifying the OrbStack CLI or
+  machine is genuinely unavailable or broken. Do not ask preemptively.
 
 ## Start gate
 
@@ -13,12 +27,19 @@ unbounded cache or exposing credentials.
   target repository. Let it create the isolated local worktree.
 - Read the target repo's `AGENTS.md`/`CLAUDE.md`, workflow conventions, manifests,
   lockfiles, and canonical test/build commands.
+- Before asking for host, remote account, scope, storage root, runner name, or
+  machine name, read durable machine context from `~/.codex/memo.md`, inspect
+  the active `gh` account and runner inventory, and inspect SSH config. Reuse
+  recorded values when present.
+- Treat a recorded SSH target as one opaque `user@host` or SSH alias. Never
+  derive its user from local `whoami`, the local home directory, or the local
+  Git identity.
 - Confirm the remote host uses SSH key authentication. Never store or pass a login
   password in a skill, repo, workflow, command argument, or log.
 - Confirm the external storage mount exists, is writable by the remote account, and
   has enough headroom. Do not silently fall back to the internal disk.
 
-## Choose the execution path
+## Route execution without prompting
 
 - Use an OrbStack Ubuntu Linux ARM64 machine for portable build, test, lint, Docker, Android, Rust,
   Node, and backend jobs.
@@ -29,6 +50,11 @@ unbounded cache or exposing credentials.
   of three managed runners on a 16 GiB host; heavy jobs may need a lower concurrency.
 
 ## Install the runner
+
+Enter this section only when no usable OrbStack runner exists or the user
+explicitly requests runner repair/reprovisioning. First query organization and
+repository runner inventories. If the existing OrbStack runner is online, do not
+re-register it, recreate its machine, or ask installation questions.
 
 Run the bundled orchestrator from a trusted admin machine:
 
