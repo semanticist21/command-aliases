@@ -35,6 +35,7 @@ agent-skills/
 | merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
 | microtask        |   ✓    |   ✓   | Queue into active task work, else base-branch dev loop   |
 | openai-image     |   ✓    |   ✓   | Generate/edit images via OpenAI gpt-image-1 API          |
+| org-kobbokkom-repo-migration | ✓ | ✓ | Transfer GitHub repos safely into Kobbokkom             |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
 | react-flutter-port | ✓ | ✓   | Port React UI to Flutter with visual parity              |
 | root-skill-add   |   ✓    |   ✓   | Alias to skill-sync for global user-scope skill creation  |
@@ -43,6 +44,8 @@ agent-skills/
 | skill-sync       |   ✓    |   ✓   | Create/update/sync/compact skills across runtimes + repo  |
 | skill-update     |   ✓    |   ✓   | Alias to skill-sync for revising existing skills          |
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
+| task-run-ssh     |   ✓    |   ✓   | Run exact-commit heavy jobs in remote SSH worktrees       |
+| task-runner-setup|   ✓    |   ✓   | Configure OrbStack runners with bounded external caches   |
 | text-to-lottie   |        |   ✓   | Create/edit Lottie JSON animations with Skottie verification |
 | update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
 | update-doc       |   ✓    |   ✓   | Update project docs to match code, per its doc harness    |

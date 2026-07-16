@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task Runner Setup"
+  short_description: "Configure repo-aware remote heavy-job runners"
+  default_prompt: "Use $task-runner-setup to configure this repository for safe remote heavy jobs."

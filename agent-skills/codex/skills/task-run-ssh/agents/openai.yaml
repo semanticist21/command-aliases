@@ -1,0 +1,4 @@
+interface:
+  display_name: "Task Run SSH"
+  short_description: "Run isolated heavy jobs over SSH worktrees"
+  default_prompt: "Use $task-run-ssh to run this heavy repository job on a remote SSH host."
