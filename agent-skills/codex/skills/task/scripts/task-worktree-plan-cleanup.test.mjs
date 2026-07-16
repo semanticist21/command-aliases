@@ -262,6 +262,51 @@ test('cleanup helper compares ignored regular files without Git clean filters', 
   }
 });
 
+test('cleanup helper handles ignored listings larger than the default child-process buffer', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-plan-large-ignore-root-'));
+  const bin = mkdtempSync(join(tmpdir(), 'task-plan-large-ignore-bin-'));
+  const worktree = `${root}-plan`;
+  try {
+    git(root, 'init', '-q', '-b', 'main');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, 'file'), 'fixture\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    git(root, 'worktree', 'add', '-qb', 'task/plan-large-ignore', worktree, 'HEAD');
+    preparePlanState(worktree);
+    const realGit = spawnSync('sh', ['-c', 'command -v git'], {encoding: 'utf8'}).stdout.trim();
+    writeFileSync(join(bin, 'git'), `#!/usr/bin/env node
+import {spawnSync} from 'node:child_process';
+const args = process.argv.slice(2);
+const result = spawnSync(process.env.REAL_GIT, args);
+process.stdout.write(result.stdout);
+process.stderr.write(result.stderr);
+if (result.status === 0 && args[2] === 'ls-files' && args[3] === '--others' && args[4] === '--ignored') {
+  process.stdout.write(Buffer.alloc(1024 * 1024 + 1));
+}
+process.exit(result.status ?? 1);
+`);
+    chmodSync(join(bin, 'git'), 0o755);
+    const cleaned = spawnSync(process.execPath, [
+      planCleanupScript,
+      '--repo', git(root, 'rev-parse', '--show-toplevel'),
+      '--worktree', git(worktree, 'rev-parse', '--show-toplevel'),
+      '--branch', 'task/plan-large-ignore',
+      '--head', git(root, 'rev-parse', 'HEAD'),
+    ], {
+      encoding: 'utf8',
+      env: {...process.env, PATH: `${bin}:${process.env.PATH}`, REAL_GIT: realGit},
+    });
+    assert.equal(cleaned.status, 0, cleaned.stderr);
+    assert.equal(git(root, 'branch', '--list', 'task/plan-large-ignore'), '');
+  } finally {
+    rmSync(worktree, {recursive: true, force: true});
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
 test('cleanup helper removes an unchanged ignored dependency symlink safely', () => {
   const root = mkdtempSync(join(tmpdir(), 'task-plan-symlink-root-'));
   const bin = mkdtempSync(join(tmpdir(), 'task-plan-symlink-bin-'));

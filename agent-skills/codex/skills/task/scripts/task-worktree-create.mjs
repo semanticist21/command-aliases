@@ -286,6 +286,65 @@ function dependencyCommands(worktree) {
     .sort((left, right) => left[2].localeCompare(right[2]) || left[0].localeCompare(right[0]));
 }
 
+// Selects one explicitly configured preparation command from a tracked repository file.
+function repositoryPreparationCommands(repository) {
+  const configFile = '.agents/task-worktree.json';
+  const files = git(repository, ['ls-files', '-z']).split('\0').filter(Boolean);
+  if (!files.includes(configFile)) return [];
+  const configPath = join(repository, configFile);
+  const stat = lstatSync(configPath);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`${configFile} must be a tracked regular file`);
+  let config;
+  try {
+    config = JSON.parse(readFileSync(configPath, 'utf8'));
+  } catch (error) {
+    throw new Error(`${configFile} must contain valid JSON: ${error.message}`);
+  }
+  const prepare = config?.prepare;
+  const rootKeys = config && typeof config === 'object' && !Array.isArray(config) ? Object.keys(config) : [];
+  const prepareKeys = prepare && typeof prepare === 'object' && !Array.isArray(prepare) ? Object.keys(prepare) : [];
+  if (rootKeys.length !== 1 || rootKeys[0] !== 'prepare'
+    || prepareKeys.some((key) => !['command', 'args'].includes(key))
+    || typeof prepare?.command !== 'string' || !prepare.command.trim() || /[\0\r\n]/u.test(prepare.command)
+    || !Array.isArray(prepare.args) || prepare.args.some((arg) => typeof arg !== 'string' || /[\0\r\n]/u.test(arg))) {
+    throw new Error(`${configFile} must be {"prepare":{"command":"...","args":["..."]}}`);
+  }
+  return [[prepare.command, prepare.args, repository]];
+}
+
+// Selects deterministic opt-in preparation commands across the superproject and recursive submodules.
+function preparationCommands(worktree) {
+  return repositoryRoots(worktree).flatMap((repository) => repositoryPreparationCommands(repository))
+    .sort((left, right) => left[2].localeCompare(right[2]));
+}
+
+// Captures repository HEAD and branch identities before dependency and repository preparation.
+function preparedRepositoryStates(worktree) {
+  return repositoryRoots(worktree).map((repository) => ({
+    repository,
+    branch: git(repository, ['branch', '--show-current']),
+    head: git(repository, ['rev-parse', 'HEAD']),
+  }));
+}
+
+// Rejects repository identity changes plus tracked or unignored preparation artifacts.
+function assertPreparedRepositoriesClean(worktree, expectedStates) {
+  const repositories = repositoryRoots(worktree);
+  if (repositories.length !== expectedStates.length
+    || repositories.some((repository, index) => repository !== expectedStates[index].repository)) {
+    throw new Error('Preparation changed the initialized repository roots');
+  }
+  for (const {repository, branch, head} of expectedStates) {
+    if (git(repository, ['branch', '--show-current']) !== branch
+      || git(repository, ['rev-parse', 'HEAD']) !== head
+      || (branch && git(repository, ['rev-parse', `refs/heads/${branch}`]) !== head)) {
+      throw new Error(`Preparation changed repository HEAD or branch in ${repository}`);
+    }
+    const status = git(repository, ['status', '--porcelain=v1', '--untracked-files=all', '--ignore-submodules=none']);
+    if (status) throw new Error(`Preparation created tracked or unignored changes in ${repository}:\n${status}`);
+  }
+}
+
 const caller = git(requestedRepository, ['rev-parse', '--show-toplevel']);
 const callerBranch = git(caller, ['branch', '--show-current']);
 git(caller, ['rev-parse', '--verify', 'HEAD']);
@@ -393,14 +452,12 @@ try {
   bindableState = true;
   ensureAgentTempIgnored(worktree);
   run('git', ['submodule', 'update', '--init', '--recursive'], worktree);
+  const expectedRepositoryStates = preparedRepositoryStates(worktree);
   for (const [command, args, cwd] of dependencyCommands(worktree)) run(command, args, cwd);
+  for (const [command, args, cwd] of preparationCommands(worktree)) run(command, args, cwd);
+  assertPreparedRepositoriesClean(worktree, expectedRepositoryStates);
   const ignoredBaseline = recursiveIgnoredFingerprint(worktree);
   const ignoredSuperprojectBaseline = ignoredFingerprint(worktree);
-  if (retainedHead && (git(worktree, ['branch', '--show-current']) !== taskBranch
-    || git(worktree, ['rev-parse', 'HEAD']) !== retainedHead
-    || git(caller, ['rev-parse', `refs/heads/${taskBranch}`]) !== retainedHead)) {
-    throw new Error('Retained task branch changed while setup was running');
-  }
   writeState(worktree, {
     ...state,
     setup: 'complete',

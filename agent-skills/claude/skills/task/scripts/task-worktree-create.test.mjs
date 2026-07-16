@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {spawn, spawnSync} from 'node:child_process';
-import {chmodSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
+import {chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
 import test from 'node:test';
@@ -268,7 +268,166 @@ test('installs only dependencies named by tracked lockfiles', () => {
   }
 });
 
-test('initializes submodules and installs their tracked dependencies recursively', () => {
+test('runs an explicitly configured preparation command after dependency installation', () => {
+  const root = fixtureRepository('task-create-gen-');
+  const bin = mkdtempSync(join(tmpdir(), 'task-create-gen-bin-'));
+  const log = join(bin, 'commands.log');
+  writeFileSync(join(root, '.gitignore'), '.agent-tmp/\ngenerated.txt\n');
+  writeFileSync(join(root, 'package.json'), '{"name":"fixture"}\n');
+  writeFileSync(join(root, 'package-lock.json'), '{}\n');
+  mkdirSync(join(root, '.agents'));
+  writeFileSync(join(root, '.agents', 'task-worktree.json'), '{"prepare":{"command":"make","args":["gen"]}}\n');
+  writeFileSync(join(root, 'Makefile'), 'gen:\n\t@echo generated\n');
+  mkdirSync(join(root, 'docs'));
+  writeFileSync(join(root, 'docs', 'Makefile'), 'gen:\n\t@echo nested\n');
+  git(root, 'add', '.');
+  git(root, 'commit', '-qm', 'add generated dependency fixture');
+  writeFileSync(join(bin, 'npm'), '#!/bin/sh\nprintf \'npm|%s|%s\\n\' "$PWD" "$*" >> "$TASK_COMMAND_LOG"\n');
+  writeFileSync(join(bin, 'make'), '#!/bin/sh\nprintf \'make|%s|%s\\n\' "$PWD" "$*" >> "$TASK_COMMAND_LOG"\nprintf \'generated\\n\' > generated.txt\n');
+  chmodSync(join(bin, 'npm'), 0o755);
+  chmodSync(join(bin, 'make'), 0o755);
+  let worktree;
+  try {
+    const result = spawnSync(process.execPath, [script, 'gen', '--id', 'fixed-id'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {...process.env, PATH: `${bin}:${process.env.PATH}`, TASK_COMMAND_LOG: log},
+    });
+    assert.equal(result.status, 0, result.stderr);
+    worktree = outputValue(result.stdout, 'worktree');
+    assert.equal(readFileSync(log, 'utf8'), `npm|${worktree}|ci --ignore-scripts\nmake|${worktree}|gen\n`);
+    assert.equal(readFileSync(join(worktree, 'generated.txt'), 'utf8'), 'generated\n');
+    assert.match(readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8'), /- setup: complete/u);
+  } finally {
+    if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('does not infer preparation from Makefile targets or an untracked config', () => {
+  const root = fixtureRepository('task-create-no-prepare-');
+  const bin = mkdtempSync(join(tmpdir(), 'task-create-no-prepare-bin-'));
+  const marker = join(bin, 'make-ran');
+  writeFileSync(join(root, 'Makefile'), 'gen:\n\t@echo generated\n');
+  git(root, 'add', 'Makefile');
+  git(root, 'commit', '-qm', 'add unconfigured generator');
+  mkdirSync(join(root, '.agents'));
+  writeFileSync(join(root, '.agents', 'task-worktree.json'), '{"prepare":{"command":"make","args":["gen"]}}\n');
+  writeFileSync(join(bin, 'make'), '#!/bin/sh\nprintf \'ran\\n\' > "$TASK_MAKE_MARKER"\n');
+  chmodSync(join(bin, 'make'), 0o755);
+  let worktree;
+  try {
+    const result = spawnSync(process.execPath, [script, 'no-prepare', '--id', 'fixed-id'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {...process.env, PATH: `${bin}:${process.env.PATH}`, TASK_MAKE_MARKER: marker},
+    });
+    assert.equal(result.status, 0, result.stderr);
+    worktree = outputValue(result.stdout, 'worktree');
+    assert.equal(git(worktree, 'status', '--porcelain=v1'), '');
+    assert.equal(existsSync(marker), false);
+  } finally {
+    if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('rejects malformed tracked preparation configs', () => {
+  const fixtures = [
+    ['invalid-json', '{'],
+    ['root-key', '{"prepare":{"command":"make","args":["gen"]},"extra":true}'],
+    ['empty-command', '{"prepare":{"command":"","args":[]}}'],
+    ['invalid-args', '{"prepare":{"command":"make","args":"gen"}}'],
+    ['prepare-key', '{"prepare":{"command":"make","args":["gen"],"extra":true}}'],
+  ];
+  for (const [name, config] of fixtures) {
+    const root = fixtureRepository(`task-create-malformed-${name}-`);
+    let worktree;
+    try {
+      mkdirSync(join(root, '.agents'));
+      writeFileSync(join(root, '.agents', 'task-worktree.json'), `${config}\n`);
+      git(root, 'add', '.agents/task-worktree.json');
+      git(root, 'commit', '-qm', 'add malformed preparation config');
+      const result = spawnSync(process.execPath, [script, `malformed-${name}`, '--id', 'fixed-id'], {cwd: root, encoding: 'utf8'});
+      assert.notEqual(result.status, 0);
+      worktree = result.stderr.match(/retry: (.+)$/mu)?.[1];
+      assert.ok(worktree);
+      assert.match(result.stderr, /\.agents\/task-worktree\.json must/u);
+      assert.match(readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8'), /- setup: failed/u);
+    } finally {
+      if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+      rmSync(root, {recursive: true, force: true});
+    }
+  }
+});
+
+test('rejects preparation commands that create tracked or unignored changes', () => {
+  const root = fixtureRepository('task-create-dirty-prepare-');
+  const bin = mkdtempSync(join(tmpdir(), 'task-create-dirty-prepare-bin-'));
+  mkdirSync(join(root, '.agents'));
+  writeFileSync(join(root, '.agents', 'task-worktree.json'), '{"prepare":{"command":"prepare-fixture","args":[]}}\n');
+  git(root, 'add', '.agents/task-worktree.json');
+  git(root, 'commit', '-qm', 'configure dirty preparation');
+  writeFileSync(join(bin, 'prepare-fixture'), '#!/bin/sh\nprintf \'changed\\n\' > fixture\nprintf \'new\\n\' > generated-unignored\n');
+  chmodSync(join(bin, 'prepare-fixture'), 0o755);
+  let worktree;
+  try {
+    const result = spawnSync(process.execPath, [script, 'dirty-prepare', '--id', 'fixed-id'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {...process.env, PATH: `${bin}:${process.env.PATH}`},
+    });
+    assert.notEqual(result.status, 0);
+    worktree = result.stderr.match(/retry: (.+)$/mu)?.[1];
+    assert.ok(worktree);
+    assert.match(result.stderr, /Preparation created tracked or unignored changes/u);
+    assert.match(readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8'), /- setup: failed/u);
+    assert.match(git(worktree, 'status', '--porcelain=v1'), /^M fixture$/mu);
+    assert.match(git(worktree, 'status', '--porcelain=v1'), /\?\? generated-unignored/u);
+  } finally {
+    if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+test('rejects preparation commands that commit or detach repository state', () => {
+  const fixtures = [
+    ['commit', 'printf \'committed\\n\' > committed-by-prepare\ngit add committed-by-prepare\ngit commit -qm \'prepare commit\'\n'],
+    ['detach', 'git switch --detach -q HEAD\n'],
+  ];
+  for (const [name, body] of fixtures) {
+    const root = fixtureRepository(`task-create-identity-${name}-`);
+    const bin = mkdtempSync(join(tmpdir(), `task-create-identity-${name}-bin-`));
+    let worktree;
+    try {
+      mkdirSync(join(root, '.agents'));
+      writeFileSync(join(root, '.agents', 'task-worktree.json'), `{"prepare":{"command":"prepare-${name}","args":[]}}\n`);
+      git(root, 'add', '.agents/task-worktree.json');
+      git(root, 'commit', '-qm', 'configure identity-changing preparation');
+      writeFileSync(join(bin, `prepare-${name}`), `#!/bin/sh\n${body}`);
+      chmodSync(join(bin, `prepare-${name}`), 0o755);
+      const result = spawnSync(process.execPath, [script, `identity-${name}`, '--id', 'fixed-id'], {
+        cwd: root,
+        encoding: 'utf8',
+        env: {...process.env, PATH: `${bin}:${process.env.PATH}`},
+      });
+      assert.notEqual(result.status, 0);
+      worktree = result.stderr.match(/retry: (.+)$/mu)?.[1];
+      assert.ok(worktree);
+      assert.match(result.stderr, /Preparation changed repository HEAD or branch/u);
+      assert.match(readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8'), /- setup: failed/u);
+    } finally {
+      if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+      rmSync(bin, {recursive: true, force: true});
+      rmSync(root, {recursive: true, force: true});
+    }
+  }
+});
+
+test('initializes submodules and runs their tracked dependency and preparation commands', () => {
   const root = fixtureRepository('task-create-submodule-root-');
   const module = fixtureRepository('task-create-submodule-child-');
   const bin = mkdtempSync(join(tmpdir(), 'task-create-submodule-bin-'));
@@ -277,12 +436,17 @@ test('initializes submodules and installs their tracked dependencies recursively
   try {
     writeFileSync(join(module, 'package.json'), '{"name":"submodule"}\n');
     writeFileSync(join(module, 'package-lock.json'), '{}\n');
-    git(module, 'add', 'package.json', 'package-lock.json');
+    writeFileSync(join(module, '.gitignore'), 'generated.proto\n');
+    mkdirSync(join(module, '.agents'));
+    writeFileSync(join(module, '.agents', 'task-worktree.json'), '{"prepare":{"command":"prepare-submodule","args":["proto"]}}\n');
+    git(module, 'add', 'package.json', 'package-lock.json', '.gitignore', '.agents/task-worktree.json');
     git(module, 'commit', '-qm', 'add dependencies');
     git(root, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', module, 'vendor/fixture');
     git(root, 'commit', '-qm', 'add submodule');
     writeFileSync(join(bin, 'npm'), `#!/bin/sh\nprintf '%s|%s\\n' "$PWD" "$*" >> "$TASK_COMMAND_LOG"\n`);
+    writeFileSync(join(bin, 'prepare-submodule'), `#!/bin/sh\nprintf 'prepare|%s|%s\\n' "$PWD" "$*" >> "$TASK_COMMAND_LOG"\nprintf 'generated\\n' > generated.proto\n`);
     chmodSync(join(bin, 'npm'), 0o755);
+    chmodSync(join(bin, 'prepare-submodule'), 0o755);
     const result = spawnSync(process.execPath, [script, 'submodule', '--id', 'submodule-test'], {
       cwd: root,
       encoding: 'utf8',
@@ -291,7 +455,8 @@ test('initializes submodules and installs their tracked dependencies recursively
     assert.equal(result.status, 0, result.stderr);
     worktree = outputValue(result.stdout, 'worktree');
     assert.equal(readFileSync(join(worktree, 'vendor', 'fixture', 'fixture'), 'utf8'), 'committed\n');
-    assert.equal(readFileSync(log, 'utf8'), `${join(worktree, 'vendor', 'fixture')}|ci --ignore-scripts\n`);
+    assert.equal(readFileSync(join(worktree, 'vendor', 'fixture', 'generated.proto'), 'utf8'), 'generated\n');
+    assert.equal(readFileSync(log, 'utf8'), `${join(worktree, 'vendor', 'fixture')}|ci --ignore-scripts\nprepare|${join(worktree, 'vendor', 'fixture')}|proto\n`);
   } finally {
     if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
     rmSync(bin, {recursive: true, force: true});

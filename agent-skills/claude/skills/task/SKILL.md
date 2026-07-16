@@ -184,8 +184,12 @@ from the platform session plus current UTC timestamp. If the creator reports an 
 collision, generate a new ID; never reuse or take over the existing worktree.
 The script creates the isolated task worktree, records task state, initializes
 recursive submodules, and installs dependencies from recognized tracked lockfiles
-across the superproject and every initialized submodule. JavaScript package
-installs disable repository lifecycle/build scripts during bootstrap. A raw
+across the superproject and every initialized submodule. After dependency setup,
+it runs the optional command declared by each repository root's tracked
+`.agents/task-worktree.json` (`{"prepare":{"command":"make","args":["gen"]}}`),
+then rejects repository HEAD/branch changes plus tracked or unignored preparation
+changes. JavaScript package installs
+disable repository lifecycle/build scripts during bootstrap. A raw
 `git worktree add` is recovery-only when the script is unavailable or fails
 before creating a worktree. If setup fails after creation, keep and use that
 created worktree and repair setup there; never create a second worktree or fall

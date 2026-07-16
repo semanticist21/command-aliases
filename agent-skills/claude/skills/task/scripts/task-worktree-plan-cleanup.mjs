@@ -5,6 +5,8 @@ import {createHash, randomUUID} from 'node:crypto';
 import {existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, rmSync, symlinkSync} from 'node:fs';
 import {dirname, join, relative, resolve} from 'node:path';
 
+const gitOutputMaxBuffer = 256 * 1024 * 1024;
+
 const args = process.argv.slice(2);
 if (args.length !== 8 || args[0] !== '--repo' || args[2] !== '--worktree' || args[4] !== '--branch' || args[6] !== '--head') {
   throw new Error('Usage: task-worktree-plan-cleanup.mjs --repo <path> --worktree <path> --branch <task/*> --head <commit>');
@@ -21,7 +23,7 @@ if (!ignoredBaseline || !superprojectIgnoredBaseline) throw new Error('Plan work
 
 // Runs one Git command and returns its trimmed output.
 function git(directory, commandArgs) {
-  const result = spawnSync('git', ['-C', directory, ...commandArgs], {encoding: 'utf8'});
+  const result = spawnSync('git', ['-C', directory, ...commandArgs], {encoding: 'utf8', maxBuffer: gitOutputMaxBuffer});
   if (result.status !== 0) throw new Error(result.stderr.trim() || `git ${commandArgs.join(' ')} failed in ${directory}`);
   return result.stdout.trim();
 }
