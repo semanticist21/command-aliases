@@ -31,17 +31,25 @@ make the stored note compact and useful.
      instructions.
    If no harness exists, create the smallest conventional repo-local note that future
    agents are likely to read, usually repo-root `AGENTS.md`. Do not fall back to the
-   global memo for a repo-specific note.
+   shared machine-notes tree for a repo-specific note.
 4. If the note is cross-project, machine-level, or a personal workflow preference,
-   append to `~/.codex/memo.md`.
+   route it into the shared machine-notes tree at `~/.agents/doc/`. Read the ownership
+   map `~/.agents/doc/AGENTS.md`, then append to the matching topic file (machine
+   quirks, key/secret locations, release ops, infra, skills/prefs), or add a new topic
+   file plus a row in that map and in the `~/.codex/AGENTS.md` "Machine Notes" index
+   (which is symlinked to `~/.claude/CLAUDE.md`, so both runtimes see it). Do not grow
+   `~/.codex/memo.md` — it is retired to a pointer.
 
 When a repo issue reveals a generally useful lesson, write the repo-specific fact
-locally first. Add a global memo only if the lesson remains useful after removing
-project names, paths, product choices, and local conventions.
+locally first. Add a shared machine note (under `~/.agents/doc/`) only if the lesson
+remains useful after removing project names, paths, product choices, and local
+conventions.
 
 ## Format
 
-- Add a local timestamp heading such as `## 2026-06-03 14:20 KST`.
+- Match the target's existing convention: append a concise bullet under the relevant
+  heading. Add a `## YYYY-MM-DD HH:MM KST` heading only for append-only log files, not
+  for topic-organized notes like `~/.agents/doc/` or a repo `AGENTS.md`.
 - Store short bullets with concrete facts.
 - Start explicit user instructions with `Instruction:`.
 - Include exact paths, commands, env vars, or identifiers when they matter.
