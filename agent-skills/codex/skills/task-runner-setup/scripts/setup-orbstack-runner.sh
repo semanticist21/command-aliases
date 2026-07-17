@@ -13,7 +13,11 @@ Options:
   --machine-disk SIZE       Sparse OS disk limit (default: 64G)
   --data-image-gb N         External sparse ext4 size (default: 700)
   --labels CSV              Extra labels (default: orb,linux-arm64,heavy)
-  --runner-group NAME       Required restricted runner group for org scope
+  --runner-group NAME       Required runner group for org scope
+  --allow-org-wide-group    Accept a runner group whose visibility is not
+                            'selected'. Every private org repo can then run code
+                            on this host. Required on GitHub Free, where
+                            selected-visibility groups leave private-repo jobs queued.
   --max-runners N           Managed runner hard cap, 1-3 (default: 3)
   --cache-max-gb N          Prune when cache exceeds N GiB (default: 400)
   --cache-min-free-gb N     Refuse new jobs below N GiB free (default: 100)
@@ -41,6 +45,7 @@ data_image_gb=700
 labels='orb,linux-arm64,heavy'
 runner_group=''
 max_runners=3
+allow_org_wide_group=false
 cache_max_gb=400
 cache_min_free_gb=100
 dry_run=false
@@ -59,6 +64,7 @@ while (($#)); do
     --labels) labels=${2:?}; shift 2 ;;
     --runner-group) runner_group=${2:?}; shift 2 ;;
     --max-runners) max_runners=${2:?}; shift 2 ;;
+    --allow-org-wide-group) allow_org_wide_group=true; shift ;;
     --cache-max-gb) cache_max_gb=${2:?}; shift 2 ;;
     --cache-min-free-gb) cache_min_free_gb=${2:?}; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
@@ -139,11 +145,16 @@ if [[ -n $runner_group ]]; then
   # someone makes an org repo public later.
   [[ $group_allows_public == false ]] \
     || die 'org runner group must disallow public repositories: a fork PR would run on the runner'
-  # selected-repository visibility is least-privilege *between private repos* — a different, weaker
-  # concern than the one above, and one GitHub Free cannot honor: on Free, a private repo pointed at
-  # a selected-visibility group leaves its jobs queued forever. So `all` is accepted, and on Free it
-  # is the only setting that runs anything. Its cost is that every private org repo reaches the
-  # runner, which is also what makes a new repo work by just adding a workflow.
+  # selected-repository visibility is least-privilege *between private repos* — a separate, weaker
+  # concern than the public-repo one above, and one GitHub Free cannot honor: on Free, a private
+  # repo pointed at a selected-visibility group leaves its jobs queued forever, so `all` is the
+  # only setting that runs anything there. `all` is therefore allowed, but never by default: it
+  # lets every private repo in the org execute code on this host, and anyone with write access to
+  # any of them inherits that. Harmless for a one-person org, not for a large one — so the
+  # operator states it rather than a script deciding for their org.
+  if [[ $group_visibility != selected ]] && ! $allow_org_wide_group; then
+    die "runner group '$runner_group' has $group_visibility visibility: every private org repo could run code on this host. Pass --allow-org-wide-group to accept that, or use a selected-repository group (unavailable on GitHub Free)"
+  fi
   if [[ $group_visibility == selected ]]; then
     selected_count=$(gh_api "orgs/$owner/actions/runner-groups/$runner_group_id/repositories" --paginate \
       --jq '[.repositories[]] | length' | awk '{ total += $1 } END { print total + 0 }')
