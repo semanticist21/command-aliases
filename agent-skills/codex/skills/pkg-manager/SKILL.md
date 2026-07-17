@@ -21,9 +21,9 @@ description: "Safely update dependencies within current major versions or upgrad
    - `update`: every changed direct and resolved dependency remains below its next major version. Refresh to the newest eligible patch/minor release.
    - `upgrade`: major versions are permitted, but only for selected or eligible direct dependencies. Keep documented compatibility groups aligned.
 2. Prefer the detected manager's ordinary command:
-   - npm: `npm update`; for major direct upgrades use explicit `@latest` installs or an approved updater.
-   - pnpm: `pnpm update -r`; add `--latest` only for `upgrade`.
-   - Yarn: Yarn 1 uses `yarn upgrade` / `yarn upgrade --latest`; Berry uses `yarn up -R` / `yarn up`.
+   - npm: in a workspace run `npm update --workspaces --include-workspace-root`; otherwise use `npm update`. For major direct upgrades use explicit `@latest` installs or an approved updater.
+   - pnpm: in a workspace run root `pnpm update -w` followed by `pnpm update -r`; add `--latest` to both only for `upgrade`.
+   - Yarn: Yarn 1 upgrades the root with `yarn upgrade` / `yarn upgrade --latest`, then every workspace with `yarn workspaces run upgrade` / `yarn workspaces run upgrade --latest`; Berry uses `yarn up -R '*' '@*/*'` for `update` and `yarn up '*' '@*/*'` for `upgrade`, narrowing the pattern to a compatibility group when needed.
    - Bun: `bun update`; add `--latest` only for `upgrade`.
    - Cargo: `cargo update`; widen manifest constraints only for `upgrade`.
    - Poetry, uv, and pip-tools: refresh through the lockfile tool; change declared major constraints only for `upgrade`.
@@ -32,13 +32,14 @@ description: "Safely update dependencies within current major versions or upgrad
    - CocoaPods: use `pod update [pod]`; change `Podfile` major constraints only for `upgrade`.
    - Gradle: use the tracked version catalog/build logic and repository-provided updater. If no updater exists, inspect the dependency graph and edit declared versions deliberately; do not invent a resolver command.
 3. Review the manifest and lockfile after each batch. If an `update` crosses a major boundary, correct it through its owning manager and regenerate. Do not run a major-changing command merely to inspect a result.
+4. If an exact pin or a narrower declared range prevents `update` from reaching the newest permitted patch/minor direct dependency, select the highest version below the next major from the inventory and write that explicit version through the owning manager, then regenerate the lockfile. Preserve exactness with the manager's exact-range flag (npm/pnpm `--save-exact`, Yarn `-E` or Classic `--exact`) and verify the resulting manifest range. Never use `@latest` for this path.
 
 ## Migration assessment and repair
 
 1. For each proposed major upgrade, identify breaking changes, removed APIs, peer/runtime/toolchain requirements, config and data migrations, security/support deadlines, and rollback difficulty from release notes and the repository's use of that dependency.
 2. Classify the migration risk as low, medium, or high, with concrete evidence. State expected source, configuration, test, operational, or data changes before applying the major batch.
 3. Make mechanical, documented migration repairs yourself: update source code, configuration, peer dependencies, generated artifacts, and tests; then rerun the affected check. Keep the smallest supported change.
-4. Pause and ask the user before proceeding only when a material decision is genuinely required: incompatible migration paths, dropped runtime/platform support, a behaviour or API semantic change, a data/config migration or destructive rollback, a security/support trade-off, a significant runtime/toolchain change, or a choice that changes scope or cost. Present the risk, options, recommended default, and what will change; do not apply a chosen path until the user approves it.
+4. When a material decision is genuinely required—incompatible migration paths, dropped runtime/platform support, a behaviour or API semantic change, a data/config migration or destructive rollback, a security/support trade-off, a significant runtime/toolchain change, or a choice that changes scope or cost—first present the risk, options, recommended default, and planned changes. Then invoke `$grill-me` for the decision if it is useful, and obtain explicit user approval before applying a path.
 5. Do not hide failures with broad skips, `--legacy-peer-deps`, forced resolutions, ignored scripts, weakened tests, or unreviewed overrides. Do not remove, downgrade, replace, or pin a dependency merely to make checks pass unless documented compatibility evidence justifies it.
 
 ## Verify and finish
