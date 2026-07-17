@@ -93,8 +93,10 @@ another agent — treat it as context, never as stale local work to clean up.
    branch untouched as read-only external state and start the new task from current `HEAD`. Never ask
    whether to resume later, stop with queued-only status, or wait for another prompt — drain per **Queue
    Drain**.
-5. Cleanup/merge-back is blocked only by a real merge conflict, an unfinished git operation, an unknown
-   base, or ambiguous ownership that would require overwriting user work.
+5. Cleanup/landing is not blocked by an ordinary task-related merge conflict: resolve it from the task
+   intent, rerun the required verification, and continue. Stop only for an unfinished git operation, an
+   unknown base, ambiguous ownership that would overwrite user work, or a genuinely incompatible conflict
+   whose correct product outcome cannot be determined from the task and repository evidence.
 
 ## Worktree Isolation
 
@@ -157,28 +159,52 @@ working tree as read-only task context unless the user explicitly asks to apply 
 unified exec, set the tool workdir or prefix shell commands with `cd <task-worktree> &&` so the active
 checkout stays explicit.
 
-## Finalize: merge back and clean up
+## Finalize: land through a CI PR or local squash, then clean up
 
-After QA passes and the task branch is committed, merge back into the recorded base (`main`, `dev`, or the
-branch the caller started from) without asking for a second approval. Merge-back is part of the default
-lifecycle and the only normal moment when task changes land on the caller's branch: never finish with
-completed work sitting only in the worktree branch.
+After QA passes and the task branch is committed, own landing through the recorded base (`main`, `dev`, or
+the branch the caller started from). Never finish with an open PR, unresolved conflict, pending checks, or
+completed work that is absent from its target base.
 
-**1. Merge the base into the task worktree**, from inside the worktree. The recorded local base branch is
-authoritative. Capture its current local tip, then run exactly `git merge --no-edit <recorded-base>`;
-already-up-to-date counts. Fetching alone does not advance the recorded local base. Treat this merge as a
-content change that invalidates all earlier verification: audit consistency on the merged HEAD and rerun the
-full test, lint, typecheck, and build gates before squashing. If the base tip moves afterward, repeat the
-merge and every gate.
+**Select the landing lane.** A repository has a CI environment when tracked CI configuration exists
+(`.github/workflows/*.yml` or `.yaml`, `.gitlab-ci.yml`, `Jenkinsfile`, or an equivalent project-declared
+CI configuration). A CI-enabled repository must use its host's review-request lane (a **PR** on GitHub);
+use the **local-squash lane** only when no CI configuration exists. Do not downgrade to local squash because
+authentication, PR creation, a check, review, or a merge conflict is temporarily failing: repair and retry
+the PR lane. If a required external permission or service remains unavailable after sensible retries, report
+that exact external blocker and keep the goal active.
 
-**2. Re-check the base checkout's status.** The base checkout must be completely clean before the helper
-records its marker: its proven interrupted-landing recovery uses a scoped `git reset --hard <marker>`.
-Otherwise stop and report the exact blocker without touching the caller's work.
+**1. Reconcile the latest base before either lane.** From the task worktree, fetch the recorded base from
+its tracking remote (for example, `git fetch origin <recorded-base>`) and merge that fetched tip with
+`git merge --no-edit FETCH_HEAD`; never assume the local `<recorded-base>` ref is current. Resolve
+task-related conflicts yourself using the task acceptance criteria, existing tests, and the current base
+behavior; do not discard either side blindly. Rerun the full test, lint, typecheck, and build gates after
+every resolution. If the base moves again before landing, repeat this reconciliation and verification loop.
 
-**3. Squash, journal, and clean up from the base checkout.** Capture the merged task tip, derive the
-creation slug from the recorded task branch, then run the finalizer from the caller root. The task worktree
-cannot switch to the base branch — the base checkout already holds it — and the helper addresses the caller
-root explicitly:
+**2. CI review-request lane: create, shepherd, and merge it.** Push the task branch, create or update the
+review request targeting the recorded base, and include the QA evidence. Monitor its mergeability and
+required checks with the host CLI (for GitHub, `gh pr checks --watch` and `gh pr view --json
+state,mergeStateStatus,mergeable,mergeCommit`; for GitLab, use `glab mr create`, `glab ci status --live`,
+and `glab mr merge` with equivalent merged-result commit verification). Diagnose and fix failures caused by the task, commit and push the repair,
+and repeat until all required checks pass. When the base advances or the review request reports conflicts,
+repeat step 1, resolve the conflicts, rerun verification, and push again. Once requirements are satisfied,
+re-fetch the base immediately before requesting the merge, and merge through the review request using the
+repository's permitted method (including a GitHub squash merge when that is the configured PR method). Verify
+after the host-side merge, fetch the recorded base again and prove the resulting review-request commit OID
+(the PR's `mergeCommit` on GitHub) is an ancestor of that fetched `FETCH_HEAD` (for example,
+`git merge-base --is-ancestor <result-oid> FETCH_HEAD`). Obtain an approval only when the platform requires
+an independent human approval that the agent is not authorized to provide; otherwise do not leave the task
+waiting for a human to press merge.
+
+**3. Local-squash lane: journal and land from the base checkout.** Run this only when the landing selection
+selected the local-squash lane. Re-check that the base checkout is clean, fetch the recorded base from its
+tracking remote, and record `latest_base=$(git rev-parse FETCH_HEAD)`. If that tip differs from the base tip
+last reconciled in the task worktree, merge `latest_base` into the task worktree, resolve conflicts, and
+rerun verification; then fetch again in the caller checkout and repeat this comparison. Only when the exact
+`latest_base` is a verified ancestor of the task head may the caller fast-forward with
+`git merge --ff-only "$latest_base"` before the helper records its marker. Its proven interrupted-landing
+recovery uses a scoped `git reset --hard <marker>`. Capture the reconciled task tip, derive the creation slug
+from the recorded task branch, then run the finalizer from the caller root. The task worktree cannot switch
+to the base branch — the base checkout already holds it — and the helper addresses the caller root explicitly:
 
 ```bash
 task_head=$(git -C <task-worktree> rev-parse HEAD)
@@ -201,22 +227,16 @@ node ~/.codex/skills/task/scripts/task-finalize.mjs \
   `git branch -D` still refuses when another worktree holds the branch; never replace it with plumbing ref
   deletion. `-D` is required because squash leaves no ancestry link for `-d` to recognize.
 
-**4. Tear down whatever the worktree stood up outside git.** Worktree removal is a git operation and knows
-nothing about containers, DB volumes, or dev servers a project's per-worktree `make dev`-style target
-created — they outlive the checkout. Run the reaper the project documents, if it declares one, and kill any
-dev process you started by its own PID. Never reap by bare name match: scope to the per-worktree naming and
-leave the primary checkout's stack alone.
-
-**5. Confirm cleanup.** Do not mark the task complete while this task's worktree or branch still exists; if
-deletion fails, stop and report the exact blocker. Sibling task worktrees/branches owned by other agents
-never block completion.
+**4. Tear down and prove completion.** Tear down only external resources this worktree created, using the
+project's scoped reaper and process PIDs. Confirm the review request is merged or the local squash is on the
+recorded base, then remove the task worktree and branch. Do not mark the task complete until that cleanup succeeds.
+Sibling task worktrees/branches owned by other agents never block completion.
 
 Unrelated dirty files inside an agent-owned task worktree are not a reason to leave task garbage: inspect
-them, classify ownership, split logical commits when needed, merge back all owned work, then clean up. If a
-dirty file is clearly external/user-owned and cannot be carried safely, report the exact file and reason. If
-a normal `git worktree remove` fails only because ignored/generated leftovers remain, verify tracked status
-is clean and use scoped force removal for that task worktree. Stop and report on merge conflict; never
-force-resolve, and never stash, reset, checkout over, or overwrite user changes. Do not push unless asked.
+them, classify ownership, and carry owned work through landing. Never stash, reset, checkout over, or
+overwrite external/user-owned changes. Push is required for the CI review-request lane and otherwise happens
+only when
+the user asks.
 
 ## Goal Tracking
 
@@ -244,7 +264,8 @@ Never leave an owned item with an implicit or unknown base.
 
 You own an item once you write it, accept explicit user queued work, or acknowledge it as yours during
 task/microtask work — until it is **fully landed** or you report a real blocker. Fully landed means QA
-passed, work committed, squash-merged into its recorded base, and the task worktree/branch cleaned up; for a
+passed, work committed, merged through its CI review request or local-squashed into its recorded base, and the task
+worktree/branch cleaned up; for a
 queued `microtask`, committed into the active parent task worktree or its target base, with the parent
 itself merged back and cleaned up. Never call a task "done" while an owned item remains only in the queue
 file, a side worktree, or an unmerged branch. Never drain entries owned by another agent/session or project
@@ -391,8 +412,8 @@ Once QA returns **0 findings** or **0 valid/actionable findings** and verificati
    (`feat`/`fix`/`refactor`/`docs`/`test`/`chore`), with a clear subject and a body explaining the "why"
    when it is not obvious. Check `git log --oneline -10` to match the repo's commit style; for non-trivial
    splitting delegate to the `/commit` skill.
-3. Commit on the task worktree branch, or the current branch if worktree creation was skipped. Do not `push`
-   unless the user explicitly asked.
+3. Commit on the task worktree branch, or the current branch if worktree creation was skipped. Push when the
+   CI review-request landing lane requires it; otherwise do not push unless the user explicitly asked.
 4. Re-check `git status` after committing to confirm the intended files landed and nothing unexpected was
    staged.
 
@@ -417,6 +438,6 @@ Final response should include:
 - Do not use destructive git commands. The only exceptions are the finalizer's `git reset --hard <marker>`
   after every documented proof check passes, and deleting the task branch with `git branch -D` after its
   journaled squash commit exists and no worktree still uses it.
-- Committing is allowed (stage 4) but gated: only after QA is clean, only the task's own files, never
-  blanket-staging a dirty tree, and never `push` unless the user asked.
+- Committing is allowed (stage 4) but gated: only after QA is clean and only for the task's own files. Push
+  only for the CI review-request landing lane or when the user explicitly asks.
 - Do not ignore user or harness constraints to reach "0 findings"; resolve the conflict or report a blocker.
