@@ -1,0 +1,4 @@
+interface:
+  display_name: "Package Manager"
+  short_description: "Safely update project dependencies"
+  default_prompt: "Use $pkg-manager update to safely update this project's dependencies."

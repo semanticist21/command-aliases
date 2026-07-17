@@ -36,6 +36,7 @@ agent-skills/
 | microtask        |   ✓    |   ✓   | Queue into active task work, else base-branch dev loop   |
 | openai-image     |   ✓    |   ✓   | Generate/edit images via OpenAI gpt-image-1 API          |
 | org-kobbokkom-repo-migration | ✓ | ✓ | Transfer GitHub repos safely into Kobbokkom             |
+| pkg-manager      |   ✓    |   ✓   | Safely update minor versions or upgrade majors with migration handling |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
 | react-flutter-port | ✓ | ✓   | Port React UI to Flutter with visual parity              |
 | root-skill-add   |   ✓    |   ✓   | Alias to skill-sync for global user-scope skill creation  |
