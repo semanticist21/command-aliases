@@ -7,14 +7,13 @@ usage() {
   cat <<'USAGE'
 Usage:
   transfer-repo.sh --source OWNER/REPO [--new-name NAME]
-  transfer-repo.sh --source OWNER/REPO [--new-name NAME] --execute --confirm VALUE
+  transfer-repo.sh --source OWNER/REPO [--new-name NAME] --execute
 
 Options:
   --source OWNER/REPO       Repository to transfer
   --new-name NAME           Name in Kobbokkom (default: source name)
   --visibility VISIBILITY   Explicit post-transfer visibility: public, private, internal
   --execute                 Perform the transfer after preflight
-  --confirm VALUE           Exact confirmation printed by dry-run
   --update-remote REMOTE    Update this local Git remote after a verified transfer
   -h, --help                Show this help
 
@@ -247,7 +246,6 @@ source_full=''
 new_name=''
 requested_visibility=''
 execute=0
-confirmation=''
 update_remote=''
 
 while (($#)); do
@@ -256,7 +254,6 @@ while (($#)); do
     --new-name) (($# >= 2)) || die '--new-name requires a value'; new_name=$2; shift 2 ;;
     --visibility) (($# >= 2)) || die '--visibility requires a value'; requested_visibility=$2; shift 2 ;;
     --execute) execute=1; shift ;;
-    --confirm) (($# >= 2)) || die '--confirm requires a value'; confirmation=$2; shift 2 ;;
     --update-remote) (($# >= 2)) || die '--update-remote requires a remote name'; update_remote=$2; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) die "unknown argument: $1" ;;
@@ -282,7 +279,6 @@ case $requested_visibility in
   ''|public|private|internal) ;;
   *) die '--visibility must be public, private, or internal' ;;
 esac
-((execute == 1)) || [[ -z $confirmation ]] || die '--confirm is valid only with --execute'
 ((execute == 1)) || [[ -z $update_remote ]] || die '--update-remote requires --execute'
 
 command -v gh >/dev/null 2>&1 || die 'gh is required'
@@ -292,15 +288,6 @@ source_metadata=$(gh_api "repos/$source_full" --jq '[.permissions.admin, .visibi
 IFS=$'\t' read -r source_admin source_visibility source_id <<< "$source_metadata"
 [[ $source_admin == true ]] || die "$viewer does not have admin permission on $source_full"
 [[ $source_id =~ ^[0-9]+$ ]] || die 'GitHub returned an invalid source repository ID'
-
-expected_confirmation="$source_full@$source_id->$target_full"
-if [[ -n $requested_visibility ]]; then
-  expected_confirmation+=";visibility=$requested_visibility"
-fi
-if ((execute == 1)); then
-  [[ $confirmation == "$expected_confirmation" ]] \
-    || die "confirmation mismatch; expected: $expected_confirmation"
-fi
 
 membership=$(gh_api "user/memberships/orgs/$target_org" --jq '[.state, .role] | @tsv')
 IFS=$'\t' read -r membership_state membership_role <<< "$membership"
@@ -324,7 +311,7 @@ printf 'audit snapshot: Actions, rulesets, Pages, packages, webhooks, secrets, e
 
 if ((execute == 0)); then
   printf 'dry-run only; no repository or local remote changed\n'
-  printf "execute with --confirm '%s'\n" "$expected_confirmation"
+  printf 'execute with --execute after explicit user authorization\n'
   exit 0
 fi
 

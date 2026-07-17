@@ -142,15 +142,9 @@ export MOCK_GH_STATE="$tmp_dir/gh.state"
 : > "$MOCK_GH_LOG"
 dry_output=$($script --source source/repo --new-name dest)
 [[ $dry_output == *"dry-run only"* ]] || fail 'dry-run marker missing'
-[[ $dry_output == *"--confirm 'source/repo@4242->Kobbokkom/dest'"* ]] \
-  || fail 'exact confirmation missing'
+[[ $dry_output == *'execute with --execute after explicit user authorization'* ]] \
+  || fail 'execution instruction missing'
 ! grep -q '^POST ' "$MOCK_GH_LOG" || fail 'dry-run called transfer API'
-
-if $script --source source/repo --new-name dest --execute --confirm wrong \
-  >"$tmp_dir/wrong.out" 2>&1; then
-  fail 'wrong confirmation was accepted'
-fi
-! grep -q '^POST ' "$MOCK_GH_LOG" || fail 'wrong confirmation called transfer API'
 
 MOCK_TARGET_EXISTS=1
 export MOCK_TARGET_EXISTS
@@ -163,8 +157,7 @@ unset MOCK_TARGET_EXISTS
 
 : > "$MOCK_GH_LOG"
 : > "$MOCK_GH_STATE"
-$script --source source/repo --new-name dest --execute \
-  --confirm 'source/repo@4242->Kobbokkom/dest' > "$tmp_dir/execute.out"
+$script --source source/repo --new-name dest --execute > "$tmp_dir/execute.out"
 grep -q 'migration verified: Kobbokkom/dest' "$tmp_dir/execute.out" \
   || fail 'successful verification missing'
 [[ $(grep -c '^POST repos/source/repo/transfer$' "$MOCK_GH_LOG") == 1 ]] \
@@ -172,8 +165,7 @@ grep -q 'migration verified: Kobbokkom/dest' "$tmp_dir/execute.out" \
 
 : > "$MOCK_GH_LOG"
 : > "$MOCK_GH_STATE"
-$script --source source/repo --new-name dest --visibility public --execute \
-  --confirm 'source/repo@4242->Kobbokkom/dest;visibility=public' > "$tmp_dir/visibility.out"
+$script --source source/repo --new-name dest --visibility public --execute > "$tmp_dir/visibility.out"
 grep -q '^PATCH repos/Kobbokkom/dest$' "$MOCK_GH_LOG" \
   || fail 'explicit visibility did not call PATCH'
 grep -q 'verified visibility: public' "$tmp_dir/visibility.out" \
@@ -185,8 +177,7 @@ git -C "$tmp_dir" init --quiet local-repo
 git -C "$tmp_dir/local-repo" remote add origin https://github.com/source/repo.git
 (
   cd "$tmp_dir/local-repo"
-  $script --source source/repo --new-name dest --execute \
-    --confirm 'source/repo@4242->Kobbokkom/dest' --update-remote origin >/dev/null
+  $script --source source/repo --new-name dest --execute --update-remote origin >/dev/null
 )
 [[ $(git -C "$tmp_dir/local-repo" remote get-url origin) == https://github.com/Kobbokkom/dest.git ]] \
   || fail 'explicit local remote update failed'
@@ -201,8 +192,7 @@ done
 : > "$MOCK_GH_STATE"
 MOCK_AUDIT_DRIFT=1
 export MOCK_AUDIT_DRIFT
-if $script --source source/repo --new-name dest --execute \
-  --confirm 'source/repo@4242->Kobbokkom/dest' >"$tmp_dir/drift.out" 2>&1; then
+if $script --source source/repo --new-name dest --execute >"$tmp_dir/drift.out" 2>&1; then
   fail 'security-relevant post-transfer drift was accepted'
 fi
 grep -q 'MISMATCH actions-variables' "$tmp_dir/drift.out" \

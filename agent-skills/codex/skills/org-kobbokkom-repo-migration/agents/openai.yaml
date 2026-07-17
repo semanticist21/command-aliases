@@ -1,4 +1,4 @@
 interface:
   display_name: "Kobbokkom Repo Migration"
   short_description: "Safely transfer GitHub repos to Kobbokkom"
-  default_prompt: "Use $org-kobbokkom-repo-migration to preflight and safely transfer a GitHub repository into Kobbokkom."
+  default_prompt: "Use $org-kobbokkom-repo-migration to resolve, preflight, transfer, audit, and agent-review the current repository; when paired with $task-runner-setup, continue through runner setup and its smoke-test QA."

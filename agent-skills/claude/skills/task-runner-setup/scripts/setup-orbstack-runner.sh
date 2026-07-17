@@ -12,7 +12,7 @@ Options:
   --machine-memory SIZE     Machine memory limit (default: 10G)
   --machine-disk SIZE       Sparse OS disk limit (default: 64G)
   --data-image-gb N         External sparse ext4 size (default: 700)
-  --labels CSV              Extra labels (default: orb,linux-arm64,heavy)
+  --labels CSV              Extra labels (default: orb,linux-arm64)
   --runner-group NAME       Required runner group for org scope
   --allow-org-wide-group    Accept a runner group whose visibility is not
                             'selected'. Every private org repo can then run code
@@ -42,7 +42,7 @@ machine_cpus=8
 machine_memory=10G
 machine_disk=64G
 data_image_gb=700
-labels='orb,linux-arm64,heavy'
+labels='orb,linux-arm64'
 runner_group=''
 max_runners=3
 allow_org_wide_group=false
