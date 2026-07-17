@@ -1,6 +1,6 @@
 ---
 name: "inspect"
-description: "Read-only systemic audit that hunts, verifies, and ranks real problems across a codebase or feature — design flaws, correctness bugs, logic holes, durability/idempotency/concurrency gaps, authz-boundary and data-integrity holes, silent failures, long-term operations/policy gaps, layer-contract drift, and UX problems — then hands them off as a findings ledger for task/microtask to fix. Use for inspect, audit, 점검/조사, '이슈 리스트업', 'find issues', 'what's wrong here', 'what could bite us'. Not for reviewing one diff (code-review), root-causing one known bug (analysis/systematic-debugging), trimming over-engineering (ponytail-review / whole-repo ponytail-audit), or deleting unused code (dead-code-removal)."
+description: "Read-only systemic audit that hunts, verifies, and ranks real problems across a codebase or feature — design flaws, correctness bugs, logic holes, durability/idempotency/concurrency gaps, authz-boundary and data-integrity holes, silent failures, long-term operations/policy gaps, layer-contract drift, UX problems, and structural inefficiency (over-engineering, reinvented stdlib, speculative abstraction, dead flexibility) — then hands them off as a findings ledger for task/microtask to fix. Use for inspect, audit, 점검/조사, '이슈 리스트업', 'find issues', 'what's wrong here', 'what could bite us', '비효율적 구조', '과잉 설계'. Not for reviewing one diff (code-review), root-causing one known bug (analysis/systematic-debugging), or deleting unused code (dead-code-removal)."
 user-invocable: true
 argument-hint: "<surface to inspect + any focus/constraints>"
 allowed-tools:
@@ -88,6 +88,17 @@ them. A category is a lens, not a quota — report what is real, skip what is no
 - **Test trust** — tests that assert nothing, silent-skip that reads as pass, missing
   coverage on changed-and-risky logic.
 - **Accessibility** — unreachable controls, missing labels/focus, tiny touch targets.
+- **Structural inefficiency** — over-engineering that adds real cost without earning
+  it: reinvented standard library, speculative flexibility with no caller, duplicated
+  parallel abstractions, indirection that hides nothing, a dependency pulled in for one
+  trivial helper. inspect **lists** it as a finding (with the cheaper replacement it
+  would take); it does **not** trim it — that is `ponytail-review` / `ponytail-audit`'s
+  job. Keep it Extended, not Core: do not flood a healthy codebase with style nits; only
+  flag sites where the complexity is concrete and removable. Evidence here is **cost,
+  not failure**: name the concrete ongoing cost (extra file/coupling/indirection callers
+  must trace, a dependency that must be built/vendor-pinned/upgraded, a surface that
+  must be learned) and the concrete cheaper replacement. "Could be simpler" with no
+  named cost is a style opinion — drop it, the same as any other no-evidence finding.
 
 ## Loop (find → verify → gate)
 
@@ -205,8 +216,10 @@ Do not auto-launch task/microtask — the user chooses which findings to act on.
   dressed as risks; a deliberate, documented tradeoff is not a finding. If you cannot
   show how it fails, drop it.
 - **Stay in your lane.** The frontmatter names the siblings inspect is *not*
-  (code-review, analysis/systematic-debugging, ponytail-review/audit, dead-code-removal);
-  inspect is the broad, multi-category systemic hunt that only *lists*.
+  (code-review, analysis/systematic-debugging, dead-code-removal). inspect is the
+  broad, multi-category systemic hunt that only *lists*. Structural inefficiency is an
+  inspect lens, not a carve-out: inspect *lists* it (with the replacement it would
+  take); `ponytail-review` / `ponytail-audit` are the skills that *trim* it.
 
 ## Portability
 
