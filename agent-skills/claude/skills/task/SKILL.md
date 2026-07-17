@@ -206,31 +206,35 @@ content change that invalidates all earlier verification: audit consistency on t
 full test, lint, typecheck, and build gates before squashing. If the base tip moves afterward, repeat the
 merge and every gate.
 
-**2. Re-check the base checkout's status.** Continue only if the squash can land without staging, reverting,
-or overwriting unrelated dirty files there; otherwise stop and report the exact blocker.
+**2. Re-check the base checkout's status.** The base checkout must be completely clean before the helper
+records its marker: its proven interrupted-landing recovery uses a scoped `git reset --hard <marker>`.
+Otherwise stop and report the exact blocker without touching the caller's work.
 
-**3. Squash, commit, and clean up from the base checkout.** The task worktree cannot switch to the base
-branch — the base checkout already holds it. Address the caller root explicitly rather than relying on the
-current directory:
+**3. Squash, journal, and clean up from the base checkout.** Capture the merged task tip, derive the
+creation slug from the recorded task branch, then run the finalizer from the caller root. The task worktree
+cannot switch to the base branch — the base checkout already holds it — and the helper addresses the caller
+root explicitly:
 
 ```bash
-git -C <caller-root> switch <base>
-git -C <caller-root> merge --squash <task-branch>
-git -C <caller-root> commit -- <your paths>           # never a bare commit — see below
-git -C <caller-root> worktree remove <task-worktree>  # must precede the branch delete
-git -C <caller-root> branch -D <task-branch>          # only after the squash commit exists
+task_head=$(git -C <task-worktree> rev-parse HEAD)
+task_slug=${task_branch#task/}
+node ~/.claude/skills/task/scripts/task-finalize.mjs \
+  --repo <caller-root> --base <base> --branch <task-branch> \
+  --worktree <task-worktree> --slug "$task_slug" --head "$task_head"
 ```
 
-- **Commit explicit paths, never a bare `git commit`.** If the base checkout is dirty with another agent's
-  work, a bare commit commits the whole index and sweeps their staged files into your commit. Commit your
-  own paths, then verify their staging survived. Reuse the task branch's commit subject where it fits, and
-  keep the final base history one commit.
-- **The worktree removal must precede the branch delete.** `git branch -D` refuses while any worktree has
-  that branch checked out, so removing the worktree first is what lets the delete succeed — and it still
-  refuses if some *other* worktree holds the branch. Never reach for a plumbing ref delete to get around
-  that refusal: it skips the worktree check and leaves any live worktree on that branch with an
-  unresolvable `HEAD`, whose next commit becomes a new parentless root. `-D` is required rather than `-d`
-  because a squash merge leaves no ancestry link for `-d` to recognize. Confirm both.
+- **The helper is the landing journal and recovery boundary.** Before it touches the index, it writes the
+  current base tip to `task-landing-<slug>` under Git's common directory. Its squash commit appends
+  `Task-Head: <task_head>` and commits only paths calculated from `<base>..<task_head>`; never replace it
+  with a bare `git commit`. Re-running with the same recorded head finds that trailer, avoids a duplicate
+  squash, and converges cleanup.
+- **Only the proven interrupted state may reset.** With no journal trailer, the helper hard-resets the
+  marker only when the base still equals the recorded tip, `SQUASH_MSG` exists, the task branch still names
+  `task_head`, and both index and worktree exactly match that task head. Any other marker or squash state
+  is unknown: leave it untouched and report it.
+- **The worktree removal precedes the branch delete.** Both have existence guards for repeat runs.
+  `git branch -D` still refuses when another worktree holds the branch; never replace it with plumbing ref
+  deletion. `-D` is required because squash leaves no ancestry link for `-d` to recognize.
 
 **4. Tear down whatever the worktree stood up outside git.** Worktree removal is a git operation and knows
 nothing about containers, DB volumes, or dev servers a project's per-worktree `make dev`-style target
@@ -442,9 +446,9 @@ Final response should include:
 
 - For `/task`/`$task`, creating the task worktree branch is allowed only after the worktree safety gate
   passes. Do not create additional branches beyond that unless the user explicitly asks.
-- Do not use destructive git commands. The one exception is deleting the task branch with `git branch -D`
-  during cleanup, allowed only once the squash commit is present on the recorded base and no worktree still
-  uses that branch — which the Finalize ordering enforces for you rather than by assertion.
+- Do not use destructive git commands. The only exceptions are the finalizer's `git reset --hard <marker>`
+  after every documented proof check passes, and deleting the task branch with `git branch -D` after its
+  journaled squash commit exists and no worktree still uses it.
 - Committing is allowed (stage 4) but gated: only after QA is clean, only the task's own files, never
   blanket-staging a dirty tree, and never `push` unless the user asked.
 - Do not ignore user or harness constraints to reach "0 findings"; resolve the conflict or report a blocker.
