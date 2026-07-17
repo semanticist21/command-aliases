@@ -184,7 +184,15 @@ every resolution. If the base moves again before landing, repeat this reconcilia
 review request targeting the recorded base, and include the QA evidence. Monitor its mergeability and
 required checks with the host CLI (for GitHub, `gh pr checks --watch` and `gh pr view --json
 state,mergeStateStatus,mergeable,mergeCommit`; for GitLab, use `glab mr create`, `glab ci status --live`,
-and `glab mr merge` with equivalent merged-result commit verification). Diagnose and fix failures caused by the task, commit and push the repair,
+and `glab mr merge` with equivalent merged-result commit verification). Resolve the relevant GitHub Actions
+run ID for the current PR head SHA and intended workflow/event before watching it; for every run the task
+dispatches or reruns, run `gh run watch <run-id> --exit-status` and remain attached until it exits. Then
+fetch `gh run view <run-id> --json status,conclusion,headSha` and final `gh pr checks`/PR state before
+acting: only all required checks passing proceeds to the merge check; failure fetches failed logs, diagnoses,
+fixes, pushes, and watches the replacement run. After a push, poll for the expected PR run before treating
+it as missing; manually dispatch only a workflow that supports `workflow_dispatch`, then watch it. Never
+claim CI is running or passed merely from a push or an assumed
+trigger: report only a verified run ID, head SHA, and final result. Diagnose and fix failures caused by the task, commit and push the repair,
 and repeat until all required checks pass. When the base advances or the review request reports conflicts,
 repeat step 1, resolve the conflicts, rerun verification, and push again. Once requirements are satisfied,
 re-fetch the base immediately before requesting the merge, and merge through the review request using the
