@@ -66,6 +66,10 @@ unchanged and reported as skipped.
      runtime folders and harness config, but exclude generated/vendor/build output.
    - Build a short index: document path, owner/scope, canonical subjects, and
      duplicate subjects found elsewhere.
+   - Flag **orphan files** whose governed target is gone: an `AGENTS.md` under a
+     deleted folder, a handoff doc for shipped/abandoned work, or a doc for a removed
+     feature. These are whole-file deletion candidates — mark them for step 3, do not
+     delete yet.
 
 2. **Choose document order.**
    - For each duplicated subject, identify the canonical owner first: the most local
@@ -83,6 +87,14 @@ unchanged and reported as skipped.
      rules, safety constraints, hidden setup requirements, and durable decisions.
    - Remove redundant restatements, obsolete narration, repeated examples, vague
      reminders, and long explanations that do not change agent behavior.
+   - **Delete a whole file when the thing it governs is gone** — do not compact a
+     dead file down to a stub. An `AGENTS.md` for a deleted folder, a handoff doc for
+     shipped or abandoned work, or any harness doc the live repo proves fully obsolete
+     is deleted outright (`git rm` when tracked). First confirm the governed
+     path/folder/feature is actually gone, not merely moved or renamed — if it moved,
+     relocate the still-valid rule instead of deleting it. If any live rule in the file
+     still applies, fold it into its new canonical owner before removing the file
+     (guardrails below govern the safety bar).
    - Preserve stricter local rules. Do not weaken safety, test, doc, secret,
      approval, or ownership constraints.
    - Keep trigger wording and headings clear enough that Claude Code and Codex can
@@ -137,7 +149,10 @@ memory-specific rules:
 2. **Verify before trusting.** A memory reflects what was true when written. For any
    fact that names a file, function, flag, path, or command, confirm it still exists —
    in the executing repo for project memory, or in the project(s) a cross-project memo
-   names. Fix drift; delete facts the live code proves wrong.
+   names. Fix drift; delete facts the live code proves wrong. **Delete a whole fact
+   file (and its index line) when every fact in it is proven wrong or governs
+   something that no longer exists**; when only some facts are stale, fix or merge
+   rather than dropping the file.
 3. **De-duplicate and merge.** Fold overlapping facts into one entry. Keep the store's
    native shape (one fact per file, or one bullet per memo line); never let the index
    and the bodies diverge.
@@ -156,6 +171,10 @@ memory-specific rules:
   language.
 - Do not delete a memory just because it is old; delete only what the live repo proves
   wrong, and merge the rest. When unsure whether a fact is stale, ask.
+- Whole-file deletion is allowed only when the live repo proves the file dead — its
+  governed folder, feature, or every fact inside is gone. Never delete a file for being
+  long, unfamiliar, or merely idle; verify the target is truly gone (not moved or
+  renamed) and relocate any still-valid rule first. When unsure, ask before deleting.
 - Do not merge runtime-specific instructions when Claude Code and Codex genuinely need
   different wording or mechanisms.
 - Do not compact secrets, credentials, or private machine paths into broader docs.
