@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
-import {appendFileSync, chmodSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync} from 'node:fs';
+import {appendFileSync, chmodSync, existsSync, lstatSync, mkdtempSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {basename, dirname, join, relative} from 'node:path';
 import test from 'node:test';
@@ -217,6 +217,86 @@ test('cleanup helper removes unchanged ignored setup artifacts safely', () => {
     const cleaned = spawnSync(process.execPath, [planCleanupScript, '--repo', git(root, 'rev-parse', '--show-toplevel'), '--worktree', git(worktree, 'rev-parse', '--show-toplevel'), '--branch', `task/ignored-${id}`, '--head', head], {encoding: 'utf8'});
     assert.equal(cleaned.status, 0, cleaned.stderr);
     assert.equal(git(root, 'branch', '--list', `task/ignored-${id}`), '');
+  } finally {
+    if (worktree) rmSync(worktree, {recursive: true, force: true});
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+// The verifier writes .agent-tmp/task-verification.json after the creator records its ignored
+// baseline. Exempting only .agent-tmp/task-state.md made that receipt diverge from the baseline,
+// so every worktree that ran the verifier became permanently uncleanable.
+test('cleanup helper removes a worktree whose task-local state grew after setup', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-plan-verified-'));
+  const bin = mkdtempSync(join(tmpdir(), 'task-guard-plan-verified-bin-'));
+  const id = 'verified-id';
+  let worktree;
+  try {
+    git(root, 'init', '-q', '-b', 'main');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, '.gitignore'), '.agent-tmp/\nnode_modules/\n');
+    writeFileSync(join(root, 'package.json'), '{"name":"fixture"}\n');
+    writeFileSync(join(root, 'package-lock.json'), '{}\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    writeFileSync(join(bin, 'npm'), '#!/bin/sh\nmkdir -p node_modules/pkg\nprintf "baseline\\n" > node_modules/pkg/file\n');
+    chmodSync(join(bin, 'npm'), 0o755);
+    const created = spawnSync(process.execPath, [creatorScript, 'verified', '--id', id, '--repo', root, '--summary', 'Verified cleanup', '--plan-only'], {
+      cwd: root,
+      encoding: 'utf8',
+      env: {...process.env, PATH: `${bin}:${process.env.PATH}`},
+    });
+    assert.equal(created.status, 0, created.stderr);
+    worktree = join(dirname(root), `${basename(root)}-task-verified-${id}`);
+    writeFileSync(join(worktree, '.agent-tmp', 'task-verification.json'), '{"status":"passed"}\n');
+    mkdirSync(join(worktree, '.agent-tmp', 'nested'), {recursive: true});
+    writeFileSync(join(worktree, '.agent-tmp', 'nested', 'scratch'), 'nested task-local state\n');
+    const head = git(root, 'rev-parse', 'HEAD');
+    const cleaned = spawnSync(process.execPath, [planCleanupScript, '--repo', git(root, 'rev-parse', '--show-toplevel'), '--worktree', git(worktree, 'rev-parse', '--show-toplevel'), '--branch', `task/verified-${id}`, '--head', head], {encoding: 'utf8'});
+    assert.equal(cleaned.status, 0, cleaned.stderr);
+    assert.equal(git(root, 'branch', '--list', `task/verified-${id}`), '');
+    assert.equal(existsSync(worktree), false);
+  } finally {
+    if (worktree) rmSync(worktree, {recursive: true, force: true});
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+  }
+});
+
+// The creator holds .agent-tmp/setup-resume.lock while it records the ignored baseline on a
+// resumed setup and only unlinks it afterwards, so a baseline that covered the lock could never
+// match again. This is why the creator's exemption has to be widened together with the helper's.
+test('cleanup helper removes a worktree whose setup was resumed', () => {
+  const root = mkdtempSync(join(tmpdir(), 'task-guard-plan-resumed-'));
+  const bin = mkdtempSync(join(tmpdir(), 'task-guard-plan-resumed-bin-'));
+  const id = 'resumed-id';
+  let worktree;
+  try {
+    git(root, 'init', '-q', '-b', 'main');
+    git(root, 'config', 'user.email', 'guard@example.test');
+    git(root, 'config', 'user.name', 'Guard Test');
+    writeFileSync(join(root, '.gitignore'), '.agent-tmp/\nnode_modules/\n');
+    writeFileSync(join(root, 'package.json'), '{"name":"fixture"}\n');
+    writeFileSync(join(root, 'package-lock.json'), '{}\n');
+    git(root, 'add', '.');
+    git(root, 'commit', '-qm', 'fixture');
+    writeFileSync(join(bin, 'npm'), '#!/bin/sh\nexit 7\n');
+    chmodSync(join(bin, 'npm'), 0o755);
+    const args = [creatorScript, 'resumed', '--id', id, '--repo', root, '--summary', 'Resumed cleanup', '--plan-only'];
+    const options = {cwd: root, encoding: 'utf8', env: {...process.env, PATH: `${bin}:${process.env.PATH}`}};
+    const failed = spawnSync(process.execPath, args, options);
+    assert.notEqual(failed.status, 0);
+    worktree = join(dirname(root), `${basename(root)}-task-resumed-${id}`);
+    writeFileSync(join(bin, 'npm'), '#!/bin/sh\nmkdir -p node_modules/pkg\nprintf "baseline\\n" > node_modules/pkg/file\n');
+    const resumed = spawnSync(process.execPath, args, options);
+    assert.equal(resumed.status, 0, resumed.stderr);
+    assert.equal(existsSync(join(worktree, '.agent-tmp', 'setup-resume.lock')), false);
+    const head = git(root, 'rev-parse', 'HEAD');
+    const cleaned = spawnSync(process.execPath, [planCleanupScript, '--repo', git(root, 'rev-parse', '--show-toplevel'), '--worktree', git(worktree, 'rev-parse', '--show-toplevel'), '--branch', `task/resumed-${id}`, '--head', head], {encoding: 'utf8'});
+    assert.equal(cleaned.status, 0, cleaned.stderr);
+    assert.equal(git(root, 'branch', '--list', `task/resumed-${id}`), '');
   } finally {
     if (worktree) rmSync(worktree, {recursive: true, force: true});
     rmSync(bin, {recursive: true, force: true});

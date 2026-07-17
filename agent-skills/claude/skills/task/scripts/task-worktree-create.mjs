@@ -188,10 +188,14 @@ function assertStateNamespaceUntracked(repository) {
   }
 }
 
-// Fingerprints ignored setup artifacts while excluding the task state record itself.
+// Fingerprints ignored setup artifacts while excluding the task-local state namespace.
+// The whole .agent-tmp/ prefix is exempt because the task workflow writes its own records
+// there after this baseline is taken (the verification receipt, the setup resume lock), and
+// a baseline that covered them could never match again. Everything outside .agent-tmp/ keeps
+// its exact byte identity in the baseline. The cleanup helper applies the identical exemption.
 function ignoredFingerprint(worktree) {
   const files = git(worktree, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
-    .split('\0').filter((file) => file && file !== '.agent-tmp/task-state.md').sort();
+    .split('\0').filter((file) => file && !file.startsWith('.agent-tmp/')).sort();
   const entries = [];
   for (let offset = 0; offset < files.length; offset += 200) {
     const batch = files.slice(offset, offset + 200);
@@ -354,7 +358,14 @@ const suffix = taskId ?? timestamp();
 const taskBranch = `task/${slug}-${suffix}`;
 const worktree = join(dirname(caller), `${basename(caller)}-task-${slug}-${suffix}`);
 const originalCaller = realpathSync(process.cwd());
-const runtime = /[/\\]claude[/\\]skills[/\\]/u.test(fileURLToPath(import.meta.url)) ? 'claude' : 'codex';
+// Names the runtime from the install path (~/.claude, ~/.codex, ~/.opencode, ~/.config/opencode,
+// and the mirror's agent-skills/<runtime>/skills). 'unknown' is safe as a label: runtime only ever
+// builds the owner marker, and the resume gate below compares an owner this same expression wrote
+// against one it recomputes from the same file, so any value round-trips. It is never matched
+// against a literal runtime name, so an unrecognized install labels itself honestly rather than
+// silently impersonating another runtime.
+const runtimeMatch = /[/\\]\.?(claude|codex|opencode)[/\\]skills[/\\]/u.exec(fileURLToPath(import.meta.url));
+const runtime = runtimeMatch?.[1] ?? 'unknown';
 const sessionId = process.env.CODEX_THREAD_ID ?? process.env.CODEX_SESSION_ID ?? process.env.CLAUDE_SESSION_ID;
 const reservationPath = join(git(caller, ['rev-parse', '--absolute-git-dir']), 'task-worktree-reservations', `${slug}-${suffix}.nonce`);
 let reservationNonce;

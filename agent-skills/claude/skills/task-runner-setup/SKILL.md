@@ -7,61 +7,54 @@ description: "Connect a repository to the existing OrbStack Linux ARM64 GitHub A
 Build a repeatable heavy-job path without turning the developer machine into an
 unbounded cache or exposing credentials.
 
-## Fixed defaults
+## Routing is fixed — do not ask
 
-- Default to the existing OrbStack Ubuntu Linux ARM64 machine. Do not ask which
-  runner implementation, image, container, VM, or host type to use.
-- Reuse an online runner labeled `orb`, `Linux`, and `ARM64`. When one exists,
-  skip runner provisioning and configure only repository access and workflows.
-- During multi-worktree work, prefer the GitHub runner for portable heavy Node,
-  Rust, Flutter/Android, Docker, backend, build, test, and lint work to reduce
-  load on the local development machine; keep focused, quick local checks available
-  for feedback.
-- Route Xcode, iOS/macOS signing, Simulator, Keychain, universal Apple builds,
-  and other host-only commands to `$task-run-ssh` automatically. Do not present
-  this as a backend choice.
-- Consider a container implementation only after verifying the OrbStack CLI or
-  machine is genuinely unavailable or broken. Do not ask preemptively.
+The backend is already decided. Never ask which runner implementation, image,
+container, VM, or host type to use, and never present the split below as a choice.
+
+- **Portable work → the existing OrbStack Ubuntu Linux ARM64 machine.** Build, test,
+  lint, Docker, Android, Rust, Node, and backend jobs. Reuse an online runner labeled
+  `orb`, `Linux`, and `ARM64`; when one exists, skip provisioning entirely and configure
+  only repository access and workflows.
+- **Host-only work → `$task-run-ssh` on the macOS host.** Xcode, iOS/macOS signing,
+  Simulator, Keychain, and universal Apple builds. OrbStack cannot run these.
+- **A container implementation** is a last resort, only after verifying the OrbStack CLI
+  or machine is genuinely unavailable or broken.
+
+During multi-worktree work, prefer the runner for portable heavy jobs to keep load off
+the local machine; keep quick focused checks local for feedback. Start with one
+registered runner and add more only after measurements show parallel light jobs improve
+throughput without memory pressure — hard cap three managed runners on a 16 GiB host,
+and heavy jobs may need lower concurrency.
 
 ## Start gate
 
-- Invoke `$task` before inspecting implementation files or planning changes to the
-  target repository. Let it create the isolated local worktree.
+- Invoke `$task` before inspecting implementation files or planning changes to the target
+  repository. Let it create the isolated local worktree.
 - Read the target repo's `AGENTS.md`/`CLAUDE.md`, workflow conventions, manifests,
   lockfiles, and canonical test/build commands.
-- Before asking for host, remote account, scope, storage root, runner name, or
-  machine name, read durable machine context from `~/.codex/memo.md`, inspect
-  the active `gh` account and runner inventory, and inspect SSH config. Reuse
-  recorded values when present.
-- Treat a recorded SSH target as one opaque `user@host` or SSH alias. Never
-  derive its user from local `whoami`, the local home directory, or the local
-  Git identity.
+- Before asking for a host, remote account, scope, storage root, runner name, or machine
+  name: read the recorded machine context under `~/.agents/doc/` (`AGENTS.md` is the
+  ownership map; runner and host facts live in `infra.md`), inspect the active `gh`
+  account and runner inventory, and inspect SSH config. Reuse recorded values when present.
+- Treat a recorded SSH target as one opaque `user@host` or SSH alias. Never derive its
+  user from local `whoami`, the local home directory, or the local Git identity.
 - Confirm the remote host uses SSH key authentication. Never store or pass a login
   password in a skill, repo, workflow, command argument, or log.
-- Confirm the external storage mount exists, is writable by the remote account, and
-  has enough headroom. Do not silently fall back to the internal disk.
-
-## Route execution without prompting
-
-- Use an OrbStack Ubuntu Linux ARM64 machine for portable build, test, lint, Docker, Android, Rust,
-  Node, and backend jobs.
-- Use `$task-run-ssh` on the macOS host for Xcode, iOS/macOS signing, Simulator,
-  Keychain, or other host-only work. OrbStack cannot run those jobs.
-- Start with one registered runner. Add more only after measurements show that
-  parallel light jobs improve throughput without memory pressure. Keep a hard cap
-  of three managed runners on a 16 GiB host; heavy jobs may need a lower concurrency.
+- Confirm the external storage mount exists, is writable by the remote account, and has
+  enough headroom. Do not silently fall back to the internal disk.
 
 ## Install the runner
 
-Enter this section only when no usable OrbStack runner exists or the user
-explicitly requests runner repair/reprovisioning. First query organization and
-repository runner inventories. If the existing OrbStack runner is online, do not
-re-register it, recreate its machine, or ask installation questions.
+Enter this section only when no usable OrbStack runner exists or the user explicitly
+requests runner repair/reprovisioning. First query the organization and repository
+runner inventories. If the existing OrbStack runner is online, do not re-register it,
+recreate its machine, or ask installation questions.
 
 Run the bundled orchestrator from a trusted admin machine:
 
 ```bash
-scripts/setup-orbstack-runner.sh \
+~/.claude/skills/task-runner-setup/scripts/setup-orbstack-runner.sh \
   --ssh-host <user@tailscale-host> \
   --scope org:<github-org> \
   --storage-root /Volumes/<external-volume>/<runner-root> \
@@ -74,32 +67,26 @@ scripts/setup-orbstack-runner.sh \
   --cache-min-free-gb 100
 ```
 
-For organization scope, pre-create a runner group whose visibility is `selected`,
-whose public-repository access is disabled, and which selects at least one trusted
-private repository; pass it through `--runner-group`. Use
-`--scope repo:<owner/repo>` for a single-repository runner. The script obtains a
-short-lived registration token through the active `gh` login and streams it through
-SSH and OrbStack stdin without writing it to disk. It installs an Ubuntu 24.04 ARM64 OrbStack
-machine and keeps mutable runner data in a sparse ext4 filesystem on the external
-disk:
+For organization scope, pre-create a runner group whose visibility is `selected`, whose
+public-repository access is disabled, and which selects at least one trusted private
+repository; pass it through `--runner-group`. Use `--scope repo:<owner/repo>` for a
+single-repository runner.
 
-- `runner-data.ext4` — external sparse filesystem for work, caches, and Docker data
-- `config/` — reproducible bootstrap files; no retained registration token
+What the script already guarantees, so you need not hand-verify it:
 
-Use a container-image runner only when OrbStack machines are unavailable or broken;
-do not choose it merely because it is quicker to scaffold. Cache pruning runs before
-and after jobs. When pruning cannot restore the configured
-minimum free space in either the ext4 image or its external-volume backing store,
-the pre-job hook fails closed instead of allowing disk overflow. The ext4 loop
-mount uses discard so cache deletions can release sparse-image blocks. Each runner
-uses its own package-cache subtree; the configured global cache cap is divided by
-the managed-runner cap, preventing parallel jobs from pruning one another's cache
-or multiplying the total cache budget.
-
-The backing-store check reserves the sparse image's entire remaining possible
-growth plus the configured free-space floor before every job. Runner `HOME`, work,
-package caches, tool cache, temp worktrees, and Docker data therefore stay on the
-external filesystem rather than the OrbStack OS disk.
+- The short-lived registration token comes from the active `gh` login and streams through
+  SSH and OrbStack stdin, never touching disk. `config/` keeps reproducible bootstrap
+  files and no retained token.
+- It installs an Ubuntu 24.04 ARM64 OrbStack machine and puts every piece of mutable
+  runner data — `HOME`, work, package caches, tool cache, temp worktrees, Docker — on
+  `runner-data.ext4`, a sparse ext4 filesystem on the external disk rather than the
+  OrbStack OS disk. The loop mount uses `discard` so deletions release sparse blocks.
+- Cache pruning runs before and after every job. Each runner gets its own package-cache
+  subtree and the global cache cap is divided by the managed-runner cap, so parallel jobs
+  neither prune one another's cache nor multiply the budget.
+- The pre-job backing-store check reserves the sparse image's entire remaining possible
+  growth plus the free-space floor, and fails closed when pruning cannot restore the
+  minimum free space in either the ext4 image or its backing store.
 
 ## Configure the target repository
 
@@ -125,21 +112,21 @@ jobs:
   pull-request code on a persistent runner.
 - Use package-manager lockfiles and deterministic install commands.
 - Let native package caches persist under the external `cache/` mount. Avoid
-  `actions/cache` by default on a single persistent runner; it adds network/storage
-  cost without helping local reuse. Add it only when jobs may move across runners.
-- Add `timeout-minutes` and repo-appropriate `concurrency` to every heavy job.
-- Upload only small, useful reports. Apply artifact retention limits.
+  `actions/cache` by default on a single persistent runner — it adds network/storage cost
+  without helping local reuse. Add it only when jobs may move across runners.
+- Give every heavy job a `timeout-minutes` and repo-appropriate `concurrency`, and upload
+  only small, useful reports under artifact retention limits.
 
 ## Agent task and review integration
 
-- Dispatch deterministic heavy checks with `gh workflow run`, pinning a pushed ref.
-- Keep code-changing agent work under `$task`; offload its expensive verification
-  commands only after the relevant commit is reachable by the runner.
-- When several task worktrees are active, make runner-backed portable checks the
-  normal path rather than competing for local CPU, memory, and disk resources.
-- Use `$task-run-ssh` when the exact command needs host macOS or when GitHub workflow
-  dispatch is too rigid. Use exact commits and external-drive worktrees there too.
-- Treat runner output as evidence, not as permission to skip local task lifecycle,
+- Dispatch deterministic heavy checks with `gh workflow run`, pinning a pushed ref. Keep
+  code-changing agent work under `$task`, and offload its expensive verification commands
+  only after the relevant commit is reachable by the runner.
+- When several task worktrees are active, make runner-backed portable checks the normal
+  path rather than competing for local CPU, memory, and disk.
+- Use `$task-run-ssh` when the command needs host macOS or when workflow dispatch is too
+  rigid. Use exact commits and external-drive worktrees there too.
+- Treat runner output as evidence, not as permission to skip the local task lifecycle,
   two-reviewer QA, merge-back, or cleanup requirements.
 
 ## Verify
@@ -153,5 +140,5 @@ gh run watch
 
 Verify the machine service reports `online`, the job path resolves under the external
 volume, a second run reuses dependency caches, and the configured cache/free-space
-limits are visible in the pre-job log. Remove an older runner only after the new
-runner completes a smoke job.
+limits are visible in the pre-job log. Remove an older runner only after the new runner
+completes a smoke job.

@@ -80,7 +80,7 @@ test('fails before Cargo when the configured database is unreachable', () => {
     writeFileSync(psql, '#!/bin/sh\nexit 2\n');
     chmodSync(psql, 0o755);
     commitFixture(root, join('src', 'lib.rs'));
-    const databaseUrl = 'postgres://secret@example.invalid/milcat';
+    const databaseUrl = 'postgres://secret@example.invalid/appdb';
     const result = spawnSync(process.execPath, [verifier, '--base', 'HEAD^'], {
       cwd: root,
       encoding: 'utf8',

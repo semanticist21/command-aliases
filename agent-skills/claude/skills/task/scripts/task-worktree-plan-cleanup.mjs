@@ -28,10 +28,15 @@ function git(directory, commandArgs) {
   return result.stdout.trim();
 }
 
-// Lists every ignored artifact except the task state record.
+// Lists every ignored artifact except the task-local state namespace.
+// This exemption must stay identical to the creator's ignoredFingerprint, which records the
+// baseline this helper re-checks: the task workflow writes its own records under .agent-tmp/
+// after the baseline is taken (the verification receipt, the setup resume lock), so a narrower
+// exemption on either side makes the two hashes permanently unequal. Artifacts outside
+// .agent-tmp/ still have to match the baseline byte for byte.
 function ignoredFiles(directory) {
   return git(directory, ['ls-files', '--others', '--ignored', '--exclude-standard', '-z'])
-    .split('\0').filter((file) => file && file !== '.agent-tmp/task-state.md').sort();
+    .split('\0').filter((file) => file && !file.startsWith('.agent-tmp/')).sort();
 }
 
 // Records ignored artifact paths with content identities without following symlinks.

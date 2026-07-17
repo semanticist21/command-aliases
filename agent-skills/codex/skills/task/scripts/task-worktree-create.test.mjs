@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import {spawn, spawnSync} from 'node:child_process';
-import {chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
+import {chmodSync, copyFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {dirname, join} from 'node:path';
 import test from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 const script = fileURLToPath(new URL('./task-worktree-create.mjs', import.meta.url));
-const runtime = script.includes('/claude/') ? 'claude' : 'codex';
+const runtime = /[/\\]\.?(claude|codex|opencode)[/\\]skills[/\\]/u.exec(script)?.[1] ?? 'unknown';
 
 // Runs a Git command in a fixture repository.
 function git(directory, ...args) {
@@ -71,6 +71,85 @@ test('creates an isolated worktree from HEAD without changing a dirty caller', (
   } finally {
     if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
     rmSync(root, {recursive: true, force: true});
+  }
+});
+
+// Installs the creator under one runtime-specific directory shape and reports the owner it records.
+// The mirror checkout already sits under agent-skills/claude/skills, so only a relocated copy can
+// exercise the real install shapes (~/.claude/skills, ~/.config/opencode/skills, and unrecognized paths).
+function ownerFromInstalledCreator(installSegments) {
+  const installRoot = mkdtempSync(join(tmpdir(), 'task-create-install-'));
+  const scriptDirectory = join(installRoot, ...installSegments);
+  mkdirSync(scriptDirectory, {recursive: true});
+  const installedScript = join(scriptDirectory, 'task-worktree-create.mjs');
+  copyFileSync(script, installedScript);
+  const root = fixtureRepository('task-create-runtime-');
+  let worktree;
+  try {
+    const env = {...process.env};
+    delete env.CODEX_THREAD_ID;
+    delete env.CODEX_SESSION_ID;
+    env.CLAUDE_SESSION_ID = 'session-fixture';
+    const result = spawnSync(process.execPath, [installedScript, 'sample', '--summary', 'Detect runtime'], {cwd: root, encoding: 'utf8', env});
+    assert.equal(result.status, 0, result.stderr);
+    worktree = outputValue(result.stdout, 'worktree');
+    assert.ok(worktree);
+    return readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8').match(/^- owner: (.+)$/mu)?.[1];
+  } finally {
+    if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+    rmSync(root, {recursive: true, force: true});
+    rmSync(installRoot, {recursive: true, force: true});
+  }
+}
+
+test('names each installed runtime in the owner instead of attributing every install to codex', () => {
+  assert.equal(ownerFromInstalledCreator(['.claude', 'skills', 'task', 'scripts']), 'claude:session-fixture');
+  assert.equal(ownerFromInstalledCreator(['.codex', 'skills', 'task', 'scripts']), 'codex:session-fixture');
+  assert.equal(ownerFromInstalledCreator(['.opencode', 'skills', 'task', 'scripts']), 'opencode:session-fixture');
+  assert.equal(ownerFromInstalledCreator(['.config', 'opencode', 'skills', 'task', 'scripts']), 'opencode:session-fixture');
+  assert.equal(ownerFromInstalledCreator(['elsewhere', 'scripts']), 'unknown:session-fixture');
+});
+
+// Proves the 'unknown' runtime label is safe for the resume identity gate: the gate compares an
+// owner this script wrote against one it recomputes from the same install path, so an
+// unrecognized runtime round-trips exactly like a named one.
+test('resumes a retained worktree whose owner names an unrecognized runtime', () => {
+  const installRoot = mkdtempSync(join(tmpdir(), 'task-create-install-'));
+  const scriptDirectory = join(installRoot, 'elsewhere', 'scripts');
+  mkdirSync(scriptDirectory, {recursive: true});
+  const installedScript = join(scriptDirectory, 'task-worktree-create.mjs');
+  copyFileSync(script, installedScript);
+  const root = fixtureRepository('task-create-unknown-resume-');
+  const bin = mkdtempSync(join(tmpdir(), 'task-create-unknown-bin-'));
+  writeFileSync(join(root, 'package.json'), '{"name":"fixture"}\n');
+  writeFileSync(join(root, 'package-lock.json'), '{}\n');
+  git(root, 'add', 'package.json', 'package-lock.json');
+  git(root, 'commit', '-qm', 'add npm package');
+  writeFileSync(join(bin, 'npm'), '#!/bin/sh\nexit 7\n');
+  chmodSync(join(bin, 'npm'), 0o755);
+  const args = [installedScript, 'failure', '--id', 'unknown-id', '--summary', 'Resume unknown runtime'];
+  const env = {...process.env, PATH: `${bin}:${process.env.PATH}`, CODEX_SESSION_ID: 'resume-owner'};
+  delete env.CODEX_THREAD_ID;
+  let worktree;
+  try {
+    const failed = spawnSync(process.execPath, args, {cwd: root, encoding: 'utf8', env});
+    assert.notEqual(failed.status, 0);
+    worktree = failed.stderr.match(/retry: (.+)$/mu)?.[1];
+    assert.ok(worktree);
+    const failedState = readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8');
+    assert.equal(failedState.match(/^- owner: (.+)$/mu)?.[1], 'unknown:resume-owner');
+    writeFileSync(join(bin, 'npm'), '#!/bin/sh\nexit 0\n');
+    const resumed = spawnSync(process.execPath, args, {cwd: root, encoding: 'utf8', env});
+    assert.equal(resumed.status, 0, resumed.stderr);
+    assert.equal(outputValue(resumed.stdout, 'worktree'), worktree);
+    const completedState = readFileSync(join(worktree, '.agent-tmp', 'task-state.md'), 'utf8');
+    assert.match(completedState, /- setup: complete/u);
+    assert.equal(completedState.match(/^- owner: (.+)$/mu)?.[1], 'unknown:resume-owner');
+  } finally {
+    if (worktree) git(root, 'worktree', 'remove', '--force', worktree);
+    rmSync(bin, {recursive: true, force: true});
+    rmSync(root, {recursive: true, force: true});
+    rmSync(installRoot, {recursive: true, force: true});
   }
 });
 
