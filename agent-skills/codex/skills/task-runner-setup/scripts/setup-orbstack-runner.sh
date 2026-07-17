@@ -133,11 +133,22 @@ if [[ -n $runner_group ]]; then
     --jq ".runner_groups[] | select(.name == \"$runner_group\") | [.id, .visibility, .allows_public_repositories] | @tsv")
   [[ -n $group_data ]] || die "runner group does not exist: $runner_group"
   IFS=$'\t' read -r runner_group_id group_visibility group_allows_public <<< "$group_data"
-  [[ $group_visibility == selected && $group_allows_public == false ]] \
-    || die 'org runner group must use selected-repository visibility and disallow public repositories'
-  selected_count=$(gh_api "orgs/$owner/actions/runner-groups/$runner_group_id/repositories" --paginate \
-    --jq '[.repositories[]] | length' | awk '{ total += $1 } END { print total + 0 }')
-  [[ $selected_count =~ ^[1-9][0-9]*$ ]] || die 'org runner group must select at least one private repository'
+  # The threat a self-hosted runner must be walled off from is a public repository: anyone can
+  # open a fork PR, and the workflow it carries would execute on this machine. GitHub enforces
+  # allows_public_repositories itself, so it stays a hard requirement and keeps holding even if
+  # someone makes an org repo public later.
+  [[ $group_allows_public == false ]] \
+    || die 'org runner group must disallow public repositories: a fork PR would run on the runner'
+  # selected-repository visibility is least-privilege *between private repos* — a different, weaker
+  # concern than the one above, and one GitHub Free cannot honor: on Free, a private repo pointed at
+  # a selected-visibility group leaves its jobs queued forever. So `all` is accepted, and on Free it
+  # is the only setting that runs anything. Its cost is that every private org repo reaches the
+  # runner, which is also what makes a new repo work by just adding a workflow.
+  if [[ $group_visibility == selected ]]; then
+    selected_count=$(gh_api "orgs/$owner/actions/runner-groups/$runner_group_id/repositories" --paginate \
+      --jq '[.repositories[]] | length' | awk '{ total += $1 } END { print total + 0 }')
+    [[ $selected_count =~ ^[1-9][0-9]*$ ]] || die 'selected-visibility runner group must select at least one repository'
+  fi
 fi
 runner_data=$(gh_api "$runners_endpoint" --paginate \
   --jq ".runners[] | select(.name == \"$runner_name\") | [.id, .busy] | @tsv")

@@ -46,6 +46,22 @@ rm -f "$STORAGE_ROOT/secrets/registration-token"
 volume_root=$(df -P "$STORAGE_ROOT" | awk 'NR==2 {print $6}')
 [[ $volume_root == /Volumes/* ]] || { printf 'storage resolved off external volume: %s\n' "$volume_root" >&2; exit 1; }
 
+# OrbStack's global memory_mib caps every machine on the host, so a per-machine --memory above it
+# is silently downgraded: the machine boots smaller than asked and nothing reports it. Refuse
+# instead of lying. Not raised automatically -- applying it needs an `orb stop`, which kills any
+# running job, and the right ceiling depends on how much the host OS still needs.
+requested_mib=${MACHINE_MEMORY%[MG]}
+[[ ${MACHINE_MEMORY: -1} == G ]] && requested_mib=$((requested_mib * 1024))
+global_mib=$("$orb_bin" config get memory_mib 2>/dev/null || printf '0')
+if [[ $global_mib =~ ^[0-9]+$ ]] && ((global_mib > 0 && global_mib < requested_mib)); then
+  printf 'OrbStack global memory_mib is %s, below this machine memory %s (%s MiB).\n' \
+    "$global_mib" "$MACHINE_MEMORY" "$requested_mib" >&2
+  printf 'The machine would run at %s MiB and never say so. Raise the cap first:\n' "$global_mib" >&2
+  printf '  orb config set memory_mib %s && orb stop && orb start\n' "$requested_mib" >&2
+  printf 'Leave the host OS headroom, and drain runners first -- the restart kills running jobs.\n' >&2
+  exit 1
+fi
+
 if ! "$orb_bin" list | awk '{print $1}' | grep -Fxq "$MACHINE_NAME"; then
   "$orb_bin" create --arch arm64 --cpus "$MACHINE_CPUS" --memory "$MACHINE_MEMORY" \
     --disk "$MACHINE_DISK" --user runner ubuntu:24.04 "$MACHINE_NAME"
