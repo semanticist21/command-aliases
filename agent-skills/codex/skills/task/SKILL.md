@@ -334,6 +334,13 @@ prompt must:
   may not return 0 findings without concrete diff evidence for each distinct user requirement, and any
   ambiguous or self-contradicting requirement must be reported as a finding rather than resolved by the
   reviewer's own guess.
+- **When a requirement is to reuse or match an existing or approved artifact** — design, asset, component,
+  copy, layout, or screen — the reviewer must be given the exact named reference (asset path, component,
+  commit, or screenshot) and verify the diff uses *that specific* artifact, not merely something that
+  already exists in the repo. If no approved reference was identified, the reviewer reports the requirement
+  as unverifiable — a finding — and never passes it on a look-alike. Where the approved artifact is visual,
+  at least one of the two reviewers must receive the captured render alongside the reference image and
+  compare them, not the diff alone.
 
 Prefer reviewer agents for final QA, never self-review alone.
 
@@ -353,6 +360,10 @@ Prefer reviewer agents for final QA, never self-review alone.
   checks.
 - Make tests part of the acceptance criteria by default: name which component and unit tests the change will
   add or extend, or explicitly justify why none apply.
+- When a requirement says to reuse or match an existing or approved design, asset, component, copy, or
+  layout, locate and pin the exact reference (asset path, component name, commit, or screenshot) into the
+  acceptance criteria before implementing. If the approved reference cannot be identified, stop and ask —
+  never substitute a look-alike or hand-roll a replacement and call it the approved one.
 - Produce a short plan with acceptance criteria and verification commands.
 
 ### 2. Execute
@@ -398,6 +409,11 @@ Run a review loop until findings are zero, valid/actionable findings are zero, o
    the Chrome Plugin is unavailable after its documented retry/recovery steps, do not silently substitute
    another browser path: report the Chrome blocker and use an explicitly labeled fallback only when the user
    did not require Chrome.
+   This render check is not browser-only: a native app screen renders in its simulator/emulator, and
+   otherwise a captured screenshot or rendered-widget image stands in. When the requirement is to reuse or
+   match an approved design or asset, compare the render to the named reference artifact — a code-only pass
+   can miss a visibly wrong mark, asset, or layout. Where no render target is reachable, use only the
+   explicitly labeled fallback this step already permits; never treat code-only inspection as visual sign-off.
 4. Run at least **two independent QA/reviewer agents** over the diff and acceptance criteria in every QA
    round, each judging the diff against the user's verbatim original request per the Agent Briefing rule
    above — confirm every requested item is delivered and nothing was mis-delivered or silently substituted.
