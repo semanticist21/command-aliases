@@ -122,6 +122,18 @@ job-scoped external `TMPDIR`, `TMP`, and `TEMP`, removed when the job finishes.
 The task output and `status` report the cache path. Do not set a shared
 `CARGO_TARGET_DIR`; Cargo keeps its normal worktree-local target directory.
 
+## Concurrent jobs share the host
+
+Jobs run under one remote account on one machine, concurrently with other tasks and with
+the GitHub runner machine on the same host. The script isolates cache, `HOME`, `TMPDIR`,
+and the worktree; nothing else is isolated for you. A command claiming a fixed host
+resource fails the second caller instead of queueing.
+
+- Never pass a command that binds a fixed port, starts a fixed-name container, writes a
+  fixed `/tmp` path, or uses a fixed Compose project name. Let the OS or Docker assign the
+  port and read it back, or use the repository's own per-worktree slot mechanism.
+- Do not treat a port conflict as a scheduling problem. Fix the command's isolation.
+
 ## Exact-commit contract
 
 The script resolves `--commit` (default `HEAD`) locally, transfers its reachable
