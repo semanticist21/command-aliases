@@ -1,7 +1,0 @@
-interface:
-  display_name: "Skill Add"
-  short_description: "Alias to skill-sync for creating user skills"
-  default_prompt: "Route $skill-add requests through skill-sync's create/update workflow for Claude and Codex user skills."
-
-policy:
-  allow_implicit_invocation: true

@@ -1,6 +1,6 @@
 ---
 name: "skill-sync"
-description: "Manage user skills end-to-end: sync, mirror, version, commit, push."
+description: "Create, update, rename, compact, and sync user/project skills end-to-end."
 ---
 # Skill Sync
 
@@ -23,8 +23,15 @@ or any "sync everything / match the repo / 맞춰줘" request means **Full recon
 do not act on one skill in isolation. Always surface a one-line summary of what
 changed and in which direction before writing.
 
-This skill also owns the old `skill-add`, `root-skill-add`, and `skill-update`
-workflows. Treat those names as compatibility aliases that route here.
+This is the only skill-management entrypoint. Use an operation followed by scope
+when the operation writes one skill:
+
+- `skill-sync add <user|project> <skill name and behavior>` creates a skill.
+- `skill-sync update [user|project] <skill name and changes>` revises a skill.
+- Bare `skill-sync` retains the full-reconcile behavior above.
+
+Accept `root` as a compatibility spelling for `user`, but do not create separate
+`skill-add`, `root-skill-add`, or `skill-update` aliases.
 
 ## Autonomous completion (default: finish the push)
 
@@ -35,6 +42,11 @@ a separate "push"/"publish" request: sync the intended copies, run the review + 
 scan, bump version markers, stage explicit pathspecs, commit, switch to the required
 GitHub identity, push, and restore the previous identity. The same holds when the user
 explicitly asks to commit/push/publish or to handle the sync end-to-end.
+
+For project scope, finish through that repository's own task and verification
+harness: verify, commit, and land the isolated worktree through its required PR or
+merge-back workflow. Never copy a project-scoped skill into the user-scope mirror
+or bump the user-scope skill-set version.
 
 On drift where both sides changed, **auto-merge by default**: combine non-overlapping
 edits, and for a true line-level clash prefer the newer edit; then commit, push, and
@@ -91,13 +103,24 @@ whole surface first, classify every skill, then act per category.
 
 ## Create or update one skill
 
-Use this for `/skill-add`, `/root-skill-add`, `/skill-update`, or any request to
-create, revise, rename, compact, or fix an existing skill.
+Use this for `skill-sync add`, `skill-sync update`, or any request to create,
+revise, rename, compact, or fix one skill.
 
-1. **Resolve scope.** Default to user-scope Claude + Codex copies:
-   `~/.claude/skills/<name>/SKILL.md` and `~/.codex/skills/<name>/SKILL.md`.
-   If the user explicitly asks for project-local scope, operate in that repo only
-   and do not mirror to `command-aliases` unless a user-scope copy also changes.
+1. **Resolve operation, scope, and runtime before writing.**
+   - `skill-sync add` requires an explicit `user` or `project` scope. Accept
+     `root` as a compatibility spelling for `user`; missing or invalid scope
+     requires clarification.
+   - `skill-sync update` uses the requested scope. If none is given,
+     inventory all copies and infer scope only when the skill exists in exactly
+     one scope; ask when both user and project copies exist or neither exists.
+   - `user` targets `~/.claude/skills/<name>` and/or
+     `~/.codex/skills/<name>` plus the matching `command-aliases` mirror.
+   - `project` targets the nearest trusted repository's `.claude/skills/<name>`
+     and/or `.codex/skills/<name>` only; never mirror it into user scope.
+   - `add` targets both runtimes unless the request explicitly names one.
+     `update`, rename, and compact preserve the runtimes where the skill already
+     exists in the selected scope; never create a missing runtime copy unless the
+     request explicitly asks for it.
 2. **Find every copy before editing.** Check Claude user scope, Codex user scope,
    project `.claude/skills`, project `.codex/skills`, and both mirror runtimes.
    Surface any pre-existing drift; if both sides changed independently, auto-merge per
@@ -111,15 +134,27 @@ create, revise, rename, compact, or fix an existing skill.
 5. **Rename.** If the name changes, create the new directory, update `name:`, grep
    other skills for literal references to the old name, then remove the old
    directory only after the user has clearly asked for the rename/delete.
-6. **Sync copies.** Write the same content to every intended copy, keeping only
-   deliberate runtime wording differences.
+6. **Sync without bypassing isolation.**
+   - For project scope, write the intended runtime copies inside the target
+     repository's isolated worktree.
+   - For user scope, edit the isolated `command-aliases` mirror. If a local
+     user-scope target is a symlink into the mirror checkout, never write through
+     it while the worktree is active; landing the mirror change updates it. Merge
+     any detached real-directory copy into the worktree first, then copy the
+     landed result back afterward. Keep only deliberate runtime wording
+     differences.
 7. **Review.** Spawn a read-only reviewer for meaningful skill edits. Ask for
    severity-tagged findings on trigger quality, over-fire risk, workflow
    soundness, actionability, concision, and contradictions. Apply high/medium
    fixes to every copy.
-8. **Mirror and version.** For user-scope changes, copy changed skills into
-   `command-aliases`, update `agent-skills/README.md` for brand-new skills, bump
-   `agent-skills/VERSION` when repo-side content changes, and push once.
+8. **Finish the selected scope.**
+   - For user scope, copy changed skills into `command-aliases`, update
+     `agent-skills/README.md` for brand-new skills, bump `agent-skills/VERSION`
+     when repo-side content changes, and land and push once. After landing, verify
+     symlinked local installs resolve to the new content, sync any detached local
+     copies from the landed mirror, and update both local version markers.
+   - For project scope, run the target repository's required verification, commit,
+     and PR/merge-back lifecycle. Do not touch the user-scope mirror or version.
 
 ## Compact skills
 

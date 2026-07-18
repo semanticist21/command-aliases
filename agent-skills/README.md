@@ -39,11 +39,8 @@ agent-skills/
 | pkg-manager      |   ✓    |   ✓   | Safely update minor versions or upgrade majors with migration handling |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
 | react-flutter-port | ✓ | ✓   | Port React UI to Flutter with visual parity              |
-| root-skill-add   |   ✓    |   ✓   | Alias to skill-sync for global user-scope skill creation  |
 | rust-server-architecture | ✓ | ✓ | Shape Rust backend servers with feature-first architecture |
-| skill-add        |   ✓    |   ✓   | Alias to skill-sync for creating user skills              |
-| skill-sync       |   ✓    |   ✓   | Create/update/sync/compact skills across runtimes + repo  |
-| skill-update     |   ✓    |   ✓   | Alias to skill-sync for revising existing skills          |
+| skill-sync       |   ✓    |   ✓   | Add/update/sync/compact user or project skills             |
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
 | task-run-ssh     |   ✓    |   ✓   | Run exact-commit heavy jobs in remote SSH worktrees       |
 | task-runner-setup|   ✓    |   ✓   | Configure OrbStack runners with bounded external caches   |
