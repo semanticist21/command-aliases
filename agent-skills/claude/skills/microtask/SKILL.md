@@ -204,7 +204,7 @@ Microtask deltas:
   Re-check `git status` after committing to confirm the intended files landed and nothing
   unexpected is staged.
 - **Report** in `task`'s Output shape, and state the final goal status plus any owned
-  queue item still outstanding.
+  queue item still outstanding. End with one concise Korean summary sentence.
 
 ## Safety
 

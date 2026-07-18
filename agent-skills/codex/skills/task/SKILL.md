@@ -468,6 +468,7 @@ blocked — and say why.
 
 Final response should include:
 
+- End with one concise Korean summary sentence.
 - what changed
 - verification commands/results
 - QA loop count, total final finding count, and valid/actionable final finding count (`0` when complete)
