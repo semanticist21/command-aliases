@@ -48,3 +48,16 @@ description: "Safely update dependencies within current major versions or upgrad
 2. Diagnose failures from their errors, migration guides, and dependency graph. Apply the smallest documented repair, rerun the failed check, then rerun the required suite.
 3. Before committing, summarize each direct dependency's old/new version, intentional majors, migration risk and repairs, skipped/blocked packages, and verification evidence. Commit manifests, lockfiles, and required source/test changes together.
 4. Finish only when the requested policy is satisfied, generated lockfiles are reproducible, required checks pass, and every dependency diff is explained. Otherwise report the exact blocker and the smallest remaining decision.
+
+## Autonomous completion (default: commit and push when green)
+
+Once every required check passes and the dependency diff is fully explained, carry the work all the way to a pushed commit WITHOUT waiting for a separate "commit"/"push" request. Commit the manifests, lockfiles, and required source/test changes together with a Conventional Commit message (e.g. `chore(deps): update <pkgs> within-major` or `build(deps): upgrade <pkg> to vN`), let `$task` merge the worktree back to its base branch, then push the base branch to its upstream. Report the pushed commit and branch.
+
+STOP and ask instead of pushing when ANY of these holds — do not auto-push through them:
+- Required checks fail, are skipped, or cannot run, or a lockfile is not reproducible.
+- A major-version decision is still open — the `$grill-me` gate in "Migration assessment and repair" must be resolved with explicit approval before its batch is committed.
+- The verification surface is incomplete (untested runtime/config/data migration, unresolved peer conflict).
+- The base branch has no configured upstream, the push is rejected, or the target branch is ambiguous.
+- The working tree carried unrelated dirty changes that would be swept into the commit.
+
+When a stop condition applies, report the exact blocker and the smallest remaining decision instead of pushing. A dry-run or explicitly "no push"/"just show me" request also suppresses the push — commit locally and stop.

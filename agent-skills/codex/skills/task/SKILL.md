@@ -314,10 +314,35 @@ work, write a project-local handoff doc and tell every agent to read it before a
    neutral and update it when scope or acceptance criteria change.
 4. Keep implementation notes or hypotheses separate when they could bias a reviewer.
 
-Agent prompts must point at the brief path and restate that agent's slice in the prompt itself. Give
-reviewer agents the goal, acceptance criteria, and diff directly; never ask them to read biased
-implementation notes, leak hidden conclusions, or coach them toward a desired verdict. Prefer reviewer
-agents for final QA, never self-review alone.
+Agent prompts must point at the brief path and restate that agent's slice in the prompt itself.
+
+**Reviewers judge the delivered work against the user's original request, not against the implementation.**
+The one authority a reviewer is measured against is what the user actually asked for, so every reviewer
+prompt must:
+
+- **Quote the user's original request text verbatim** — the words the user typed — as the top-priority
+  acceptance standard, and ask the reviewer to independently decide whether the diff delivers each thing the
+  user asked for and whether anything was mis-delivered, distorted, dropped, or silently substituted relative
+  to that request.
+- **Exclude the implementer's conclusions, hypotheses, self-assessments, and any pass-leading or
+  verdict-coaching phrasing.** Give the reviewer the verbatim request, the acceptance criteria, and the diff
+  directly; never feed biased implementation notes or leak a desired verdict.
+- **Treat repo docs, conventions, and existing code as supplements that only help interpret the request** —
+  they never silently override or replace what the user asked for. A conflict between them and the request is
+  itself a finding, not something the reviewer resolves by quietly siding with the repo.
+- **Have each of the two independent reviewers check per-requirement satisfaction on its own.** A reviewer
+  may not return 0 findings without concrete diff evidence for each distinct user requirement, and any
+  ambiguous or self-contradicting requirement must be reported as a finding rather than resolved by the
+  reviewer's own guess.
+- **When a requirement is to reuse or match an existing or approved artifact** — design, asset, component,
+  copy, layout, or screen — the reviewer must be given the exact named reference (asset path, component,
+  commit, or screenshot) and verify the diff uses *that specific* artifact, not merely something that
+  already exists in the repo. If no approved reference was identified, the reviewer reports the requirement
+  as unverifiable — a finding — and never passes it on a look-alike. Where the approved artifact is visual,
+  at least one of the two reviewers must receive the captured render alongside the reference image and
+  compare them, not the diff alone.
+
+Prefer reviewer agents for final QA, never self-review alone.
 
 ## Loop
 
@@ -335,6 +360,10 @@ agents for final QA, never self-review alone.
   checks.
 - Make tests part of the acceptance criteria by default: name which component and unit tests the change will
   add or extend, or explicitly justify why none apply.
+- When a requirement says to reuse or match an existing or approved design, asset, component, copy, or
+  layout, locate and pin the exact reference (asset path, component name, commit, or screenshot) into the
+  acceptance criteria before implementing. If the approved reference cannot be identified, stop and ask —
+  never substitute a look-alike or hand-roll a replacement and call it the approved one.
 - Produce a short plan with acceptance criteria and verification commands.
 
 ### 2. Execute
@@ -380,12 +409,19 @@ Run a review loop until findings are zero, valid/actionable findings are zero, o
    the Chrome Plugin is unavailable after its documented retry/recovery steps, do not silently substitute
    another browser path: report the Chrome blocker and use an explicitly labeled fallback only when the user
    did not require Chrome.
+   This render check is not browser-only: a native app screen renders in its simulator/emulator, and
+   otherwise a captured screenshot or rendered-widget image stands in. When the requirement is to reuse or
+   match an approved design or asset, compare the render to the named reference artifact — a code-only pass
+   can miss a visibly wrong mark, asset, or layout. Where no render target is reachable, use only the
+   explicitly labeled fallback this step already permits; never treat code-only inspection as visual sign-off.
 4. Run at least **two independent QA/reviewer agents** over the diff and acceptance criteria in every QA
-   round. This is a loop, not a one-time sign-off: after each fix round, rerun fresh reviewer agents or
-   explicitly continue both with the updated diff. Stop only when both return `0 findings`, or every
-   remaining finding from both is documented as invalid/non-actionable with a concrete reason. If two
-   independent reviewers are unavailable, report that as a blocker; never substitute self-review or call the
-   work QA-clean.
+   round, each judging the diff against the user's verbatim original request per the Agent Briefing rule
+   above — confirm every requested item is delivered and nothing was mis-delivered or silently substituted.
+   This is a loop, not a one-time sign-off: after each fix round, rerun fresh reviewer agents or
+   explicitly continue both with the updated diff. Stop only when both return `0 findings` **with concrete
+   per-requirement evidence**, or every remaining finding from both is documented as invalid/non-actionable
+   with a concrete reason. If two independent reviewers are unavailable, report that as a blocker; never
+   substitute self-review or call the work QA-clean.
 5. For UI changes, run a visible-information duplication pass: inspect each row, card, modal, header, empty
    state, badge, and CTA for repeated semantic facts. Duplicate status/value/price/count/date/limit/benefit
    text in the same UI unit (the same status in both helper text and a badge, say) is a finding even when
