@@ -142,11 +142,17 @@ Commit style, and its Agent Briefing, Agent Use, and Output contracts.
 
 Two of its rules are restated because they are the ones most often skipped:
 
-- **Two independent reviewers, every round.** A QA round is not a one-time sign-off: any
-  behavior-affecting fix invalidates the previous pass, so rerun both reviewers on the
-  updated diff. Stop only when both return **0 findings**, or every remaining finding from
-  both is documented invalid/non-actionable with a concrete reason. If two independent
-  reviewers are unavailable, report that as a blocker — self-review is not QA-clean.
+- **Two independent reviewers judging against the user's original request, every round.**
+  Each reviewer prompt quotes the user's verbatim request as the top acceptance standard,
+  excludes the implementer's conclusions and any pass-leading phrasing, and independently
+  checks that every requested item was delivered and nothing was mis-delivered or silently
+  substituted; repo docs and code only supplement the request and never override it, and
+  ambiguous or conflicting requests are reported as findings rather than guessed. A QA round
+  is not a one-time sign-off: any behavior-affecting fix invalidates the previous pass, so
+  rerun both reviewers on the updated diff. Stop only when both return **0 findings** with
+  concrete per-requirement evidence, or every remaining finding from both is documented
+  invalid/non-actionable with a concrete reason. If two independent reviewers are
+  unavailable, report that as a blocker — self-review is not QA-clean.
 - **UI changes require live browser verification**, not code inspection alone. If the
   required browser path is unavailable after its documented retry/recovery steps, report
   that blocker rather than silently substituting another.

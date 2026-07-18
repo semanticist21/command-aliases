@@ -347,10 +347,28 @@ work, write a project-local handoff doc and tell every agent to read it before a
    neutral and update it when scope or acceptance criteria change.
 4. Keep implementation notes or hypotheses separate when they could bias a reviewer.
 
-Agent prompts must point at the brief path and restate that agent's slice in the prompt itself. Give
-reviewer agents the goal, acceptance criteria, and diff directly; never ask them to read biased
-implementation notes, leak hidden conclusions, or coach them toward a desired verdict. Prefer reviewer
-agents for final QA, never self-review alone.
+Agent prompts must point at the brief path and restate that agent's slice in the prompt itself.
+
+**Reviewers judge the delivered work against the user's original request, not against the implementation.**
+The one authority a reviewer is measured against is what the user actually asked for, so every reviewer
+prompt must:
+
+- **Quote the user's original request text verbatim** — the words the user typed — as the top-priority
+  acceptance standard, and ask the reviewer to independently decide whether the diff delivers each thing the
+  user asked for and whether anything was mis-delivered, distorted, dropped, or silently substituted relative
+  to that request.
+- **Exclude the implementer's conclusions, hypotheses, self-assessments, and any pass-leading or
+  verdict-coaching phrasing.** Give the reviewer the verbatim request, the acceptance criteria, and the diff
+  directly; never feed biased implementation notes or leak a desired verdict.
+- **Treat repo docs, conventions, and existing code as supplements that only help interpret the request** —
+  they never silently override or replace what the user asked for. A conflict between them and the request is
+  itself a finding, not something the reviewer resolves by quietly siding with the repo.
+- **Have each of the two independent reviewers check per-requirement satisfaction on its own.** A reviewer
+  may not return 0 findings without concrete diff evidence for each distinct user requirement, and any
+  ambiguous or self-contradicting requirement must be reported as a finding rather than resolved by the
+  reviewer's own guess.
+
+Prefer reviewer agents for final QA, never self-review alone.
 
 ## Loop
 
@@ -413,11 +431,13 @@ Run a review loop until findings are zero, valid/actionable findings are zero, o
    browser path: report the blocker and use an explicitly labeled fallback only when the user did not
    require a specific browser.
 4. Run at least **two independent QA/reviewer agents** over the diff and acceptance criteria in every QA
-   round. This is a loop, not a one-time sign-off: after each fix round, rerun fresh reviewer agents or
-   explicitly continue both with the updated diff. Stop only when both return `0 findings`, or every
-   remaining finding from both is documented as invalid/non-actionable with a concrete reason. If two
-   independent reviewers are unavailable, report that as a blocker; never substitute self-review or call the
-   work QA-clean.
+   round, each judging the diff against the user's verbatim original request per the Agent Briefing rule
+   above — confirm every requested item is delivered and nothing was mis-delivered or silently substituted.
+   This is a loop, not a one-time sign-off: after each fix round, rerun fresh reviewer agents or
+   explicitly continue both with the updated diff. Stop only when both return `0 findings` **with concrete
+   per-requirement evidence**, or every remaining finding from both is documented as invalid/non-actionable
+   with a concrete reason. If two independent reviewers are unavailable, report that as a blocker; never
+   substitute self-review or call the work QA-clean.
 5. For UI changes, run a visible-information duplication pass: inspect each row, card, modal, header, empty
    state, badge, and CTA for repeated semantic facts. Duplicate status/value/price/count/date/limit/benefit
    text in the same UI unit (the same status in both helper text and a badge, say) is a finding even when
