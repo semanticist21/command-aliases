@@ -20,6 +20,13 @@ Density here means more *information* (a meta sub-line, real trailing content), 
 - Load inside the surface, not on the trigger. For an action that fetches (create invite link, etc.), open the modal/panel immediately and show skeletons inside; don't spin the trigger button and then pop the finished result. Reserve each element's height (validity line, image/QR box, buttons, code block) so real content fills in with zero layout shift.
 - See it before shipping. Code review of UI is not enough — render the screen and look. When the live app is reachable, use it; when login/setup is blocked, build a throwaway static preview that links the project's already-built CSS and hand-writes the markup, then screenshot. Weak hierarchy, sparse rows, and clashing weights are obvious visually and invisible in a diff.
 
+## Alignment defaults
+
+- Treat icon + label controls as one layout group. Buttons, tabs, chips, and menu rows that pair an icon with text should use flex/inline-flex with explicit cross-axis centering, main-axis alignment, and `gap`; give the icon a fixed box and prevent it from shrinking. The control owns alignment — do not rely on the SVG and font sharing a baseline.
+- Do not repair control alignment with magic nudges such as negative baseline offsets, relative `top`, transforms, or asymmetric icon margins. Those values drift with fonts, browsers, zoom, and runtime ports. Baseline alignment is appropriate only for a genuinely inline icon inside prose, and still requires rendered verification.
+- Keep sibling states on the same alignment contract. Icon + label, label-only, loading, and disabled variants should preserve the control's height, center line, and hit area. Center the actual visible group by default; reserve an absent icon's slot only when a stable shared column or in-place state transition genuinely requires it.
+- Verify alignment visually at the target viewport and font. Check the icon and label as a group, not each child in isolation; confirm horizontal centering, optical vertical centering, fixed control height, and no shift across active/disabled/loading states.
+
 ## Copy
 
 - Match verb mood to purpose. Action prompts and CTAs take the request form (…하세요); status, result, and error copy stay descriptive (…해요/…돼요). Don't mechanically convert a whole screen one way — a status toast in 하세요 or a call-to-action in 해요 both read wrong. Pick words that match the surrounding section vocabulary and the audience (a warm consumer app, not a corporate tool).
