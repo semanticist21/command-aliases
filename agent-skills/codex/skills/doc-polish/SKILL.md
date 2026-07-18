@@ -4,180 +4,28 @@ description: "Consolidate, correct, de-duplicate, and compact repo harness docs 
 ---
 # Doc Polish
 
-Compact, de-duplicate, and de-stale a project's agent-facing context — repo harness
-docs and LLM memory stores — so future Claude Code or Codex sessions load them with
-less context cost and fewer contradictions.
+Use for existing agent harness docs (`AGENTS.md`, `CLAUDE.md`, `.agents/`, runtime rules) or LLM memory stores; not general product/API docs, release notes, or status updates. Creating a structure is `doc-setup`; adding one new note uses the project's doc-add flow.
 
-Use this skill when the user asks to compact, polish, compress, prune, de-dupe,
-correct, refresh (현행화), or clean up either target:
-- **Harness docs** — repo-local agent rules: `AGENTS.md`, `CLAUDE.md`, `.agents/`,
-  `.codex/`, `.claude/`, `harness.config.json`, or handoff docs that define agent
-  operating rules.
-- **Memory stores** — agent-managed note stores: an index-plus-one-fact-per-file
-  memory dir (an index like `MEMORY.md` plus memory files with frontmatter), a
-  running memo file (`memo.md`), or similar.
+## Scope and principles
 
-Do not use it for general product docs, API docs, release notes, or status updates
-unless the user explicitly folds them into scope.
+- Default to the executing repository. Touch user-scope context only when explicitly requested; never infer a target outside the repo.
+- Treat live code as truth. Keep concise, durable, actionable facts: commands, paths, ownership, safety, setup, and decisions.
+- One canonical owner per subject; the most local governing doc wins unless root explicitly owns it. Preserve stricter local rules.
+- Remove narration, duplicates, stale examples, vague reminders, resolved progress, and brittle history. Do not invent lore.
+- Leave already concise, canonical, and current files unchanged.
 
-This is the one **maintenance** skill for an existing doc/memory set: it consolidates
-duplicates, corrects stale or wrong facts against the live repo, compacts, cleans
-memory stores, and runs the before/after review loop. Correcting and refreshing
-(현행화) are part of the job, not a separate skill. Route only these elsewhere:
-- Creating a doc structure from scratch → `doc-setup`.
-- Adding one brand-new note → the project's doc-add flow.
+## Workflow
 
-## Scope
+1. Read root and governing nested instructions. Inventory target docs/store and map each file's scope, canonical subjects, duplicates, and possible dead owners.
+2. Verify facts named in a document against the live repository before compacting. Resolve duplicated ownership before editing; ask when owners conflict or a move weakens a local rule.
+3. Edit one document/entry at a time. Fold full rules into the canonical owner and replace proven duplicates with a short reference. Preserve safety, test, approval, secret, and ownership constraints.
+4. Delete a whole file only when its governed folder/feature or every fact is proven gone (not moved); relocate remaining live rules first. Never delete merely for age or length.
+5. For memory, read the complete index and entries first; preserve its native shape, keep index pointers valid, merge overlaps, and retain a short why/how when it changes future behavior.
+6. Review BEFORE versus AFTER independently after each changed file (`git show HEAD:<path>` or a saved external copy). Check lost/weakened durable facts, stale paths, ownership conflicts, unclear routing, and remaining duplication. Fix findings and repeat to zero; report a judgment blocker rather than guessing.
+7. Globally recheck canonical ownership, references, and the repository's narrow doc check (or `git diff --check`).
 
-Default to the **executing project**: the repo you are running in
-(`git rev-parse --show-toplevel`), its harness docs, and any project-local memory
-store. Operate on **user-scope** context (`~/.claude/...`, `~/.codex/...`,
-cross-project memo files) only when the user explicitly asks — a request to "clean
-up my memory" or naming a user-scope path *is* that explicit ask. Never silently
-reach outside the current repo.
+## Guardrails and output
 
-## Principles (why compact at all)
-
-Durable docs and memory are the standing prompt every future session pays for in
-context. Treat the context window as scarce RAM (context-engineering practice):
-every token in a durable file competes with the task's own tokens. Optimize for:
-- **Signal density.** One durable fact per line. No narration, no restating the
-  obvious, no history unless it changes future behavior.
-- **Single source of truth.** Each subject has exactly one canonical owner; other
-  mentions are short references, not copies.
-- **Locality.** Facts live in the nearest file that governs them.
-- **Freshness.** A stale rule is worse than no rule — verify against the live repo;
-  drop or fix what no longer holds.
-- **Right altitude.** Keep rules specific enough to act on, general enough not to
-  break on the next change. Cut brittle detail; keep the durable constraint.
-- **Retrieval shape.** Headings and trigger wording let an agent find the right
-  section without rereading the whole store.
-
-A file that is already concise, canonical, fresh, and non-duplicative should be left
-unchanged and reported as skipped.
-
-## Workflow — harness docs
-
-1. **Map the repo.**
-   - Resolve the repo root with `git rev-parse --show-toplevel`.
-   - Read root `AGENTS.md` and/or `CLAUDE.md` first, then any nested `AGENTS.md`
-     that governs the harness docs being edited.
-   - Inventory harness docs with `rg --files` before editing. Include obvious agent
-     runtime folders and harness config, but exclude generated/vendor/build output.
-   - Build a short index: document path, owner/scope, canonical subjects, and
-     duplicate subjects found elsewhere.
-   - Flag **orphan files** whose governed target is gone: an `AGENTS.md` under a
-     deleted folder, a handoff doc for shipped/abandoned work, or a doc for a removed
-     feature. These are whole-file deletion candidates — mark them for step 3, do not
-     delete yet.
-
-2. **Choose document order.**
-   - For each duplicated subject, identify the canonical owner first: the most local
-     applicable doc wins unless a root doc explicitly owns that policy.
-   - Move or preserve the full rule in that canonical owner, then replace other
-     copies with short references only when the owner is unambiguous.
-   - If two docs both claim ownership, or if moving a rule would weaken a local
-     constraint, stop and ask instead of choosing a winner.
-
-3. **Consolidate and correct one document at a time.**
-   - Treat the live repo as source of truth: fix stale or wrong facts — commands,
-     paths, APIs, versions, ownership — that no longer match the code. Correcting a
-     wrong rule outranks compacting it; never compact a fact you have not verified.
-   - Keep facts that affect future agent behavior: commands, file paths, review
-     rules, safety constraints, hidden setup requirements, and durable decisions.
-   - Remove redundant restatements, obsolete narration, repeated examples, vague
-     reminders, and long explanations that do not change agent behavior.
-   - **Delete a whole file when the thing it governs is gone** — do not compact a
-     dead file down to a stub. An `AGENTS.md` for a deleted folder, a handoff doc for
-     shipped or abandoned work, or any harness doc the live repo proves fully obsolete
-     is deleted outright (`git rm` when tracked). First confirm the governed
-     path/folder/feature is actually gone, not merely moved or renamed — if it moved,
-     relocate the still-valid rule instead of deleting it. If any live rule in the file
-     still applies, fold it into its new canonical owner before removing the file
-     (guardrails below govern the safety bar).
-   - Preserve stricter local rules. Do not weaken safety, test, doc, secret,
-     approval, or ownership constraints.
-   - Keep trigger wording and headings clear enough that Claude Code and Codex can
-     route future work without rereading the whole repo.
-   - Do not invent new project lore or infer history from code shape. If a fact is
-     ambiguous, report it instead of encoding it.
-
-4. **Run the per-document review loop as a before/after comparison.**
-   - After editing each document, run an independent review that compares the BEFORE
-     and AFTER side by side — not the AFTER in isolation. BEFORE comes from
-     `git show HEAD:<path>` (or a saved pre-edit copy for files outside the repo);
-     AFTER is the working-tree file. Use a review subagent when available, or a
-     clearly separate review pass when the runtime has no subagent tool. Do not count
-     the edit pass as review.
-   - For any target not tracked by git (memory stores, out-of-repo harness docs),
-     save a copy of the file before your first edit — that copy is the only BEFORE
-     you will have.
-   - Give the reviewer both versions and ask for severity-tagged findings on durable
-     rules, commands, paths, ownership/safety constraints, and Why-trade-offs present
-     in BEFORE but missing or weakened in AFTER; plus over-compression, unclear
-     triggers, stale references, contradicted owner docs, and remaining redundant
-     content. Judge compaction by whether every durable fact survived — never by a
-     line-count target; report the delta, do not chase a number.
-   - Fix confirmed findings, then review the same document again.
-   - Repeat `edit -> before/after review` until the reviewer returns zero findings.
-     If findings stop decreasing or require product/ownership judgment, stop and
-     report the blocker instead of guessing.
-
-5. **Global pass.**
-   - Re-read the index after all per-document loops. Confirm every duplicated subject
-     has exactly one canonical owner or an intentional short reference.
-   - Search for broken references to renamed headings or moved docs.
-   - Run the repo's narrow doc/harness check if one exists; otherwise run
-     `git diff --check`.
-
-6. **Report.**
-   - List docs changed and the reason each changed.
-   - List docs skipped because they were already optimized.
-   - Report review convergence: rounds per changed doc, final findings count (zero
-     unless a blocker was surfaced), and the before/after line-count delta.
-   - Mention verification commands and any unresolved ownership questions.
-
-## Workflow — memory stores
-
-When the target is an LLM memory store, run the same edit–review discipline with
-memory-specific rules:
-
-1. **Read the whole store first** — the index and every fact file (or the full memo)
-   before changing anything. Memory is written across many sessions; you cannot
-   compact what you have not read. Memory stores are rarely git-tracked, so save a
-   copy before your first edit (see the review loop's BEFORE requirement).
-2. **Verify before trusting.** A memory reflects what was true when written. For any
-   fact that names a file, function, flag, path, or command, confirm it still exists —
-   in the executing repo for project memory, or in the project(s) a cross-project memo
-   names. Fix drift; delete facts the live code proves wrong. **Delete a whole fact
-   file (and its index line) when every fact in it is proven wrong or governs
-   something that no longer exists**; when only some facts are stale, fix or merge
-   rather than dropping the file.
-3. **De-duplicate and merge.** Fold overlapping facts into one entry. Keep the store's
-   native shape (one fact per file, or one bullet per memo line); never let the index
-   and the bodies diverge.
-4. **Compact each entry** to the durable claim plus, for guidance-type notes, a short
-   why / how-to-apply. Drop transient progress, resolved TODOs, and vague reminders.
-5. **Keep the index one line per memory** — title, pointer, one-line hook. Never put
-   memory body text in the index. Repair broken links between index and files.
-6. **Review and report** as in the harness-doc loop (before/after comparison, severity
-   tags, converge to zero findings). Do not invent new lore; if a fact's source is
-   ambiguous, surface it for the user instead of encoding or deleting it silently.
-
-## Guardrails
-
-- Do not touch application code unless the user explicitly asks for code changes.
-- Do not delete rules just because they are verbose; preserve the behavior in shorter
-  language.
-- Do not delete a memory just because it is old; delete only what the live repo proves
-  wrong, and merge the rest. When unsure whether a fact is stale, ask.
-- Whole-file deletion is allowed only when the live repo proves the file dead — its
-  governed folder, feature, or every fact inside is gone. Never delete a file for being
-  long, unfamiliar, or merely idle; verify the target is truly gone (not moved or
-  renamed) and relocate any still-valid rule first. When unsure, ask before deleting.
-- Do not merge runtime-specific instructions when Claude Code and Codex genuinely need
-  different wording or mechanisms.
-- Do not compact secrets, credentials, or private machine paths into broader docs.
-  Remove accidental secret-like material only after confirming it is not required
-  harness context.
-- Do not create a status log. This skill improves durable harness docs and memory only.
+- Do not change application code unless explicitly asked. Do not merge genuinely runtime-specific rules.
+- Never broaden secrets, credentials, private paths, or internal implementation details.
+- Report changed/skipped/deleted files, reason, verification, review rounds/final findings, line deltas, and unresolved questions.

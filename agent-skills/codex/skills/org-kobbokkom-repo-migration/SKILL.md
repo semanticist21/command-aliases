@@ -1,121 +1,23 @@
 ---
 name: "org-kobbokkom-repo-migration"
-description: "Safely transfer GitHub repositories from a user or another owner into the Kobbokkom organization with gh CLI preflight, explicit execution, post-transfer audits, and optional local-remote updates. Use when migrating one or a controlled batch of existing repositories to Kobbokkom while preserving repository visibility and checking Actions, rulesets, Pages, packages, webhooks, secrets, and environments."
+description: "Safely transfer GitHub repositories into Kobbokkom with gh CLI preflight, execution, and audits."
 ---
-
 # Kobbokkom Repository Migration
 
-Use `scripts/transfer-repo.sh` for the transfer. Keep the default dry-run until
-every preflight succeeds. Never log or embed a token, password, private key, or
-credential-bearing remote URL.
+Transfer existing repositories to the fixed `Kobbokkom` organization with `scripts/transfer-repo.sh`. Never log tokens, passwords, private keys, or credential-bearing remote URLs.
 
-## Autonomous execution
+## Execution
 
-When invoked from a Git repository, resolve its GitHub `owner/repo` from `origin` unless
-the user supplied a different source. Do not ask an intake question for the source,
-whether to preflight, or whether to execute when those are explicit or discoverable.
+- Resolve source from user input or current `origin`. Inspect/preflight means dry-run. An actual migration runs dry-run then `--execute` without a confirmation string.
+- Ask only when source cannot be resolved, plausible source/destination choices materially differ, GitHub authority is unavailable, or a separately destructive choice is unspecified.
+- Preserve visibility and local remotes unless explicitly changed. Use `--new-name`, `--visibility private`, or `--update-remote origin` only when requested.
+- The script verifies auth/admin/org-owner access, target availability, visibility, and audit surfaces; refresh `read:packages` if asked. It transfers through GitHub, polls destination and immutable ID, then compares Actions/workflows/variables/rulesets/Pages/packages/webhooks/deploy keys/secrets/environments. Any mismatch or unreadable audit is unfinished.
 
-- A request to inspect/preflight runs the dry-run and reports its result.
-- A request to actually migrate runs the dry-run first, stops on a failed preflight, then
-  runs `--execute`. Do not ask for a copied confirmation string.
-- Preserve visibility and leave local remotes unchanged unless the user explicitly asks
-  otherwise.
-- Ask only when no source can be resolved, multiple plausible source/destination choices
-  have different effects, required GitHub authority is unavailable, or a separately
-  destructive choice (such as visibility change or local-remote rewrite) is unspecified.
+## Batch and runner pairing
 
-## Paired runner setup
+- Batch one at a time: dry-run all sources, stop on any failure, then execute sequentially. Never parallelize.
+- When explicitly paired with `$task-runner-setup`, transfer first and pass verified `Kobbokkom/<name>` plus immutable ID to runner setup; do not rediscover old origin. Keep remotes unchanged unless separately requested.
 
-When this skill and `$task-runner-setup` are explicitly invoked for the same task, treat
-them as one end-to-end request: transfer first, then configure the runner integration on
-the verified `Kobbokkom/<name>` destination. Pass the verified destination name and
-immutable repository ID to runner setup; do not rediscover the old local `origin` or ask
-the user to repeat the target. Local remotes remain unchanged unless separately requested.
+## Completion QA
 
-## Agent review and QA
-
-For an actual transfer, do not declare completion after the transfer API returns. Complete
-the post-transfer audit first. When runner setup is paired, configure it and complete its
-smoke run before review. Then spawn exactly two independent read-only reviewers:
-
-1. **State and safety reviewer:** verify destination owner/name/immutable ID, visibility,
-   and every audited GitHub setting; when runner setup is in scope, also verify trusted
-   events, self-hosted labels, permissions, concurrency/isolation, and secret handling.
-2. **Behavior reviewer:** verify the selected workflow against the repository commands;
-   when runner setup is in scope, inspect its completed destination-repository smoke run
-   and cache reuse without shared-state leakage.
-
-Treat P0–P2 findings as release-blocking: fix, re-run the relevant audit/smoke test, and
-ask the reviewer to recheck. Report the reviewer evidence and final repository URL only
-after both find no P0–P2 issue. In paired mode these are the only two final reviewers;
-the runner skill must not add duplicate passes.
-
-## Transfer one repository
-
-Run from any directory. The target organization is fixed to `Kobbokkom`.
-
-```bash
-# Preflight only. This cannot transfer or rename anything.
-scripts/transfer-repo.sh --source owner/repository
-
-# Optional target name.
-scripts/transfer-repo.sh --source owner/repository --new-name new-name
-```
-
-The script verifies GitHub authentication, source-repository admin permission,
-active organization-owner membership, target-name availability, source
-visibility, and readable audit surfaces. Package auditing requires the
-`read:packages` scope; refresh the current login when GitHub reports that it is
-missing:
-
-```bash
-gh auth refresh -h github.com -s read:packages
-```
-
-`--execute` is the explicit transfer action. When the user has requested an actual
-transfer, run the dry-run first and then execute it without asking for or constructing a
-second confirmation string:
-
-```bash
-scripts/transfer-repo.sh \
-  --source owner/repository \
-  --execute
-```
-
-The script transfers through `POST repos/{owner}/{repo}/transfer`, polls the new
-repository and verifies its immutable repository ID, then compares pre/post
-snapshots for effective Actions permissions, workflows/variables, full rulesets, Pages, packages, full
-webhook config, deploy keys, repository/environment secrets, variables, and
-environment protection/deployment policies. Treat any mismatch
-or unreadable audit as unfinished migration work; inspect it before declaring the
-migration complete.
-
-## Optional changes
-
-Preserve visibility by default. Change it only when the user explicitly requests
-that separate consequence:
-
-```bash
-scripts/transfer-repo.sh \
-  --source owner/repository \
-  --visibility private \
-  --execute
-```
-
-Do not modify local Git remotes unless explicitly in scope. To update one remote
-after successful verification, pass its name:
-
-```bash
-scripts/transfer-repo.sh \
-  --source owner/repository \
-  --execute \
-  --update-remote origin
-```
-
-## Controlled batch
-
-Keep migrations one-at-a-time. First dry-run every source and stop on any failed
-preflight. Then execute each source sequentially when the user has requested actual
-migration.
-Do not parallelize transfers: a partial batch needs a clear last-successful
-repository and an intact audit trail.
+After actual transfer (and paired runner smoke run), obtain exactly two independent read-only reviews: state/safety (destination, ID, visibility, audited settings; paired runner events/labels/permissions/concurrency/secrets) and behavior (workflow commands; paired smoke/cache isolation). P0–P2 blocks completion: fix, re-audit/smoke, and recheck. Report evidence and final URL only after both clear.
