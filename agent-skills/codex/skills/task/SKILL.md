@@ -89,6 +89,8 @@ node ~/.codex/skills/task/scripts/task-verify.mjs --base <recorded-base> \
    needed to rule them out. Give reviewers complementary perspectives suited to the change. They must provide
    requirement evidence and severity-tagged findings; do not accept zero findings while material requirements
    or failure modes remain unverified.
+   Reviewers must independently reconcile the verbatim request and later corrections with the stated acceptance
+   criteria, reporting any mismatch instead of inheriting the primary agent's interpretation.
    Fix actionable findings, then rerun affected verification and fresh review after behavior changes. Do
    not call self-review QA-clean; unavailable reviewers are a blocker. Continue while progress exists;
    report exact unresolved blocker otherwise.
