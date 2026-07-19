@@ -123,7 +123,11 @@ node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base> \
    Concurrent runners must isolate databases/schemas, service namespaces, ports, and mutable temp state.
 3. Every QA round needs two independent reviewer agents against the verbatim user request, current diff,
    and the broader affected behavior and integration surface. Never restrict reviewers to only changed
-   lines or a microtask-sized slice. They must provide requirement evidence and severity-tagged findings.
+   lines or a microtask-sized slice. Make each prompt task-specific: include all acceptance criteria and
+   corrections, plausible ways the result could appear correct while still being wrong, and the direct evidence
+   needed to rule them out. Give reviewers complementary perspectives suited to the change. They must provide
+   requirement evidence and severity-tagged findings; do not accept zero findings while material requirements
+   or failure modes remain unverified.
    Fix actionable findings, then rerun affected verification and fresh review after behavior changes. Do
    not call self-review QA-clean; unavailable reviewers are a blocker. Continue while progress exists;
    report exact unresolved blocker otherwise.
