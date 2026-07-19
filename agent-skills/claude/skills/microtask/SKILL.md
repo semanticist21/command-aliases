@@ -63,12 +63,11 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 1. Plan briefly: requested behavior, paths, risk, and verification. Read relevant docs and nearby code.
 2. Follow `task` contracts for implementation, regression tests, architecture, security, UI browser/render
    verification, queue ownership, and inspect-ledger handling. UI code inspection alone is insufficient.
-3. Run focused and project-required verification. Before landing, use parent/base reconciliation and the
-   bundled `task-verify` gate where applicable; unsupported-package output is N/A, not a substitute for
-   project gates.
-4. Every QA round needs two independent reviewers against verbatim user request and current diff. Fix all
-   actionable findings; behavior changes require fresh verification and review. No reviewer availability is
-   a blocker, not permission for self-review.
+3. Apply `task`'s coverage-matrix and single-provider verification rules without duplicate focused,
+   aggregate, or CI coverage. Use `task-verify` only for explicitly uncovered gates.
+4. Every QA round needs two independent reviewers against the verbatim request, diff, and broader affected
+   behavior/integration surface. Fix actionable findings; behavior changes require fresh affected
+   verification and review. No reviewer availability is a blocker, not permission for self-review.
 
 ## Commit, landing, output
 
