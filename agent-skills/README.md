@@ -27,7 +27,7 @@ agent-skills/
 | corp-cert-fix    |   ✓    |   ✓   | Fix corp MITM-proxy TLS errors (bun/node/pip/git/…)      |
 | corp-cert-update |   ✓    |   ✓   | Rotate expired corp MITM CA cert                         |
 | dead-code-removal|   ✓    |   ✓   | Remove unused code/deps with evidence and verification   |
-| design           |   ✓    |   ✓   | Minimal, non-duplicative, conventional UI screen rules    |
+| design           |   ✓    |   ✓   | Minimal, non-duplicative, hierarchical, well-grouped UI   |
 | doc-polish       |   ✓    |   ✓   | Consolidate/correct/compact harness docs + LLM memory   |
 | doc-setup        |   ✓    |   ✓   | Bootstrap layered agent doc architecture (AGENTS.md/doc/)|
 | grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |

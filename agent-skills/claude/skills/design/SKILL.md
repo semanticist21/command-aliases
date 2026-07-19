@@ -1,6 +1,6 @@
 ---
 name: "design"
-description: "Use when creating or modifying UI screens to keep them minimal, non-duplicative, conventional, and clearly hierarchical."
+description: "Use when creating or modifying UI screens to keep them minimal, non-duplicative, conventional, clearly hierarchical, and well-grouped."
 ---
 # Design
 
@@ -14,6 +14,11 @@ Density here means more *information* (a meta sub-line, real trailing content), 
 - One hero, one accent per unit (강약조절). The entity name or primary value is the single loudest element; exactly one action carries the accent; demote secondary actions to muted or text-link weight. When a title plus two buttons all share the same weight, that reads as "everything striking" — fix the hierarchy, don't reach for another color.
 - Drop titles that only restate context. A section title that repeats what the screen header or parent already says (e.g. "내 가구 관리" on the household screen) is dead weight — lead with the meaningful content (the entity name as the card title) instead. Reinforces the "no required eyebrow/caption" rule below.
 - Balance rows; keep the trailing slot filled. Every list row should end with a trailing element so it isn't left-crammed with a void on the right. For a current/unavailable state, show a disabled control (e.g. a greyed "사용 중" where others show "전환") rather than hiding it — alignment stays consistent and the state still reads. Make mutually-exclusive trailing actions actually exclusive (don't render both a "leave" and a disabled "current" on the same row).
+
+## Proximity
+
+- Group a label, its value, and any helper as one block; inside the group use tight gaps, across groups use a divider or a padding step. Proximity is the grouping signal — a uniform gap everywhere flattens hierarchy the same way a uniform weight does. Don't merge two logical units into one row, and don't split one unit across a surface just to fill space.
+- Keep a fact next to its action. If a row shows a value and its trailing button, keep them on the same row; don't push the action into a separate footer or section.
 
 ## Loading and verification
 
