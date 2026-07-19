@@ -1,6 +1,6 @@
 ---
 name: "microtask"
-description: "Execute a small bounded repository change directly, preserving task safety, QA, and landing rules without creating a worktree."
+description: "Execute, verify, commit, and push a small bounded repository change directly without creating a worktree."
 ---
 # Microtask
 
@@ -32,12 +32,18 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 
 ## Commit, landing, output
 
-1. After clean QA, commit explicit paths using project Conventional Commit style. Do not push unless task
-   CI/PR lane or user explicitly requires it. Follow parent task landing/cleanup; direct work must land on
-   intended base before completion.
-2. Drain eligible owned queue items oldest first. Never report done with owned queued, side-worktree, or
+1. After clean QA, stage and commit explicit paths using project Conventional Commit style. Inspect the
+   committed paths and remaining status; never include unrelated changes.
+2. Push the new commit to its configured upstream by default. Immediately before push, fetch the upstream
+   and require that the new commit is still `HEAD` and the only commit ahead of upstream; otherwise stop
+   instead of publishing unrelated commits. Skip direct push only when a parent task or CI/PR lane owns
+   landing, the user requests local-only work, or no upstream exists. Never force push; stop and report a
+   rejected or non-fast-forward push instead of rebasing, merging, or stashing unrelated work automatically.
+3. Follow parent task landing/cleanup; direct work must land on the intended base before completion.
+   Drain eligible owned queue items oldest first. Never report done with owned queued, side-worktree, or
    unmerged work; report exact blocker and remaining queue instead.
-3. Final response uses `task` Output: changed work, verification, QA counts, status, commit, and risk.
+4. Final response uses `task` Output: changed work, verification, QA counts, status, commit, push/landing,
+   and risk.
    End with one concise Korean summary sentence.
 
 ## Safety
