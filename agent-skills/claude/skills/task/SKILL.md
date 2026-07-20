@@ -90,37 +90,28 @@ node ~/.claude/skills/task/scripts/task-worktree-create.mjs <slug> \
 
 ## Verify and QA
 
-1. Before running commands, make a coverage matrix whose items include gate, package/suite, behavior,
-   environment, and snapshot. Inspect command definitions and CI jobs for overlap and subsumption, then
-   assign each item to one authoritative provider minimizing total resource cost, feedback latency, and
-   failure-localization cost. A focused command runs only when it owns an
-   item; it is not separately mandatory. If a broader provider cannot exclude an already-run subset, choose
-   one provider instead of combining both. Changed behavior needs regression coverage unless genuinely
-   untestable; explain any exception. UI work needs live browser verification or screenshot/render evidence;
-   code inspection alone is insufficient.
-2. Count exact-snapshot evidence once, regardless of whether it came from a focused command, aggregate
-   verifier, or CI. Required CI still runs when repository policy demands it, so assign its known coverage
-   before selecting local providers. Do not assume gates with different names are independent: for example,
-   lint may subsume typechecking or an aggregate script may own several gates. Use `task-verify` only for
-   explicitly selected uncovered gates after this analysis:
-   When verification/harness maintenance is in scope, simplify structurally duplicated scripts or CI;
-   otherwise report one optional improvement without creating owned side work.
+1. Run standard gates (lint, test, typecheck, build) on changed paths. Don't assume different-named gates
+   are independent: lint may subsume typechecking, an aggregate script or CI may own several gates. When a
+   broader provider already covers a gate, don't rerun a focused one. Count exact-snapshot evidence once
+   regardless of source. Reuse valid evidence; rerun only gates invalidated by code, base, deps, config,
+   environment, or coverage changes, or when reproducing a failure—elapsed time alone doesn't invalidate.
+   Required CI still runs when repository policy demands it. Changed behavior needs regression coverage
+   unless genuinely untestable; explain any exception. UI work needs live browser verification or
+   screenshot/render evidence; code inspection alone is insufficient.
+2. Use `task-verify` only for explicitly uncovered gates:
 
 ```bash
 node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base> \
   --gate <test|lint|typecheck|build> [--gate ...] [--package <relative-root>]...
 ```
 
-   Pass `--gate` and, for partial monorepo ownership, `--package` only for uncovered, non-subsumed items;
-   there is no implicit all-gates mode. Treat
-   unsupported-package/no-command output as documented N/A, not a green substitute for project gates.
-   Database soft-skips and any relevant red gate fail verification. Record reused or deferred evidence and
-   its provider and snapshot fingerprint. Dirty/untracked evidence applies only to that exact content.
-   Rerun only gates invalidated by code, base, dependency, configuration, relevant environment, or coverage
-   changes, or when reproducing a failure; elapsed time alone does not invalidate evidence.
-   Keep available runners; apply repo/workflow concurrency caps only from measured saturation, and tune
-   per-job parallelism before reducing runner count.
-   Concurrent runners must isolate databases/schemas, service namespaces, ports, and mutable temp state.
+   Pass `--gate` (and `--package` for partial monorepo ownership) only for uncovered items; there is no
+   implicit all-gates mode. Treat unsupported-package/no-command output as documented N/A, not a green
+   substitute. Database soft-skips and any relevant red gate fail verification. Keep available runners;
+   apply repo/workflow concurrency caps only from measured saturation, and tune per-job parallelism before
+   reducing runner count. Concurrent runners must isolate databases/schemas, service namespaces, ports, and
+   mutable temp state. When verification/harness maintenance is in scope, simplify structurally duplicated
+   scripts or CI; otherwise report one optional improvement without creating owned side work.
 3. Every QA round needs two independent reviewer agents against the verbatim user request, current diff,
    and the broader affected behavior and integration surface. Never restrict reviewers to only changed
    lines or a microtask-sized slice. Make each prompt task-specific: include all acceptance criteria and
