@@ -1,6 +1,6 @@
 ---
 name: analysis
-description: "Root-cause ONE unclear bug by adversarial hypothesis testing. Use for flaky failures, regressions, races, 'works locally fails in CI'. Not for: systemic codebase audits (inspect), general research questions (research), one-line stack traces, or known-cause bugs."
+description: "Root-cause ONE unclear bug by adversarial hypothesis testing. Use for flaky failures, regressions, races, 'works locally fails in CI'. Not for: systemic codebase audits (audit), general research questions (research), one-line stack traces, or known-cause bugs."
 user-invocable: true
 argument-hint: "<bug symptom + repro/context>"
 allowed-tools:
