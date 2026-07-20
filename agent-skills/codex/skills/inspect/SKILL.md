@@ -1,19 +1,23 @@
 ---
 name: "inspect"
-description: "Read-only systemic audit that finds, verifies, and ranks real problems across a codebase or feature. Not for: root-causing one known bug (analysis), general research questions (research), single-diff review, or deleting unused code (dead-code-removal)."
+description: "Investigation router and single entry point. Use when the right lens isn't obvious or you want one umbrella command. Reads the ask and dispatches to: audit (systemic codebase audit), analysis (one bug's root cause), or research (open technical question). For clear-cut cases, invoke the specific skill directly."
 ---
-# Inspect
+# Inspect (router)
 
-Run a read-only, evidence-led audit for real correctness, durability, security, design, performance, maintainability, and testability defects. Do not implement fixes or change tracked state; only write `.agent-tmp/inspect-findings.md` as the handoff ledger for `$task`/`$microtask`.
+Single entry point for investigation asks. Read the user's prompt and dispatch.
 
-## Method
+## Dispatch
 
-1. Read governing instructions, repository shape, recent relevant history/diff, tests, configuration, and feature entry points. State audit scope and exclusions.
-2. Trace the behavior end-to-end: inputs, validation, state transitions, persistence/network boundaries, errors/retries, concurrency/idempotency, authorization/secrets, observability, and user-visible outcomes. For UI, inspect actual browser/render behavior where available.
-3. Use targeted searches and tests/commands only to prove a candidate. Cross-check call sites, types/schemas, migrations, configuration, and tests; distinguish confirmed defects from risks needing context.
-4. Rank only actionable findings by severity and likelihood. Each finding needs exact path/line, concrete failure scenario, evidence, affected scope, and a minimal direction for repair. Combine duplicates under the root cause.
-5. Re-read the audit for false positives, repo constraints, and regressions already prevented by tests/guards. If no issues are confirmed, say so with coverage limits.
+1. **audit** — input names a surface (file path, module, feature, "this codebase", "what's wrong here", 점검/조사, 과잉 설계). Systemic multi-finding audit.
+2. **analysis** — input names a specific failure (error text, failing test, repro, "flaky", "regression", "why is X failing"). Single bug root cause.
+3. **research** — input asks an open question answerable from external sources ("how does", "compare", "should I use", "choose"). Cross-checked technical investigation.
 
-## Output
+If genuinely ambiguous, ask ONE clarifying question; do not pick blindly. After dispatch, the chosen skill owns the rest — do not shadow it with parallel investigation.
 
-Lead with findings ordered P0–P3; omit empty severity sections. Include evidence and a concise remediation direction, then coverage, checks run, and uninspected areas. Record uncovered scope in the ledger; never claim full correctness from static review or offer an implementation unless requested.
+## Not for
+
+- Single-diff review (code-review).
+- Deleting unused code (dead-code-removal).
+- Direct implementation (use task/microtask).
+
+Thin router; substance lives in audit/analysis/research.

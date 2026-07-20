@@ -56,7 +56,7 @@ and prohibitions. Own work until it lands, is cleanly removed, or is genuinely b
    work; drain eligible owned items oldest first. Never report done with owned queued or unmerged work.
 4. Resolve target repo and caller base branch. Caller dirty state normally does not block: preserve it
    read-only and branch from committed `HEAD`. Ask only when user requires uncommitted changes.
-5. For `inspect` findings, read caller-root `.agent-tmp/inspect-findings.md`, act only on findings user
+5. For `audit` findings, read caller-root `.agent-tmp/audit-findings.md`, act only on findings user
    selected, mark landed findings resolved after cleanup, and never stage that ledger.
 
 ## Worktree

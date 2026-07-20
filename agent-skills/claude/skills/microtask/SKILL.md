@@ -62,7 +62,7 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 
 1. Plan briefly: requested behavior, paths, risk, and verification. Read relevant docs and nearby code.
 2. Follow `task` contracts for implementation, regression tests, architecture, security, UI browser/render
-   verification, queue ownership, and inspect-ledger handling. UI code inspection alone is insufficient.
+   verification, queue ownership, and audit-ledger handling. UI code inspection alone is insufficient.
 3. Run standard gates on changed paths without duplicate focused, aggregate, or CI coverage.
    Use `task-verify` only for explicitly uncovered gates.
 4. Every QA round needs two independent reviewers against the verbatim request, diff, and broader affected

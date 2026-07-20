@@ -1,6 +1,6 @@
 ---
 name: research
-description: "Cross-checked investigation of an open technical question with sources and adversarial review. Use for design decisions, library/service choice, 'how does X work', technology comparison. Not for: root-causing one specific bug (analysis), systemic codebase audit (inspect), or single-diff review."
+description: "Cross-checked investigation of an open technical question with sources and adversarial review. Use for design decisions, library/service choice, 'how does X work', technology comparison. Not for: root-causing one specific bug (analysis), systemic codebase audit (audit), or single-diff review."
 user-invocable: true
 argument-hint: "<question + audience/version/success criteria>"
 ---
