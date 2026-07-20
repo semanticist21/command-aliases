@@ -1,6 +1,6 @@
 ---
 name: "inspect"
-description: "Read-only systemic audit that finds, verifies, and ranks real problems across a codebase or feature."
+description: "Read-only systemic audit that finds, verifies, and ranks real problems across a codebase or feature. Not for: root-causing one known bug (analysis), general research questions (research), single-diff review, or deleting unused code (dead-code-removal)."
 ---
 # Inspect
 

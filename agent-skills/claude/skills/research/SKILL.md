@@ -1,6 +1,8 @@
 ---
 name: research
-description: "Run cross-checked research with sources and adversarial review."
+description: "Cross-checked investigation of an open technical question with sources and adversarial review. Use for design decisions, library/service choice, 'how does X work', technology comparison. Not for: root-causing one specific bug (analysis), systemic codebase audit (inspect), or single-diff review."
+user-invocable: true
+argument-hint: "<question + audience/version/success criteria>"
 ---
 # Research
 
@@ -26,9 +28,8 @@ Gather from independent angles in parallel — never a single source:
   specs) over blog summaries.
 - **External tools/MCP**: pull live data when a connected source is authoritative.
 
-Each angle is blind to the others by design. For heavy topics, run a `Workflow`
-fan-out (multi-modal sweep → adversarial verify → synthesize) — see
-`/deep-research` for the canonical harness; this skill is the lighter inline path.
+Each angle is blind to the others by design. For heavy topics, run a fan-out (multi-modal
+sweep → adversarial verify → synthesize); this skill is the lighter inline path.
 
 ## Cross-check (confidence)
 

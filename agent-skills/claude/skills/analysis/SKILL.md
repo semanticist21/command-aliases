@@ -1,6 +1,34 @@
 ---
 name: analysis
-description: "Root-cause unclear bugs, flaky failures, regressions, or why-failing asks."
+description: "Root-cause ONE unclear bug by adversarial hypothesis testing. Use for flaky failures, regressions, races, 'works locally fails in CI'. Not for: systemic codebase audits (inspect), general research questions (research), one-line stack traces, or known-cause bugs."
+user-invocable: true
+argument-hint: "<bug symptom + repro/context>"
+allowed-tools:
+  - Read
+  - Grep
+  - Glob
+  - Bash(git rev-parse*)
+  - Bash(git -C*)
+  - Bash(git status*)
+  - Bash(git diff*)
+  - Bash(git log*)
+  - Bash(git blame*)
+  - Bash(git grep*)
+  - Bash(git ls-files*)
+  - Bash(node*)
+  - Bash(npm*)
+  - Bash(bun*)
+  - Bash(pnpm*)
+  - Bash(yarn*)
+  - Bash(make*)
+  - Bash(cargo*)
+  - Bash(python*)
+  - Bash(pytest*)
+  - Bash(uv*)
+  - Bash(ruff*)
+  - Bash(go*)
+  - Bash(flutter*)
+  - Task
 ---
 # Root Cause Hunt
 
@@ -32,9 +60,10 @@ Write down, in one place, before any investigation:
 If repro or error text is missing, ask the user for it now. Do not investigate blind.
 
 ### 2. Fan out investigators (parallel subagents)
-Spawn 3–5 **independent** read-only investigator agents in ONE message (concurrent).
-Each gets the locked symptom + ONE distinct angle. Tell each: *return ranked
-hypotheses with file:line evidence, no fixes yet.* Angles to assign:
+Spawn **independent** read-only investigator agents in ONE message (concurrent).
+2 agents for normal bugs; 3–5 only for genuinely hard cases (multi-system regressions,
+prod-only, races with weak initial signal). Each gets the locked symptom + ONE distinct
+angle. Tell each: *return ranked hypotheses with file:line evidence, no fixes yet.* Angles to assign:
 
 - **Data-flow trace** — follow the bad value backward from the failure point to its source.
 - **Recent-change** — `git log`/`git blame` the failing region; what diff correlates with the symptom onset?
@@ -44,7 +73,8 @@ hypotheses with file:line evidence, no fixes yet.* Angles to assign:
 - **External/integration boundary** — third-party API contract change, network, DB/driver behavior, version skew across a service boundary (distinct from local config).
 
 Pick the angles that fit the bug; drop irrelevant ones. Each investigator works blind to
-the others — diversity is the point.
+the others — diversity is the point. (If your platform lacks parallel subagents, run the
+angles sequentially but keep each pass independent — don't let one bias the next.)
 
 ### 3. Collate + dedup hypotheses
 Merge all returned hypotheses into one ranked list. Dedup by (file, mechanism). For each:
@@ -67,6 +97,9 @@ Run skeptics concurrently. A hypothesis survives only if the skeptic ran a real 
 and still failed to refute it (a lazy "looks fine" is not survival).
 For the top candidate, demand a **causal chain**: every link from root cause → observed
 symptom must be backed by code, not hand-waving. A gap in the chain = not proven.
+**Stop rule:** if every surviving hypothesis is refuted after one full pass, do not loop
+again — report "no proven cause" with the strongest unverified candidate and what evidence
+would settle it. Forcing a verdict on exhausted hypotheses is worse than reporting uncertainty.
 
 ### 5. Confirm by prediction
 The real cause makes *testable predictions*. Before declaring victory, state one:
