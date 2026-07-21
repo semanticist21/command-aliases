@@ -38,7 +38,7 @@ agent-skills/
 | org-kobbokkom-repo-migration | ✓ | ✓ | Transfer GitHub repos safely into Kobbokkom             |
 | pkg-manager      |   ✓    |   ✓   | Safely update minor versions or upgrade majors with migration handling |
 | research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
-| react-flutter-port | ✓ | ✓   | Port React UI to Flutter with visual parity              |
+
 | rust-server-architecture | ✓ | ✓ | Shape Rust backend servers with feature-first architecture |
 | skill-sync       |   ✓    |   ✓   | Add/update/sync/compact user or project skills             |
 | task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
@@ -55,7 +55,7 @@ agent-skills/
 | harness-setup    |   ✓    |   ✓   | Install agent handoff harness (test/doc guards) in a repo |
 | humanize-korean  |   ✓    |       | Natural-writing alias for Korean AI-text cleanup          |
 | humanizer        |   ✓    |       | Natural-writing alias for humanize/less-AI cleanup        |
-| impeccable       |        |   ✓   | Design, audit, or polish frontend UI                      |
+
 | memo             |   ✓    |   ✓   | Save the user's memo argument as a durable note           |
 | natural-writing  |        |   ✓   | Rewrite text to natural, human-sounding prose             |
 | svg-logo-designer|   ✓    |       | SVG-craft alias for logos and brand marks                 |
