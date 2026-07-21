@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Generate or edit images via the OpenAI image API (gpt-image-1).
 
-Stdlib only. Reads the key from $OPENAI_API_KEY, else from a key file
-(default ~/.private_keys/openai.md) by grabbing the first sk-... token.
+Stdlib only. Reads the key from $OPENAI_API_KEY, else from the file named by
+$OPENAI_KEY_FILE by grabbing the first sk-... token.
 
 Examples:
   openai_image.py "a red fox in snow" -o fox.png
@@ -23,14 +23,14 @@ import uuid
 
 GEN_URL = "https://api.openai.com/v1/images/generations"
 EDIT_URL = "https://api.openai.com/v1/images/edits"
-DEFAULT_KEY_FILE = os.path.expanduser("~/.private_keys/openai.md")
-
-
 def load_key():
+    # Load an API key from the environment or an explicitly selected file.
     key = os.environ.get("OPENAI_API_KEY")
     if key:
         return key.strip()
-    path = os.environ.get("OPENAI_KEY_FILE", DEFAULT_KEY_FILE)
+    path = os.environ.get("OPENAI_KEY_FILE")
+    if not path:
+        sys.exit("error: no API key. Set OPENAI_API_KEY or OPENAI_KEY_FILE")
     try:
         with open(path, encoding="utf-8") as fh:
             m = re.search(r"sk-[A-Za-z0-9_-]+", fh.read())
@@ -38,7 +38,7 @@ def load_key():
                 return m.group(0)
     except OSError:
         pass
-    sys.exit("error: no API key. Set OPENAI_API_KEY or put it in " + path)
+    sys.exit("error: no API key. Set OPENAI_API_KEY or OPENAI_KEY_FILE")
 
 
 def post_json(url, key, payload):

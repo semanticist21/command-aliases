@@ -3,6 +3,6 @@ short_description: Generate or edit images via the OpenAI image API (gpt-image-1
 default_prompt: >-
   Generate or edit an image with the OpenAI image API using
   scripts/openai_image.py. Build a clear prompt, run the script (reads
-  OPENAI_API_KEY from env or ~/.private_keys/openai.md), save a PNG, then show it.
+  OPENAI_API_KEY from env or the file named by OPENAI_KEY_FILE, save a PNG, then show it.
 policy:
   allow_implicit_invocation: true

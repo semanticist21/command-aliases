@@ -58,7 +58,7 @@ Treat `/task` or `$task` argument as concrete goal. Preserve user scope, accepta
 For any repo write or implementation plan, create one prepared worktree before detailed inspection:
 
 ```bash
-node ~/.claude/skills/task/scripts/task-worktree-create.mjs <slug> \
+node ~/.codex/skills/task/scripts/task-worktree-create.mjs <slug> \
   --id <unique-id> --repo <repo-root> --summary "<task summary>"
 ```
 
@@ -80,7 +80,7 @@ node ~/.claude/skills/task/scripts/task-worktree-create.mjs <slug> \
 2. `task-verify` only for explicitly uncovered gates:
 
 ```bash
-node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base> \
+node ~/.codex/skills/task/scripts/task-verify.mjs --base <recorded-base> \
   --gate <test|lint|typecheck|build> [--gate ...] [--package <relative-root>]...
 ```
 
@@ -98,7 +98,7 @@ node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base> \
 4. Without CI, run from caller base checkout; journals and squashes task paths. Never replace with manual reset/commit. Then confirm landed commit on recorded base:
 
 ```bash
-node ~/.claude/skills/task/scripts/task-finalize.mjs --repo <caller-root> --base <base> \
+node ~/.codex/skills/task/scripts/task-finalize.mjs --repo <caller-root> --base <base> \
   --branch <task-branch> --worktree <task-worktree> --slug <slug> --head <task-head>
 ```
 
