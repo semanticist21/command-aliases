@@ -25,6 +25,7 @@ is the *how-to-operate* contract; the README is the *what's-here* reference.
 - **Never auto-publish these** (kept user-scope only, do NOT add to the repo even if
   told to "sync everything" — confirm with the user if they explicitly want them):
   - `ktbase-push` — contains KT-internal registry IPs/hostnames.
+  - `corp-cert` — corp MITM-proxy TLS fix/rotation; proxy-specific CA names and paths kept local.
   - Codex `.system/*` (skill-creator, plugin-creator, skill-installer) — Codex
     built-ins, regenerated on install.
   - Codex `chronicle` — Codex-shipped screen-view built-in. Empty `codex-primary-runtime`.

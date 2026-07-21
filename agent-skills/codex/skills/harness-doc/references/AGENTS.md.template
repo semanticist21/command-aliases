@@ -1,0 +1,23 @@
+# Folder-local AGENTS.md template
+
+Copy this to a source folder that has non-obvious constraints. Keep 10-30 lines total. Delete sections that have no content; do not leave empty headers.
+
+```markdown
+## Purpose
+
+1-2 lines describing what this folder owns. No background, no "because".
+
+## Notes
+
+- Gotcha that bites agents.
+- Constraint needing explanation.
+- Decision not obvious from diff.
+- Self-correction after human/build feedback.
+```
+
+Rules:
+- No dates (git has them).
+- No routine edits (obvious from diff).
+- No redundancy with code, comments, or parent docs.
+- Only durable facts not obvious from reading the code.
+- 10-30 lines total. If you cannot stay under 30, the folder is doing too much; split it.

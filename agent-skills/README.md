@@ -21,48 +21,32 @@ agent-skills/
 
 | Skill            | claude | codex | What it does                                              |
 |------------------|:------:|:-----:|----------------------------------------------------------|
-| commit           |   ✓    |   ✓   | Stage + commit as clean Conventional Commits             |
+| agent-review     |   ✓    |   ✓   | Review this session's work via delegated subagent loop    |
+| analysis         |   ✓    |   ✓   | Parallel adversarial root-cause bug investigation          |
+| audit            |   ✓    |   ✓   | Read-only systemic-risk audit; lists findings to fix      |
+| commit           |   ✓    |   ✓   | Stage + commit as clean Conventional Commits              |
 | commit-isolate   |   ✓    |   ✓   | Split a messy tree into isolated atomic commits          |
-| coding-rule      |   ✓    |   ✓   | Minimal, contextual, idiomatic code-writing rules         |
-| corp-cert-fix    |   ✓    |   ✓   | Fix corp MITM-proxy TLS errors (bun/node/pip/git/…)      |
-| corp-cert-update |   ✓    |   ✓   | Rotate expired corp MITM CA cert                         |
-| dead-code-removal|   ✓    |   ✓   | Remove unused code/deps with evidence and verification   |
-| design           |   ✓    |   ✓   | Minimal, non-duplicative, hierarchical, well-grouped UI   |
-| doc-polish       |   ✓    |   ✓   | Polish repo/user harness docs + referenced LLM memory   |
-| doc-setup        |   ✓    |   ✓   | Bootstrap layered agent doc architecture (AGENTS.md/doc/)|
-| grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time  |
-| merge            |   ✓    |   ✓   | Merge current branch into target with a real merge commit|
-| merge-squash     |   ✓    |   ✓   | Squash-merge current branch into target                  |
-| microtask        |   ✓    |   ✓   | Queue into active task work, else base-branch dev loop   |
-| openai-image     |   ✓    |   ✓   | Generate/edit images via OpenAI gpt-image-1 API          |
+| dead-code-removal|   ✓    |   ✓   | Remove unused code/deps with evidence and verification    |
+| design           |   ✓    |   ✓   | Minimal, non-duplicative, hierarchical, well-grouped UI    |
+| figma-lookup     |   ✓    |   ✓   | Index Figma storyboard screens + planning nodes           |
+| git-push         |   ✓    |       | Commit + push current changes to upstream                 |
+| grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time   |
+| harness-doc      |   ✓    |   ✓   | Manage project agent harness docs (add/update/polish/setup/audit) |
+| inspect          |   ✓    |   ✓   | Investigation router: dispatches to audit/analysis/research |
+| memo             |   ✓    |   ✓   | Save durable user/project notes; auto-routes scope        |
+| microtask        |   ✓    |   ✓   | Queue into active task work, else base-branch dev loop    |
+| natural-writing  |   ✓    |   ✓   | Rewrite text to natural prose; Korean AI-tell cleanup     |
+| openai-image     |   ✓    |   ✓   | Generate/edit images via OpenAI gpt-image-1 API           |
 | org-kobbokkom-repo-migration | ✓ | ✓ | Transfer GitHub repos safely into Kobbokkom             |
 | pkg-manager      |   ✓    |   ✓   | Safely update minor versions or upgrade majors with migration handling |
-| research         |   ✓    |   ✓   | Cross-checked multi-source research/review               |
-
-| rust-server-architecture | ✓ | ✓ | Shape Rust backend servers with feature-first architecture |
+| research         |   ✓    |   ✓   | Cross-checked multi-source research/review                |
 | skill-sync       |   ✓    |   ✓   | Add/update/sync/compact user or project skills             |
-| task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)      |
-| task-run-ssh     |   ✓    |   ✓   | Run exact-commit heavy jobs in remote SSH worktrees       |
-| task-runner-setup|   ✓    |   ✓   | Configure OrbStack runners with bounded external caches   |
-| text-to-lottie   |        |   ✓   | Create/edit Lottie JSON animations with Skottie verification |
-| update-agents-md |   ✓    |   ✓   | Audit and compact AGENTS.md files across a repo           |
-| update-doc       |   ✓    |   ✓   | Update project docs to match code, per its doc harness    |
-| figma-lookup     |        |   ✓   | Index Figma storyboard screens + planning nodes           |
-| agent-review     |   ✓    |   ✓   | Review this session's work via delegated subagent loop    |
-| analysis         |   ✓    |   ✓   | Parallel adversarial root-cause bug investigation         |
-| audit            |   ✓    |   ✓   | Read-only systemic-risk audit (incl. structural inefficiency); lists findings to fix |
-| inspect          |   ✓    |   ✓   | Investigation router: dispatches to audit/analysis/research |
-| harness-setup    |   ✓    |   ✓   | Install agent handoff harness (test/doc guards) in a repo |
-| humanize-korean  |   ✓    |       | Natural-writing alias for Korean AI-text cleanup          |
-| humanizer        |   ✓    |       | Natural-writing alias for humanize/less-AI cleanup        |
+| task             |   ✓    |   ✓   | End-to-end dev task workflow (plan → implement → QA)       |
+| task-runner-setup|   ✓    |   ✓   | Configure OrbStack runners with bounded external caches    |
 
-| memo             |   ✓    |   ✓   | Save the user's memo argument as a durable note           |
-| natural-writing  |        |   ✓   | Rewrite text to natural, human-sounding prose             |
-| svg-logo-designer|   ✓    |       | SVG-craft alias for logos and brand marks                 |
-| svg-craft        |   ✓    |   ✓   | Author/edit/optimize hand-written SVG graphics            |
-
-> **Not included:** `ktbase-push` — references KT-internal registry IPs/hosts;
-> kept user-scope only, intentionally not published here.
+> **Not included in the repo (kept user-scope only):**
+> - `ktbase-push` — references KT-internal registry IPs/hosts.
+> - `corp-cert` — corp MITM-proxy TLS fix/rotation; local-only to keep proxy-specific details off the public mirror.
 
 ## Install
 
