@@ -45,6 +45,7 @@ Density here means more *information* (a meta sub-line, real trailing content), 
 - Keep decoration minimal. Avoid decorative badges, large icon backdrops, arbitrary accent colors, and non-essential graphics.
 - Keep typography uniform within a group. Emphasize only the core value or next action/date.
 - Compress layout height. Use tight rows, modest padding, dividers, and no required eyebrow/caption when parent context already says it.
+- Size each component to its content. A control (chip, badge, select, button, input) takes only the width and height its content needs — do not stretch it to fill the row or a `flex-1`/`w-full` track unless full-bleed is the intent. A short filter select ballooned to half the row, or a chip padded far past its label, reads as unfinished. Group content-width controls with `gap` at their natural size; reserve full width for genuine full-bleed fields (a primary search input, a form text field).
 - Keep interaction direct and conventional. Prefer one tap for the expected action; avoid extra modals or confirmation steps except destructive or undo-like actions.
 - Use one active/check color across items. Do not assign different status colors unless the meaning is real and user-facing.
 - Unify chip/badge shapes; differentiate by role, not by ad-hoc styling: a structural tag (outline) vs a live-status tag (soft fill), same size and radius.

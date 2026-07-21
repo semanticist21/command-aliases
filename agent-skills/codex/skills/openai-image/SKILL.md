@@ -14,7 +14,7 @@ script. The script is stdlib-only Python — no pip installs.
 ## Key handling
 
 - The script reads `$OPENAI_API_KEY` first, then falls back to the first `sk-...`
-  token in `~/.private_keys/openai.md` (override with `$OPENAI_KEY_FILE`).
+  token in the file named by `$OPENAI_KEY_FILE`.
 - Never hardcode or echo the key. Never paste it into a command line.
 
 ## Run
