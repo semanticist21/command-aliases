@@ -1,4 +1,0 @@
-interface:
-  display_name: "Project Doc Refresh"
-  short_description: "Sync docs with current repo state"
-  default_prompt: "Use $project-doc-refresh to update the project docs against the current repository structure."

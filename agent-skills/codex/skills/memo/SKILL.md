@@ -1,16 +1,32 @@
 ---
 name: "memo"
-description: "Save durable user notes when asked to memo, remember, or persist preferences."
+description: "Save durable user or project notes when the user asks to memo, remember, or persist a preference — OR auto-call when the user states a durable fact, convention, gotcha, or correction mid-conversation that future agents should see. Auto-routes scope (user/project) by content."
 user-invocable: true
 argument-hint: "<note to persist>"
-metadata:
-  short-description: Save durable notes from a memo argument
+allowed-tools:
+  - Read
+  - Write
+  - Edit
+  - MultiEdit
+  - Grep
+  - Glob
+  - Bash(date*)
+  - Bash(pwd*)
+  - Bash(git rev-parse*)
+  - Bash(mkdir*)
+  - Bash(test*)
 ---
 # Memo
 
-Save the memo argument the user provided. Treat the argument as the source of truth:
-preserve exact paths, identifiers, commands, and constraints. Rephrase only enough to
-make the stored note compact and useful.
+Save a durable note the user provided or stated mid-conversation. Auto-call when the user voices a convention, gotcha, correction, ownership boundary, or setup quirk that future agents should see — even if they did not say "memo". Treat the note as the source of truth: preserve exact paths, identifiers, commands, and constraints. Rephrase only enough to make the stored note compact and useful.
+
+## Scope auto-routing
+
+Decide scope from the note's content, not from the user's phrasing:
+
+- **Project scope** — when the note references the current repo's paths, files, commands, ownership, conventions, or gotchas. Route into the repo's harness (see "Target selection").
+- **User scope** — when the note is a personal workflow preference, cross-project quirk, machine-level setup fact, or credential pointer. Route into `~/.agents/doc/` (see "Target selection" step 4).
+- **Ambiguous** — if the note could be either, prefer project scope; a project doc is easier for the next agent in that repo to find. Mention the ambiguity to the user.
 
 ## Target selection
 
