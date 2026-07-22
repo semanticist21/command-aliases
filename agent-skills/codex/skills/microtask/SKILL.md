@@ -17,18 +17,27 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 3. Direct work may be dirty: preserve unrelated files, stage explicit changed paths only, and never stash,
    reset, move, or overwrite user changes. Stop on unfinished git operation or ambiguous overlapping edits.
 4. If task is not genuinely small/bounded, queued work needs isolation, or user asks for a plan, hand off
-   to `task` rather than expanding microtask scope.
+   to `task` rather than expanding microtask scope. If the correct fix lives in a different layer than the
+   symptom (e.g., backend/DB/schema/migration/API-contract change while the symptom surfaces on the
+   frontend), hand off to `task` instead of patching the symptom layer — do not monkey-patch the nearer
+   layer to keep the change small.
 
 ## Work
 
-1. Plan briefly: requested behavior, paths, risk, and verification. Read relevant docs and nearby code.
+1. Plan briefly: requested behavior, owning layer/root cause, paths, risk, and verification. Read relevant docs and nearby code.
+   The user usually states a symptom, not the fix location: locate the layer that owns the cause (frontend / backend
+   service / DB schema / migration / API contract / config) and fix there. Do not patch the symptom layer to avoid a
+   backend/DB change.
 2. Follow `task` contracts for implementation, regression tests, architecture, security, UI browser/render
    verification, queue ownership, and audit-ledger handling. UI code inspection alone is insufficient.
 3. Run standard gates on changed paths without duplicate focused, aggregate, or CI coverage.
    Use `task-verify` only for explicitly uncovered gates.
 4. Every QA round needs two independent reviewers against the verbatim request, diff, and broader affected
-   behavior/integration surface. Fix actionable findings; behavior changes require fresh affected
-   verification and review. No reviewer availability is a blocker, not permission for self-review.
+   behavior/integration surface. Each reviewer must answer whether the fix is in the layer that owns the cause or a
+   symptom-layer monkey-patch (frontend guard/formatting masking a backend/DB/schema/contract defect), and cite the
+   owning-layer code that justifies the location — flag a wrong-layer fix even when visible criteria pass. Fix
+   actionable findings; behavior changes require fresh affected verification and review. No reviewer availability is
+   a blocker, not permission for self-review.
 
 ## Commit, landing, output
 
