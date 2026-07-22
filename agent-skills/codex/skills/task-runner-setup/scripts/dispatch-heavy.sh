@@ -154,7 +154,11 @@ case "$via" in
     [ -z "$snap_name" ] && snap_name="$(basename "$src")"
     dest="$ssh_root/$snap_name"
     # Never send VCS metadata or bulky build output; deps live on the remote.
+    # Exclude our own ownership marker so --delete never wipes it (it is not in
+    # the source tree, so without this the marker vanishes on the first sync and
+    # the guard below refuses every subsequent run).
     rsync_opts=(-az --delete
+      --exclude '.dispatch-heavy-snapshot'
       --exclude '.git' --exclude 'node_modules' --exclude 'target'
       --exclude 'build' --exclude 'dist' --exclude '.venv' --exclude 'Pods')
     for e in "${excludes[@]:-}"; do [ -n "$e" ] && rsync_opts+=(--exclude "$e"); done
