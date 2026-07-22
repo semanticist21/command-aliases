@@ -18,6 +18,7 @@ Configure the existing Kobbokkom OrbStack Linux ARM64 self-hosted GitHub Actions
 2. Add the smallest workflow change: explicit `runs-on` self-hosted labels, least privileges, bounded `workflow_dispatch` inputs, concurrency/isolation, timeouts, and safe checkout. Do not interpolate untrusted input into shell.
 3. Use external-disk caches only with deterministic keys, restore keys scoped to OS/arch/toolchain/lockfile, and no secrets or mutable worktree state. Isolate each job/worktree; do not share databases, build dirs, or credentials across runs.
 4. Preserve normal CI, project verification, branch protections, and secret boundaries. Never print environment/secrets or use broad write tokens.
+5. Add a local dispatch script so heavy work is one command from a local checkout. Adapt `scripts/dispatch-heavy.sh`: `--via actions` pushes the current branch and dispatches the `workflow_dispatch` workflow; `--via ssh` rsyncs a clean snapshot to the SSH lane and runs a command there without commit/push/queue. Read host/root/workflow from the environment or a git-ignored `.dispatch-heavy.env`; never commit private hosts, paths, or credentials. Verify both routes with `--dry-run`.
 
 ## Verify and finish
 
