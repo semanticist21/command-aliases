@@ -20,8 +20,10 @@ set -euo pipefail
 #   TASK_RUN_SSH_HOST    ssh alias/host for the ssh route
 #   TASK_RUN_SSH_ROOT    remote base dir under which snapshots are placed
 #
-# A repo can drop a `.dispatch-heavy.env` beside this script (git-ignored) to set
-# per-repo defaults for DISPATCH_WORKFLOW / remote command / rsync excludes.
+# A repo can drop a `.dispatch-heavy.env` beside this script to set non-private
+# defaults (DISPATCH_WORKFLOW, rsync excludes). It is sourced first; already-set
+# shell env and flags override it. This file is COMMITTED — put only non-private
+# values in it. Private hosts/paths/creds belong in your shell env, never here.
 #
 # Usage:
 #   dispatch-heavy.sh [--via actions|ssh] [options] [-- REMOTE_CMD...]
@@ -31,6 +33,7 @@ set -euo pipefail
 #   --ref BRANCH             actions: git ref to run (default: current branch)
 #   -f, --field K=V          actions: workflow_dispatch input (repeatable)
 #   --no-push                actions: do not push before dispatching
+#   --allow-main             actions: permit pushing main/master (off by default)
 #   --no-watch               actions: dispatch and return, do not stream the run
 #   --host HOST              ssh: target host/alias (default: $TASK_RUN_SSH_HOST)
 #   --root DIR               ssh: remote base dir (default: $TASK_RUN_SSH_ROOT)
@@ -58,6 +61,7 @@ via=actions
 workflow="${DISPATCH_WORKFLOW:-}"
 ref=''
 no_push=0
+allow_main=0
 no_watch=0
 ssh_host="${TASK_RUN_SSH_HOST:-}"
 ssh_root="${TASK_RUN_SSH_ROOT:-}"
@@ -74,6 +78,7 @@ while [ $# -gt 0 ]; do
     --ref) ref="${2:?}"; shift 2 ;;
     -f|--field) fields+=("${2:?}"); shift 2 ;;
     --no-push) no_push=1; shift ;;
+    --allow-main) allow_main=1; shift ;;
     --no-watch) no_watch=1; shift ;;
     --host) ssh_host="${2:?}"; shift 2 ;;
     --root) ssh_root="${2:?}"; shift 2 ;;
@@ -81,13 +86,21 @@ while [ $# -gt 0 ]; do
     --exclude) excludes+=("${2:?}"); shift 2 ;;
     --cmd) remote_cmd="${2:?}"; shift 2 ;;
     --dry-run) dry_run=1; shift ;;
-    -h|--help) sed -n '4,60p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
-    --) shift; remote_cmd="$*"; break ;;
+    -h|--help) sed -n '4,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --) shift; [ $# -gt 0 ] && remote_cmd="$(printf '%q ' "$@")"; break ;;
     *) die "unknown argument: $1 (see --help)" ;;
   esac
 done
 
-run() { if [ "$dry_run" = 1 ]; then printf '+ %s\n' "$*"; else eval "$@"; fi; }
+# Execute an argv directly (no eval → no word-splitting/injection). Under
+# --dry-run, print the shell-quoted command instead of running it.
+run() {
+  if [ "$dry_run" = 1 ]; then
+    printf '+'; printf ' %q' "$@"; printf '\n'
+  else
+    "$@"
+  fi
+}
 
 case "$via" in
   actions)
@@ -96,18 +109,35 @@ case "$via" in
     [ -z "$ref" ] && ref="$(git rev-parse --abbrev-ref HEAD)"
     [ "$ref" != HEAD ] || die "detached HEAD; pass --ref explicitly"
     if [ "$no_push" = 0 ]; then
-      run "git push origin $(printf %q "$ref")"
+      case "$ref" in
+        main|master) [ "$allow_main" = 1 ] || die "refusing to push protected branch '$ref'; use a feature branch, --no-push, or --allow-main" ;;
+      esac
+      run git push origin "$ref"
+    fi
+    # Baseline the newest existing dispatch run so we can tell the new one apart
+    # (a git push above may itself trigger a pull_request run — never watch that).
+    before_id=0
+    if [ "$no_watch" = 0 ] && [ "$dry_run" = 0 ]; then
+      before_id="$(gh run list --workflow "$workflow" --event workflow_dispatch --limit 1 \
+        --json databaseId --jq '.[0].databaseId // 0' 2>/dev/null || echo 0)"
     fi
     dispatch=(gh workflow run "$workflow" --ref "$ref")
     for f in "${fields[@]:-}"; do [ -n "$f" ] && dispatch+=(-f "$f"); done
-    run "$(printf '%q ' "${dispatch[@]}")"
-    [ "$dry_run" = 1 ] && exit 0
-    if [ "$no_watch" = 0 ]; then
-      # Give GitHub a moment to register the run, then follow the newest one.
-      run_id="$(gh run list --workflow "$workflow" --branch "$ref" --limit 1 --json databaseId --jq '.[0].databaseId' 2>/dev/null || true)"
-      [ -n "$run_id" ] && exec gh run watch "$run_id" --exit-status
-      exec gh run watch --exit-status
-    fi
+    run "${dispatch[@]}"
+    { [ "$dry_run" = 1 ] || [ "$no_watch" = 1 ]; } && exit 0
+    # Poll for a NEW workflow_dispatch run (id != baseline), then follow it.
+    run_id=''
+    tries=0
+    while [ "$tries" -lt 15 ]; do
+      sleep 2
+      run_id="$(gh run list --workflow "$workflow" --event workflow_dispatch --limit 1 \
+        --json databaseId --jq '.[0].databaseId // empty' 2>/dev/null || true)"
+      [ -n "$run_id" ] && [ "$run_id" != "$before_id" ] && break
+      run_id=''
+      tries=$((tries + 1))
+    done
+    [ -n "$run_id" ] || die "dispatched, but no new run appeared in ~30s; check: gh run list --workflow $workflow"
+    exec gh run watch "$run_id" --exit-status
     ;;
   ssh)
     need rsync; need ssh
@@ -123,8 +153,20 @@ case "$via" in
       --exclude 'build' --exclude 'dist' --exclude '.venv' --exclude 'Pods')
     for e in "${excludes[@]:-}"; do [ -n "$e" ] && rsync_opts+=(--exclude "$e"); done
     ssh_opts=(-o BatchMode=yes -o ConnectTimeout=10)
-    run "rsync ${rsync_opts[*]} -e $(printf %q "ssh ${ssh_opts[*]}") $(printf %q "$src/") $(printf %q "$ssh_host:$dest/")"
-    run "ssh ${ssh_opts[*]} $(printf %q "$ssh_host") $(printf %q "cd $dest && $remote_cmd")"
+    # Guard --delete: only sync into a dir we own — new, empty, or a prior snapshot
+    # (marked). Refuse an occupied dir so a --root/--name typo can't wipe real data.
+    if [ "$dry_run" = 0 ]; then
+      remote_check="$(printf 'd=%q; if [ ! -e "$d" ]; then echo new; elif [ -e "$d/.dispatch-heavy-snapshot" ]; then echo snap; elif [ -z "$(ls -A "$d" 2>/dev/null)" ]; then echo empty; else echo occupied; fi' "$dest")"
+      state="$(ssh "${ssh_opts[@]}" "$ssh_host" "$remote_check" 2>/dev/null || echo unreachable)"
+      case "$state" in
+        new|snap|empty) : ;;
+        occupied) die "remote $ssh_host:$dest is non-empty and unmarked; refusing --delete. Use a fresh --name/--root." ;;
+        *) die "cannot reach $ssh_host or stat $dest" ;;
+      esac
+      ssh "${ssh_opts[@]}" "$ssh_host" "mkdir -p $(printf %q "$dest") && touch $(printf %q "$dest/.dispatch-heavy-snapshot")"
+    fi
+    run rsync "${rsync_opts[@]}" -e "ssh ${ssh_opts[*]}" "$src/" "$ssh_host:$dest/"
+    run ssh "${ssh_opts[@]}" "$ssh_host" "cd $(printf %q "$dest") && $remote_cmd"
     ;;
   *) die "unknown --via: $via (actions|ssh)" ;;
 esac
