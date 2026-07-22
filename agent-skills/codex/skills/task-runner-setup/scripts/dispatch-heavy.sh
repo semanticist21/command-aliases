@@ -39,14 +39,20 @@ set -euo pipefail
 #   --root DIR               ssh: remote base dir (default: $TASK_RUN_SSH_ROOT)
 #   --name NAME              ssh: snapshot dir name (default: repo basename)
 #   --exclude PATTERN        ssh: extra rsync exclude (repeatable)
-#   --cmd "CMD"              ssh: remote command (or pass after `--`)
+#   --cmd "CMD"              ssh: remote command as ONE shell string; use this for
+#                            anything with shell operators (&& | > redirects, etc.)
 #   --dry-run                print what would run, mutate nothing
 #   -h, --help               this help
+#
+# ssh command forms:
+#   --cmd "cd server && cargo test"   one shell string, operators interpreted remotely
+#   -- make verify                    argv form: word boundaries preserved, NO operators
+#   (`-- 'a && b'` would send `a && b` as one literal command — use --cmd for operators)
 #
 # Examples:
 #   dispatch-heavy.sh                              # push branch + run heavy.yml, watch
 #   dispatch-heavy.sh --via actions -f level=full  # with a workflow input
-#   dispatch-heavy.sh --via ssh -- make verify     # snapshot + run remotely, no push
+#   dispatch-heavy.sh --via ssh --cmd 'make verify' # snapshot + run remotely, no push
 
 die() { printf 'dispatch-heavy: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "missing command: $1"; }
@@ -86,7 +92,7 @@ while [ $# -gt 0 ]; do
     --exclude) excludes+=("${2:?}"); shift 2 ;;
     --cmd) remote_cmd="${2:?}"; shift 2 ;;
     --dry-run) dry_run=1; shift ;;
-    -h|--help) sed -n '4,52p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '4,55p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     --) shift; [ $# -gt 0 ] && remote_cmd="$(printf '%q ' "$@")"; break ;;
     *) die "unknown argument: $1 (see --help)" ;;
   esac
