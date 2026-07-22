@@ -48,6 +48,12 @@ set -euo pipefail
 die() { printf 'dispatch-heavy: %s\n' "$*" >&2; exit 1; }
 need() { command -v "$1" >/dev/null 2>&1 || die "missing command: $1"; }
 
+# Repo-local defaults, if present next to the script. Source it FIRST so a
+# `: "${DISPATCH_WORKFLOW:=heavy.yml}"` line sets a default; already-exported
+# shell env and command-line flags still override it below.
+script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+[ -f "$script_dir/.dispatch-heavy.env" ] && . "$script_dir/.dispatch-heavy.env"
+
 via=actions
 workflow="${DISPATCH_WORKFLOW:-}"
 ref=''
@@ -60,10 +66,6 @@ remote_cmd=''
 dry_run=0
 declare -a fields=()
 declare -a excludes=()
-
-# Repo-local defaults, if present next to the script.
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-[ -f "$script_dir/.dispatch-heavy.env" ] && . "$script_dir/.dispatch-heavy.env"
 
 while [ $# -gt 0 ]; do
   case "$1" in
