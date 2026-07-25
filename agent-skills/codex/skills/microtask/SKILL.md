@@ -25,8 +25,10 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 1. Read nearest instructions, git status/operation, active goal, and owned queue. Reuse matching goal;
    unrelated active goal is a conflict. Codex creates a goal before planning and uses `update_goal` only
    for terminal `complete`/`blocked` states.
-2. Work in active parent `task` worktree and branch when one exists; otherwise current base branch.
-   Never create a worktree or task branch. Do not touch unowned worktrees, queues, or branches.
+2. Work in active parent `task` worktree and branch when one exists; otherwise use the current base only
+   when it is a non-protected branch that permits direct microtask work. Never create a worktree or task
+   branch here. If the only available checkout is a protected/default branch, hand off to `task` instead of
+   committing or pushing there. Do not touch unowned worktrees, queues, or branches.
 3. Direct work may be dirty: preserve unrelated files, stage explicit changed paths only, and never stash,
    reset, move, or overwrite user changes. Stop on unfinished git operation or ambiguous overlapping edits.
 4. If task is not genuinely small/bounded, queued work needs isolation, user asks for a plan, or the proven
@@ -57,7 +59,9 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 
 1. After clean QA, stage and commit explicit paths using project Conventional Commit style. Inspect the
    committed paths and remaining status; never include unrelated changes.
-2. Push the new commit to its configured upstream by default. Immediately before push, fetch the upstream
+2. Push the new commit to its configured upstream by default only when the target is a non-protected branch
+   that permits direct microtask landing. Never commit or push directly to a protected/default branch;
+   hand off to `task` or the parent PR lane instead. Immediately before push, fetch the upstream
    and require that the new commit is still `HEAD` and the only commit ahead of upstream; otherwise stop
    instead of publishing unrelated commits. Skip direct push only when a parent task or CI/PR lane owns
    landing, the user requests local-only work, or no upstream exists. Never force push; stop and report a
@@ -66,7 +70,19 @@ the goal; preserve user constraints and follow `task` unless this file overrides
    Drain eligible owned queue items oldest first. Never report done with owned queued, side-worktree, or
    unmerged work; report exact blocker and remaining queue instead.
 4. Final response uses `task` Output: changed work, verification, QA counts, status, commit, push/landing,
-   and risk.
+   per-resource cleanup action, exact identifier, owner evidence, command/result, post-action query/result,
+   preservation reason, or blocker, and risk. Before completion, inventory exact microtask-owned resource
+   IDs and creation-time markers in a caller-side ignored task journal keyed by task ID, outside any removable
+   worktree. Include resource type/namespace, owner evidence, discovery query, and current-use result; when a
+   parent task exists, hand the journal to the parent and require parent import/recheck. Release only exact
+   microtask-owned matches through the supported scoped cleanup path; parent-task resources remain with parent
+   finalization unless the parent explicitly completes a handoff naming exact resource IDs. Recheck process
+   PID/command/launch marker, container attachment, and DB current use immediately before every stop or volume
+   deletion. Treat stopping a container/process and deleting its DB volume separately; if the adapter is
+   unavailable, cleanup fails, any post-action query fails or still finds an owned resource, or ownership,
+   current use, or quiescence cannot be proven, retain the journal, set blocked status rather than complete,
+   and report the owner and unblock action. Complete only after every owned resource has a successful action
+   and verified absence. Preserve active, dirty, primary, and unowned resources.
    End with one concise Korean summary sentence.
 
 ## Safety

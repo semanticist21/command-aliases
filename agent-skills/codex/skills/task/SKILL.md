@@ -117,18 +117,38 @@ node ~/.codex/skills/task/scripts/task-verify.mjs --base <recorded-base> \
 1. Stage explicit changed paths only. Commit after QA clean using Conventional Commit style matching recent history; inspect status afterward. Never blanket-stage caller-tree changes.
 2. Fetch recorded base before landing. Merge and re-verify affected behavior only when fetched base moved since verified merge; do not repeat unchanged-base merge or already-covered verification.
 3. With tracked CI: push branch, create/update PR, watch required checks for current head, repair task-caused failures, merge only after passing checks, prove merge commit is ancestor of fetched base. Human approval only when platform requires.
-4. Without CI, run from caller base checkout; journals and squashes task paths. Never replace with manual reset/commit. Then confirm landed commit on recorded base:
+4. Without CI, from the caller base checkout, record the exact resource inventory outside the removable
+   worktree before invoking finalization; then journal and squash task paths. Never replace this with manual
+   reset/commit. Confirm the landed commit on the recorded base:
 
 ```bash
 node ~/.codex/skills/task/scripts/task-finalize.mjs --repo <caller-root> --base <base> \
   --branch <task-branch> --worktree <task-worktree> --slug <slug> --head <task-head>
 ```
 
-5. Remove task worktree and branch only after landing. Do not mark complete before cleanup succeeds.
+5. Before invoking `task-finalize` or any landing cleanup that can remove the worktree, record an inventory
+   in a caller-side ignored task journal keyed by task ID (for example `.agent-tmp/task-resources/<task-id>.md`).
+   Include each task-owned temporary resource's type/namespace/ID, creation-time task/launch marker, owner
+   evidence, discovery query, and current-use result. A Compose project is only a handle when paired with a
+   unique task or launch marker and a current-use check; a shared/default project is not ownership proof.
+6. After landing, remove only the exact task worktree and landed local branch. Release only exact resource
+   matches through a repository-specific scoped cleanup adapter that accepts those recorded IDs; if the repo
+   has only a broad orphan sweep, do not use it as task cleanup. Recheck process PID/command/launch marker,
+   container attachment, and DB current use immediately before every stop or volume deletion. Treat stopping
+   a container/process and deleting its DB volume as separate actions; volume deletion requires explicit
+   authorization and proven quiescence. Never remove the primary stack or touch active, dirty, or unowned
+   resources. If the adapter is unavailable, cleanup fails, any post-action query fails or still finds an
+   owned resource, or ownership/current use/quiescence is unknown, retain the journal and mark the task
+   blocked. Complete only after every owned resource has a successful action and verified absence. Report
+   each resource's ID, owner evidence, action, command/result, post-action result, preservation reason, or
+   blocker.
 
 ## Output
 
-Final response: changed work; root-cause evidence and owning layer for problem fixes; verification evidence; QA rounds and final/valid finding counts; goal status; commit(s); required user decision or residual blocker. End with one concise Korean summary sentence.
+Final response: changed work; root-cause evidence and owning layer for problem fixes; verification evidence;
+QA rounds and final/valid finding counts; per-resource cleanup action, exact identifier, owner evidence,
+command/result, post-action query/result, preservation reason, or blocker; goal status; commit(s); required
+user decision or residual blocker. End with one concise Korean summary sentence.
 
 ## Safety
 
