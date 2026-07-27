@@ -87,7 +87,9 @@ node ~/.claude/skills/task/scripts/task-worktree-create.mjs <slug> \
 - Unique lowercase safe slug/ID. Record base, branch, path, caller, owner marker, summary in `.agent-tmp/task-state.md`; keep ignored. Plan, edit, test, commit there.
 - Do not create a second worktree after setup failure; repair retained one. Work in caller tree only if user explicitly requests, repo is not git, or worktree setup cannot run (state reason).
 - `--plan-only`: do not implement or commit. Clean only with `task-worktree-plan-cleanup.mjs` after its state checks pass. Never discard changes to force cleanup.
-- Prior owned task complete but uncleaned: land only with known recorded base, then clean. Unknown ownership/base, unfinished git op, or ambiguous overlap = blocker.
+- Prior owned task complete but uncleaned: land only with known recorded base, then clean. For unknown
+  ownership/base, an unfinished git operation, or ambiguous overlap, exhaust safe read-only investigation;
+  use `grill-me` if a user decision can resolve it, and classify it as blocked only under the Closure gate.
 
 ## Plan and execute
 
@@ -108,9 +110,21 @@ node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base> \
 
    No implicit all-gates mode. Treat unsupported-package/no-command output as documented N/A, not green. Database soft-skips and any relevant red gate fail verification. Keep available runners; apply concurrency caps only from measured saturation, tune per-job parallelism before reducing runner count. Concurrent runners must isolate databases/schemas, service namespaces, ports, mutable temp state. When verification/harness maintenance is in scope, simplify structurally duplicated scripts or CI; otherwise report one optional improvement without creating owned side work.
 
-3. Every QA round needs two independent reviewer agents against verbatim user request, current diff, and broader affected behavior/integration surface. Never restrict reviewers to only changed lines or a microtask-sized slice. Each prompt task-specific: all acceptance criteria and corrections, plausible ways the result could appear correct while still wrong, direct evidence needed to rule them out. Complementary perspectives. Each reviewer must independently challenge the causal chain and explicitly answer: is the identified cause supported by direct evidence, and is the fix in the layer that owns it rather than a symptom-layer monkey patch (e.g., frontend formatting/branching/guard that masks a backend/DB/schema/migration/API-contract defect)? Reviewers must cite the owning layer's code and verification evidence that justify the chosen fix location, and must flag a wrong-layer or mitigation-only fix even if the visible acceptance criteria pass. They must provide requirement evidence and severity-tagged findings; do not accept zero findings while material requirements or failure modes remain unverified. Reviewers independently reconcile verbatim request and later corrections with stated acceptance criteria, reporting mismatch instead of inheriting the primary agent's interpretation. Fix actionable findings, rerun affected verification and fresh review after behavior changes. Do not call self-review QA-clean; unavailable reviewers = blocker. Continue while progress exists; report exact unresolved blocker otherwise.
+3. Every QA round needs two independent reviewer agents against verbatim user request, current diff, and broader affected behavior/integration surface. Never restrict reviewers to only changed lines or a microtask-sized slice. Each prompt task-specific: all acceptance criteria and corrections, plausible ways the result could appear correct while still wrong, direct evidence needed to rule them out. Complementary perspectives. Each reviewer must independently challenge the causal chain and explicitly answer: is the identified cause supported by direct evidence, and is the fix in the layer that owns it rather than a symptom-layer monkey patch (e.g., frontend formatting/branching/guard that masks a backend/DB/schema/migration/API-contract defect)? Reviewers must cite the owning layer's code and verification evidence that justify the chosen fix location, and must flag a wrong-layer or mitigation-only fix even if the visible acceptance criteria pass. They must provide requirement evidence and severity-tagged findings. Do not declare QA clean while material requirements or failure modes remain unverified: record them as verification gaps, obtain the missing evidence, and never invent a finding solely because evidence is missing. Reviewers independently reconcile verbatim request and later corrections with stated acceptance criteria, reporting mismatch instead of inheriting the primary agent's interpretation. Fix actionable findings, rerun affected verification and fresh review after behavior changes. Do not call self-review QA-clean. If reviewers are unavailable, exhaust retry and alternate reviewer paths; use `grill-me` for a user-controlled resolution, and classify the condition as blocked only under the Closure gate. Continue while progress exists.
 
-4. Review correctness, security, tests, docs, architecture, UI duplication. Findings need severity, location, impact, required fix. Stop only at zero findings or zero valid actionable findings with concrete reasons for invalid findings.
+4. Review correctness, security, tests, docs, architecture, and UI duplication. A finding is actionable only
+   when it cites the exact governing user requirement or canonical project policy, or supplies direct,
+   reproducible evidence of a correctness, security, regression, accessibility, or integration defect. It
+   must identify severity, location, concrete impact, evidence, and the required outcome. Reject findings
+   that contradict a governing policy, ignore an explicit product decision, merely restate reviewer
+   preference, or propose speculative cleanup without an observed failure. Do not apply a reviewer suggestion
+   merely because it was reported; adjudicate it against the cited source and evidence.
+5. UI labels, copy, layout, and style opinions are not findings unless they violate an explicit user request,
+   canonical design/accessibility/internationalization rule, or demonstrably worsen observable behavior. A
+   reviewer proposing a UI change must cite that rule or evidence and explain why the required outcome is an
+   improvement without overriding settled product policy. When sources genuinely conflict or the correct
+   product choice is unstated, do not let the reviewer choose; use `grill-me` under the Closure gate. Stop only
+   at zero findings or zero valid actionable findings, with concrete rejection reasons for every invalid one.
 
 ## Commit and land
 
@@ -138,8 +152,10 @@ node ~/.claude/skills/task/scripts/task-finalize.mjs --repo <caller-root> --base
    a container/process and deleting its DB volume as separate actions; volume deletion requires explicit
    authorization and proven quiescence. Never remove the primary stack or touch active, dirty, or unowned
    resources. If the adapter is unavailable, cleanup fails, any post-action query fails or still finds an
-   owned resource, or ownership/current use/quiescence is unknown, retain the journal and mark the task
-   blocked. Complete only after every owned resource has a successful action and verified absence. Report
+   owned resource, or ownership/current use/quiescence is unknown, retain the journal and exhaust safe
+   investigation. Use `grill-me` if a user decision can resolve the condition; classify it as blocked only
+   under the Closure gate, with direct evidence, the external owner, and the exact unblock action. Complete
+   only after every owned resource has a successful action and verified absence. Report
    each resource's ID, owner evidence, action, command/result, post-action result, preservation reason, or
    blocker.
 
@@ -150,9 +166,28 @@ QA rounds and final/valid finding counts; per-resource cleanup action, exact ide
 command/result, post-action query/result, preservation reason, or blocker; goal status; commit(s); required
 user decision or residual blocker. End with one concise Korean summary sentence.
 
+## Closure gate
+
+1. Before any final response, inventory every unresolved item and residual risk from the request, plan, queue,
+   verification, reviewer findings, landing, CI, cleanup, and newly discovered scope. A report is not a
+   resolution. Do not finish while any in-scope action remains executable by the agent; perform it and repeat
+   the inventory after each resulting change.
+2. When agent-executable work is exhausted but a user choice, authority grant, acceptance decision, or missing
+   fact still controls completion, invoke `grill-me`. Ask one focused question at a time, wait for the answer,
+   act on it, and repeat the inventory and question loop until no such decision remains. Do not defer a known
+   decision to a final summary or convert it into an optional follow-up.
+3. `complete` requires zero unresolved items and zero in-scope residual risks. Optional improvements outside
+   the explicit goal are not residual task risk, but label them as out of scope rather than silently treating
+   them as required work.
+4. `blocked` is allowed only for an externally unremovable condition that neither agent action nor a user
+   decision can currently clear. Record direct blocker evidence, the external owner, the exact unblock action,
+   and why further questioning cannot resolve it. A vague dependency, failed attempt, missing convenience, or
+   merely risky outcome is not a blocker; continue working or use the `grill-me` loop.
+
 ## Safety
 
 - Never stash, reset, overwrite, delete, or move user work. Only documented task finalizer recovery may use its scoped reset after every proof check.
 - Never ship a monkey patch or temporary workaround, even alongside a root fix, or describe one as task completion.
-- Do not weaken user or repository constraints to claim completion. Budget pause reports landed work, exact blocker, remaining owned queue.
+- Do not weaken user or repository constraints to claim completion. Budget exhaustion is not closure: preserve
+  active status and the exact owned queue for continuation, then resume through the Closure gate.
 - Do not claim external checks, merges, or UI verification without direct evidence.

@@ -90,18 +90,25 @@ the goal; preserve user constraints and follow `task` unless this file overrides
    behavior/integration surface. Each reviewer must challenge the causal evidence and answer whether the fix
    removes the defect in the owning layer or is a symptom-layer monkey patch (frontend guard/formatting
    masking a backend/DB/schema/contract defect). They must cite owning-layer code and verification evidence;
-   flag a wrong-layer or mitigation-only fix even when visible criteria pass. Fix actionable findings;
-   behavior changes require fresh affected verification and review. No reviewer availability is a blocker,
-   not permission for self-review.
+   flag a wrong-layer or mitigation-only fix even when visible criteria pass. Apply `task`'s finding-validity
+   rules: require a cited governing source or direct reproducible defect evidence, reject policy-conflicting
+   and preference-only suggestions, and never treat unsupported UI label/copy/style opinions as findings.
+   Fix valid actionable findings;
+   behavior changes require fresh affected verification and review. Reviewer unavailability never permits
+   self-review: exhaust retry and alternate reviewer paths, use `grill-me` for a user-controlled resolution,
+   and classify it as blocked only under `task`'s Closure gate.
 
 ## Commit, landing, output
 
 1. After clean QA, commit explicit paths using project Conventional Commit style. Do not commit or push
    directly to a protected/default branch; use the parent task or PR lane, and do not push unless task CI/PR
-   lane or user explicitly requires it. Follow parent task landing/cleanup; direct work must land on intended
-   base before completion.
+   lane or user explicitly requires it. After a rejected or non-fast-forward push, never force push or
+   automatically rebase, merge, or stash unrelated work. Exhaust safe inspection and parent/PR landing paths,
+   use `grill-me` for a user-controlled landing decision, and classify it as blocked only under `task`'s
+   Closure gate. Follow parent task landing/cleanup; direct work must land on intended base before completion.
 2. Drain eligible owned queue items oldest first. Never report done with owned queued, side-worktree, or
-   unmerged work; report exact blocker and remaining queue instead.
+   unmerged work; keep working through `task`'s Closure gate instead of converting the remaining queue into
+   a final report.
 3. Final response uses `task` Output: changed work, verification, QA counts, status, commit, and risk.
    Include per-resource cleanup action, exact identifier, owner evidence, command/result, post-action
    query/result, preservation reason, or blocker. Before completion, inventory exact microtask-owned resource
@@ -113,13 +120,18 @@ the goal; preserve user constraints and follow `task` unless this file overrides
    PID/command/launch marker, container attachment, and DB current use immediately before every stop or volume
    deletion. Treat stopping a container/process and deleting its DB volume separately; if the adapter is
    unavailable, cleanup fails, any post-action query fails or still finds an owned resource, or ownership,
-   current use, or quiescence cannot be proven, retain the journal, set blocked status rather than complete,
-   and report the owner and unblock action. Complete only after every owned resource has a successful action
+   current use, or quiescence cannot be proven, retain the journal and exhaust safe investigation. Use
+   `grill-me` if a user decision can resolve the condition; set blocked status only under `task`'s Closure gate,
+   with direct evidence, the external owner, and the exact unblock action. Complete only after every owned resource has a successful action
    and verified absence. Preserve active, dirty, primary, and unowned resources.
    End with one concise Korean summary sentence.
 
 ## Safety
 
 - `complete` requires verification, review, intended commit, landing/cleanup when applicable, and queue drain.
+- Apply `task`'s Closure gate before every final response. Do not stop after listing unfinished work or risk:
+  perform every executable action, then use `grill-me` one question at a time for each remaining user-controlled
+  decision until none remains. Permit `blocked` only for the externally unremovable, evidenced condition defined
+  by that gate, with its owner and exact unblock action recorded.
 - Never ship a monkey patch or temporary workaround, even alongside a root fix.
 - Do not weaken user/repository constraints to claim zero findings or completion.
