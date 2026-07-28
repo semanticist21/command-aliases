@@ -1,6 +1,6 @@
 ---
 name: "audit"
-description: "Read-only systemic audit that hunts, verifies, and ranks real problems across a codebase or feature — design flaws, correctness bugs, logic holes, durability/idempotency/concurrency gaps, authz-boundary and data-integrity holes, silent failures, long-term operations/policy gaps, layer-contract drift, UX problems, and structural inefficiency (over-engineering, reinvented stdlib, speculative abstraction, dead flexibility) — then hands them off as a findings ledger for task/microtask to fix. Use for audit, 점검/조사, '이슈 리스트업', 'find issues', 'what's wrong here', 'what could bite us', '비효율적 구조', '과잉 설계'. Not for reviewing one diff (code-review), root-causing one known bug (analysis), general research questions (research), or deleting unused code (dead-code-removal)."
+description: "Read-only systemic audit that hunts, verifies, and ranks real problems across a codebase or feature — design flaws, correctness bugs, logic holes, durability/idempotency/concurrency gaps, authz-boundary and data-integrity holes, silent failures, long-term operations/policy gaps, layer-contract drift, UX problems, and structural inefficiency (over-engineering, reinvented stdlib, speculative abstraction, dead flexibility) — then reports them in chat and can record an approved findings ledger for task/microtask to fix. Use for audit, 점검/조사, '이슈 리스트업', 'find issues', 'what's wrong here', 'what could bite us', '비효율적 구조', '과잉 설계'. Not for reviewing one diff (code-review), root-causing one known bug (analysis), general research questions (research), or deleting unused code (dead-code-removal)."
 user-invocable: true
 argument-hint: "<surface to audit + any focus/constraints>"
 allowed-tools:
@@ -27,7 +27,7 @@ allowed-tools:
 ---
 # Audit
 
-Read-only, evidence-led audit of the named surface. Find real defects and hand them to `task`/`microtask`; do not implement fixes.
+Read-only, evidence-led audit of the named surface. Find real defects and hand them to `task`/`microtask`; do not implement fixes. Report findings in chat first; writing a handoff ledger requires the user's explicit consent.
 
 ## Hunt
 
@@ -42,5 +42,7 @@ Trace inputs, state, side effects, boundaries, and failure paths. Check design r
 ## Findings ledger
 
 Rank by impact × likelihood: critical (security/data loss/outage), high, medium, low. Each finding must give ID, severity/category, precise location, triggering scenario, evidence, impact, smallest safe remediation direction, and validation. Separate confirmed findings from questions/risks. Include positive checks only when they materially constrain a conclusion.
+
+Before creating, appending to, or overwriting a findings ledger, ask the user explicitly, "Should I record these findings?" and wait for the answer. Only when proposing that actual write, also ask, "If I record them, should I clean up obsolete or legacy audit ledgers?" so stale documents do not accumulate. Do not ask about legacy cleanup for a chat-only report. Write only when the user explicitly approves recording, and archive or delete only when the user explicitly approves cleanup.
 
 End with scope audited, methods/checks, findings count by severity, residual limits, and a handoff order. Do not pad with style nits, rewrite one-diff review into audit, or weaken evidence to manufacture findings.
