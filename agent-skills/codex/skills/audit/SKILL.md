@@ -4,7 +4,7 @@ description: "Read-only systemic audit that finds, verifies, and ranks real prob
 ---
 # Audit
 
-Run a read-only, evidence-led audit for real correctness, durability, security, design, performance, maintainability, and testability defects. Do not implement fixes or change tracked state; only write `.agent-tmp/audit-findings.md` as the handoff ledger for `$task`/`$microtask`.
+Run a read-only, evidence-led audit for real correctness, durability, security, design, performance, maintainability, and testability defects. Do not implement fixes or change tracked state. Report findings in chat first; `.agent-tmp/audit-findings.md` is an optional handoff ledger for `$task`/`$microtask`, not an automatic output.
 
 ## Method
 
@@ -16,4 +16,8 @@ Run a read-only, evidence-led audit for real correctness, durability, security, 
 
 ## Output
 
-Lead with findings ordered P0–P3; omit empty severity sections. Include evidence and a concise remediation direction, then coverage, checks run, and uninspected areas. Record uncovered scope in the ledger; never claim full correctness from static review or offer an implementation unless requested.
+Lead with findings ordered P0–P3; omit empty severity sections. Include evidence and a concise remediation direction, then coverage, checks run, and uninspected areas. Never claim full correctness from static review or offer an implementation unless requested.
+
+## Recording consent
+
+Before creating, appending to, or overwriting `.agent-tmp/audit-findings.md`, ask the user explicitly, "Should I record these findings?" and wait for the answer. Only when proposing that actual write, also ask, "If I record them, should I clean up obsolete or legacy audit ledgers?" so stale documents do not accumulate. Do not ask about legacy cleanup for a chat-only report. Write only when the user explicitly approves recording, and archive or delete only when the user explicitly approves cleanup.
