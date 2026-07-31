@@ -16,10 +16,11 @@ Synchronize user skills between `~/.claude/skills`, `~/.codex/skills`, and the m
 
 ## Full reconcile
 
-1. Inventory names/content and repo/local sync markers. Classify each runtime skill: identical; drift; repo-only (install); local-only (local-private/no action). Surface a full table and planned direction before writing.
+1. Inventory names/content and repo/local sync markers. Classify each runtime skill: identical; drift; repo-only (install); local-not-in-repo. Surface a full table and planned direction before writing.
 2. Refresh a clean mirror with `git pull --ff-only`; reclassify/surface changed rows. Repo-only installs normally symlink to mirror; real directories must first be checked for local improvements.
-3. For drift, auto-merge non-overlapping changes; for line clashes prefer newer edit and report winner. Ask only when edits semantically contradict. Never auto-publish local-only skills, even on reconcile.
-4. Re-run `diff -rq`; report residual drift and quarantined local-only skills.
+3. A local-not-in-repo name is never automatically "no action" — run `git log --diff-filter=D -- agent-skills/<runtime>/skills/<name>` against the mirror to disambiguate. Deleted-from-repo → **orphan**: propose removing the local install (same confirmation bar as any delete). Never-existed-in-repo → genuine **local-private**: quarantine, untouched unless the user names it for publish.
+4. For drift, auto-merge non-overlapping changes; for line clashes prefer newer edit and report winner. Ask only when edits semantically contradict. Never auto-publish local-private skills, even on reconcile.
+5. Re-run `diff -rq`; report residual drift, confirmed/executed orphan deletions, and quarantined local-private skills.
 
 ## Update, compact, delete
 
