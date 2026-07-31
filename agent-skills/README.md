@@ -30,7 +30,8 @@ agent-skills/
 | design           |   ✓    |   ✓   | Minimal, non-duplicative, hierarchical, well-grouped UI    |
 | figma-lookup     |   ✓    |   ✓   | Index Figma storyboard screens + planning nodes           |
 | git-push         |   ✓    |       | Commit + push current changes to upstream                 |
-| grill-me         |   ✓    |   ✓   | Adversarially stress-test an idea/plan, one Q at a time   |
+| grill-me         |   ✓    |   ✓   | Thin trigger; runs a `grilling` session (mirrors upstream mattpocock/skills) |
+| grilling         |   ✓    |   ✓   | Relentless one-at-a-time interview to reach shared understanding |
 | harness-doc      |   ✓    |   ✓   | Manage project agent harness docs (add/update/polish/setup/audit) |
 | inspect          |   ✓    |   ✓   | Investigation router: dispatches to audit/analysis/research |
 | memo             |   ✓    |   ✓   | Save durable user/project notes; auto-routes scope        |
