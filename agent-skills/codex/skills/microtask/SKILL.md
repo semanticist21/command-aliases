@@ -51,9 +51,13 @@ the goal; preserve user constraints and follow `task` unless this file overrides
    behavior/integration surface. Each reviewer must challenge the causal evidence and answer whether the fix
    removes the defect in the owning layer or is a symptom-layer monkey patch (frontend guard/formatting
    masking a backend/DB/schema/contract defect). They must cite owning-layer code and verification evidence;
-   flag a wrong-layer or mitigation-only fix even when visible criteria pass. Fix actionable findings;
-   behavior changes require fresh affected verification and review. No reviewer availability is a blocker,
-   not permission for self-review.
+   flag a wrong-layer or mitigation-only fix even when visible criteria pass. Apply `task`'s finding-validity
+   rules: require a cited governing source or direct reproducible defect evidence, reject policy-conflicting
+   and preference-only suggestions, and never treat unsupported UI label/copy/style opinions as findings.
+   Fix valid actionable findings;
+   behavior changes require fresh affected verification and review. Reviewer unavailability never permits
+   self-review: exhaust retry and alternate reviewer paths, use `grill-me` for a user-controlled resolution,
+   and classify it as blocked only under `task`'s Closure gate.
 
 ## Commit, landing, output
 
@@ -62,13 +66,16 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 2. Push the new commit to its configured upstream by default only when the target is a non-protected branch
    that permits direct microtask landing. Never commit or push directly to a protected/default branch;
    hand off to `task` or the parent PR lane instead. Immediately before push, fetch the upstream
-   and require that the new commit is still `HEAD` and the only commit ahead of upstream; otherwise stop
-   instead of publishing unrelated commits. Skip direct push only when a parent task or CI/PR lane owns
-   landing, the user requests local-only work, or no upstream exists. Never force push; stop and report a
-   rejected or non-fast-forward push instead of rebasing, merging, or stashing unrelated work automatically.
+   and require that the new commit is still `HEAD` and the only commit ahead of upstream; otherwise do not
+   publish unrelated commits. Skip direct push only when a parent task or CI/PR lane owns landing, the user
+   requests local-only work, or no upstream exists. Never force push or automatically rebase, merge, or stash
+   unrelated work after a rejected or non-fast-forward push. Exhaust safe inspection and parent/PR landing
+   paths, use `grill-me` for a user-controlled landing decision, and classify it as blocked only under
+   `task`'s Closure gate.
 3. Follow parent task landing/cleanup; direct work must land on the intended base before completion.
    Drain eligible owned queue items oldest first. Never report done with owned queued, side-worktree, or
-   unmerged work; report exact blocker and remaining queue instead.
+   unmerged work; keep working through `task`'s Closure gate instead of converting the remaining queue into
+   a final report.
 4. Final response uses `task` Output: changed work, verification, QA counts, status, commit, push/landing,
    per-resource cleanup action, exact identifier, owner evidence, command/result, post-action query/result,
    preservation reason, or blocker, and risk. Before completion, inventory exact microtask-owned resource
@@ -80,13 +87,24 @@ the goal; preserve user constraints and follow `task` unless this file overrides
    PID/command/launch marker, container attachment, and DB current use immediately before every stop or volume
    deletion. Treat stopping a container/process and deleting its DB volume separately; if the adapter is
    unavailable, cleanup fails, any post-action query fails or still finds an owned resource, or ownership,
-   current use, or quiescence cannot be proven, retain the journal, set blocked status rather than complete,
-   and report the owner and unblock action. Complete only after every owned resource has a successful action
+   current use, or quiescence cannot be proven, retain the journal and exhaust safe investigation. Use
+   `grill-me` if a user decision can resolve the condition; set blocked status only under `task`'s Closure gate,
+   with direct evidence, the external owner, and the exact unblock action. Complete only after every owned resource has a successful action
    and verified absence. Preserve active, dirty, primary, and unowned resources.
+   Group the report per `task` Output, naming what is gone and what deliberately survives with its reason;
+   "cleaned up" without identifiers is not a report. A merge that claims to delete a remote branch does not
+   prove it: re-query `git ls-remote --heads origin <branch>` and run `git push origin --delete <branch>`
+   when the ref survives. Cleanup is per round of work, not once per session: before finishing any round,
+   re-inventory every still-present owned resource, including any earlier-round resource whose absence was
+   never verified, rather than assuming an earlier cleanup report still covers it.
    End with one concise Korean summary sentence.
 
 ## Safety
 
 - `complete` requires verification, review, intended commit, landing/cleanup when applicable, and queue drain.
+- Apply `task`'s Closure gate before every final response. Do not stop after listing unfinished work or risk:
+  perform every executable action, then use `grill-me` one question at a time for each remaining user-controlled
+  decision until none remains. Permit `blocked` only for the externally unremovable, evidenced condition defined
+  by that gate, with its owner and exact unblock action recorded.
 - Never ship a monkey patch or temporary workaround, even alongside a root fix.
 - Do not weaken user/repository constraints to claim zero findings or completion.
