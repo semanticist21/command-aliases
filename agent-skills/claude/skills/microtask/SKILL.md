@@ -90,17 +90,23 @@ the goal; preserve user constraints and follow `task` unless this file overrides
 3. Run standard gates on changed paths without duplicate focused, aggregate, or CI coverage. For a problem
    fix, verification must exercise the identified causal path and owning-layer correction; symptom-only
    evidence is insufficient. Use `task-verify` only for explicitly uncovered gates.
-4. Every QA round needs two independent reviewers against the verbatim request, diff, and broader affected
-   behavior/integration surface. Each reviewer must challenge the causal evidence and answer whether the fix
-   removes the defect in the owning layer or is a symptom-layer monkey patch (frontend guard/formatting
-   masking a backend/DB/schema/contract defect). They must cite owning-layer code and verification evidence;
-   flag a wrong-layer or mitigation-only fix even when visible criteria pass. Apply `task`'s finding-validity
-   rules: require a cited governing source or direct reproducible defect evidence, reject policy-conflicting
-   and preference-only suggestions, and never treat unsupported UI label/copy/style opinions as findings.
-   Fix valid actionable findings;
-   behavior changes require fresh affected verification and review. Reviewer unavailability never permits
-   self-review: exhaust retry and alternate reviewer paths, use `grill-me` for a user-controlled resolution,
-   and classify it as blocked only under `task`'s Closure gate.
+4. Apply `task`'s risk-adaptive review tiers. A trivial docs/copy/formatting or one-file mechanical change
+   with no behavior, security, CI/release, data, API, or workflow-policy impact gets a diff self-review;
+   use one independent read-only reviewer when the edit changes a skill/policy, landing/cleanup behavior,
+   or acceptance is ambiguous. A standard behavioral or multi-file change gets one independent reviewer.
+   A high-risk change (security/auth, migrations/data, CI/release/deploy, concurrency, public API,
+   production config, root-cause fixes, or irreversible/uncertain changes) must be handed to `task`, where
+   two complementary reviewers are used. If risk is unclear, escalate. Agent authorship alone does not
+   raise the tier, and reviewer breadth should follow the diff and focused review questions rather than
+   broad duplicate repository exploration. Every assigned reviewer must use the verbatim request, diff,
+   affected surface, and acceptance criteria; challenge the causal evidence and owning-layer fix, cite
+   direct evidence, reject preference-only findings, and flag mitigation-only patches. Fix actionable
+   findings, rerun affected verification, and repeat the assigned tier after behavior changes. Reviewer
+   unavailability never permits self-review: exhaust alternate paths, use `grill-me` when a user decision
+   can resolve it, and classify blocked only under `task`'s Closure gate. Weakening CI, expanding
+   privileges, exposing secrets, untrusted model/shell input, or production writes are hard stops in every
+   tier. If a repo repeatedly uses the trivial lane, sample it periodically and raise a pattern to standard
+   after any missed issue.
 
 ## Commit, landing, output
 

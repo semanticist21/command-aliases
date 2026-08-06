@@ -102,6 +102,39 @@ node ~/.claude/skills/task/scripts/task-worktree-create.mjs <slug> \
 3. Use subagents for independent investigation, implementation, or QA. Brief them with verbatim user goal, constraints, target paths, base/worktree, expected evidence. Main agent owns judgment, integration, verification, landing.
 4. Track meaningful queue items in `.agent-tmp/task-queue.md` with owner, base, status, landed commit. Never queue work owned by another session.
 
+## Review budget
+
+Review depth is risk-adaptive, not an automatic multiplier for agent-authored work. Classify the change
+before QA and record the selected tier in the final report:
+
+- `trivial`: docs, copy, formatting, or metadata-only changes, or one-file mechanical edits with no
+  executable behavior, security/permissions, CI/release, data, public API, or workflow-policy impact.
+  The primary agent performs a diff self-review and the relevant gate. Add one independent read-only
+  reviewer when the edit changes a skill/policy, landing/cleanup behavior, or acceptance is ambiguous.
+- `standard`: behavioral code, tests, architecture/docs changes, or multi-file changes. Use one
+  independent read-only reviewer against the verbatim request, current diff, and affected integration
+  surface.
+- `high-risk`: authentication/authorization, security boundaries, migrations or data, CI/release/deploy,
+  concurrency, public APIs, production configuration, root-cause fixes, irreversible changes, or an
+  uncertain causal chain. Use two independent reviewers with complementary perspectives; if the scope
+  becomes high-risk during review, escalate to this tier.
+
+If the tier is unclear, choose the higher one. Agent authorship alone does not raise the tier. The author
+must inspect the diff before delegation, and automated checks should filter mechanical failures first.
+Reviewers should start from the diff, form narrow questions, and read only the focused evidence needed to
+answer them; do not spend reviewer budget on duplicated broad repository exploration. Review evidence and
+tests remain gates, while the main agent retains final technical judgment; for standard changes, that means
+evidence-backed adjudication of reviewer findings, never an unsupported override. Material unresolved
+disagreement escalates to the high-risk tier or a user decision. For high-risk and hard-stop items,
+responsible-human acceptance is mandatory; a reviewer is not an approval substitute. This is a technical
+adjudication rule, not a blanket human sign-off gate for standard changes; existing project and platform
+approval policies remain controlling.
+Regardless of tier, weakening CI, expanding privileges, exposing secrets, passing untrusted input into a
+model or shell, or adding production write access is a hard stop until the risk is directly evidenced,
+corrected, and explicitly accepted by the responsible human. If a repository repeatedly uses `trivial`,
+sample completed changes periodically; a missed issue raises the affected pattern to `standard` until the
+classification rule is corrected.
+
 ## Verify and QA
 
 1. Run standard gates (lint, test, typecheck, build) on changed paths. Don't assume differently-named gates are independent: lint may subsume typecheck, an aggregate script may own several gates. When a broader provider covers a gate, don't rerun a focused one. Count exact-snapshot evidence once. Reuse valid evidence; rerun only gates invalidated by code, base, deps, config, env, or coverage changes, or when reproducing a failure — elapsed time alone doesn't invalidate. Required CI still runs when repo policy demands it. For a problem fix, verification must cover the identified causal path and owning-layer correction; a symptom-only assertion is insufficient. Changed behavior needs regression coverage unless genuinely untestable (explain exception). UI work needs live browser or screenshot/render evidence; code inspection alone is insufficient.
@@ -114,7 +147,20 @@ node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base> \
 
    No implicit all-gates mode. Treat unsupported-package/no-command output as documented N/A, not green. Database soft-skips and any relevant red gate fail verification. Keep available runners; apply concurrency caps only from measured saturation, tune per-job parallelism before reducing runner count. Concurrent runners must isolate databases/schemas, service namespaces, ports, mutable temp state. When verification/harness maintenance is in scope, simplify structurally duplicated scripts or CI; otherwise report one optional improvement without creating owned side work.
 
-3. Every QA round needs two independent reviewer agents against verbatim user request, current diff, and broader affected behavior/integration surface. Never restrict reviewers to only changed lines or a microtask-sized slice. Each prompt task-specific: all acceptance criteria and corrections, plausible ways the result could appear correct while still wrong, direct evidence needed to rule them out. Complementary perspectives. Each reviewer must independently challenge the causal chain and explicitly answer: is the identified cause supported by direct evidence, and is the fix in the layer that owns it rather than a symptom-layer monkey patch (e.g., frontend formatting/branching/guard that masks a backend/DB/schema/migration/API-contract defect)? Reviewers must cite the owning layer's code and verification evidence that justify the chosen fix location, and must flag a wrong-layer or mitigation-only fix even if the visible acceptance criteria pass. They must provide requirement evidence and severity-tagged findings. Do not declare QA clean while material requirements or failure modes remain unverified: record them as verification gaps, obtain the missing evidence, and never invent a finding solely because evidence is missing. Reviewers independently reconcile verbatim request and later corrections with stated acceptance criteria, reporting mismatch instead of inheriting the primary agent's interpretation. Fix actionable findings, rerun affected verification and fresh review after behavior changes. Do not call self-review QA-clean. If reviewers are unavailable, exhaust retry and alternate reviewer paths; use `grill-me` for a user-controlled resolution, and classify the condition as blocked only under the Closure gate. Continue while progress exists.
+3. Apply the selected review tier. For each assigned independent reviewer, provide the verbatim user request,
+   current diff, affected integration surface, acceptance criteria, plausible false positives, and direct
+   evidence needed to rule them out. Each reviewer must challenge the causal chain and explicitly answer:
+   is the identified cause supported by direct evidence, and is the fix in the owning layer rather than a
+   symptom-layer monkey patch? Reviewers must cite owning-layer code and verification evidence, and flag
+   a wrong-layer or mitigation-only fix even when visible criteria pass. They must provide requirement
+   evidence and severity-tagged findings. Do not declare QA clean while material requirements or failure
+   modes remain unverified: record verification gaps, obtain missing evidence, and never invent a finding
+   solely because evidence is missing. Reviewers independently reconcile the request with acceptance
+   criteria rather than inheriting the primary agent's interpretation. Fix actionable findings, rerun
+   affected verification, and repeat the assigned tier after behavior changes. Do not call self-review
+   QA-clean when the selected tier requires an independent reviewer. If reviewers are unavailable, exhaust
+   retry and alternate paths; use `grill-me` for a user-controlled resolution, and classify the condition
+   as blocked only under the Closure gate. Continue while progress exists.
 
 4. Review correctness, security, tests, docs, architecture, and UI duplication. A finding is actionable only
    when it cites the exact governing user requirement or canonical project policy, or supplies direct,
@@ -177,7 +223,7 @@ node ~/.claude/skills/task/scripts/task-finalize.mjs --repo <caller-root> --base
 ## Output
 
 Final response: changed work; root-cause evidence and owning layer for problem fixes; verification evidence;
-QA rounds and final/valid finding counts; per-resource cleanup action, exact identifier, owner evidence,
+review tier, QA rounds, and final/valid finding counts; per-resource cleanup action, exact identifier, owner evidence,
 command/result, post-action query/result, preservation reason, or blocker, grouped by the Commit and land
 step 8 categories so a reader can tell at a glance what is gone and what deliberately survives;
 goal status; commit(s); required
