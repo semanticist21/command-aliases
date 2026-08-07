@@ -44,7 +44,8 @@ Record a durable candidate from a user-provided note or a session finding. The n
 - Do NOT log routine edits, diff-obvious fixes/refactors, or documented facts.
 - Route by scope:
   - Subtree-specific (rule, quirk, ownership, gotcha) → folder-local `AGENTS.md`.
-  - Project-wide repeatable trap or lesson → root `AGENTS.md` or `docs/playbooks/`.
+  - A decision the user stated → the `## Decisions` section of the root `AGENTS.md` (the global harness owns the format).
+  - Project-wide repeatable trap or lesson → root `AGENTS.md`, or the page its ownership map names.
   - Project-wide operating rule → root `AGENTS.md` or `docs/coding-rule.md`.
 - Append a concise bullet under the relevant heading. Match existing convention. Do not rewrite unrelated content.
 
@@ -76,9 +77,9 @@ Bootstrap a project's harness architecture. Idempotent — safe to re-run on an 
 
 - **Root `AGENTS.md`** — project purpose, layout, commands, conventions, doc policy. Keep under 150 lines; link to `docs/` for detail.
 - **`CLAUDE.md`** — symlink to `AGENTS.md` (Claude discovery).
-- **`docs/README.md`** — docs index with ownership map.
-- **`docs/coding-rule.md`** — project coding rules. See `references/coding-rule.md` for the canonical seed (file size 200-500 lines, agent readability, etc.).
-- **`docs/templates/AGENTS.md.template`** — folder-local template.
+- **docs index with ownership map** — at whatever path the root harness names (`doc/README.md`, `docs/README.md`, …).
+- **project coding rules** — a page in that same directory. See `references/coding-rule.md` for the canonical seed.
+- **folder-local template** — a template page in that same directory.
 - **Folder-local `AGENTS.md`** — only for folders with non-obvious constraints. Format: `## Purpose` (1-2 lines) + `## Notes` (bullets). Keep 10-30 lines total.
 - **Harness guards** (optional, ask user):
   - Pre-commit/pre-push hook that runs changed-file guard + test/doc nudges.

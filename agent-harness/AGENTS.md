@@ -15,8 +15,17 @@ Delete such prose when you meet it.
 
 Two things earn a durable note, and nothing else:
 
-1. **A decision the user stated.** Not one you inferred. Write it in the turn it is given, at its canonical
-   home — a decision living only in chat gets re-asked.
+1. **A decision the user stated.** Not one you inferred. Write it in the turn it is given — a decision
+   living only in chat gets re-asked. Its home is the `## Decisions` section of the project's root
+   `AGENTS.md`, unless the project names another. One `### D-<slug>` heading, the date, the rule in one or
+   two sentences; a boundary or exception belongs inside those sentences, not in extra fields. The line
+   that implements it carries `[D-<slug>]` in its comment. The tag restates nothing, so it cannot disagree
+   with the entry, and it travels with the code, so no rename can break it. `git grep '\[D-<slug>\]'` is
+   the whole index. A decision with nothing to sit on — a "we will not do X", a deferral — is an entry
+   with no tag.
+
+   Split the file only when it stops being readable, and know the cost: nested `AGENTS.md` files are not
+   auto-loaded, so a section moved out stops being seen. Splitting trades compliance for size.
 2. **A verified fact the code cannot show** that would cost the next session real time: a command's actual
    effect, a tool's failure mode, an environment quirk. One or two sentences at the nearest harness file.
 

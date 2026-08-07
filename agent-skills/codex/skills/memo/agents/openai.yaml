@@ -4,4 +4,4 @@ interface:
   default_prompt: "Use $memo to save this instruction, preference, follow-up, or environment fact as a durable note."
 
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false
