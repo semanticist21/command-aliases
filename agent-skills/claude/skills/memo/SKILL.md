@@ -1,6 +1,6 @@
 ---
 name: "memo"
-description: "Save durable user or project notes when the user asks to memo, remember, or persist a preference — OR auto-call when the user states a durable fact, convention, gotcha, or correction mid-conversation that future agents should see. Auto-routes scope (user/project) by content."
+description: "Save a cross-project or machine-level note when the user explicitly asks to memo, remember, or persist it. Project decisions go to the project's AGENTS.md, not here."
 user-invocable: true
 argument-hint: "<note to persist>"
 allowed-tools:
@@ -18,7 +18,7 @@ allowed-tools:
 ---
 # Memo
 
-Save a durable note the user provided or stated mid-conversation. Auto-call when the user voices a convention, gotcha, correction, ownership boundary, or setup quirk that future agents should see — even if they did not say "memo". Treat the note as the source of truth: preserve exact paths, identifiers, commands, and constraints. Rephrase only enough to make the stored note compact and useful.
+Save a durable note the user explicitly asked to keep. Do not self-trigger: a decision about the project belongs in that project's root `AGENTS.md` under `## Decisions`, and the global harness turns memory off by default. This skill is for cross-project and machine-level facts only. Treat the note as the source of truth: preserve exact paths, identifiers, commands, and constraints. Rephrase only enough to make the stored note compact and useful.
 
 ## Scope auto-routing
 
