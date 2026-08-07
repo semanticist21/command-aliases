@@ -25,7 +25,7 @@ If scope is omitted, present the user with the scope choices and wait.
 ## Workflow
 
 1. **Resolve scope.** If `scope` arg is missing, ask the user to pick `add | update | polish | setup | audit`. If `request` is missing, ask what the request is.
-2. **Discover the harness.** Read root `AGENTS.md` (or `CLAUDE.md` symlink). Follow its docs index to `docs/README.md` and the ownership map. Identify folder-local `AGENTS.md` files. If no harness exists and scope != `setup`, stop and suggest `harness-doc setup`.
+2. **Discover the harness.** Read root `AGENTS.md` (or `CLAUDE.md` symlink). Follow its own docs index to whatever directory it names — `doc/`, `docs/`, or elsewhere — and read the ownership map there. Never assume the directory name; the harness declares it. Identify folder-local `AGENTS.md` files. If no harness exists and scope != `setup`, stop and suggest `harness-doc setup`.
 3. **Act per scope** (sections below).
 4. **Verify** — re-read changed files; ensure cross-references resolve; run any repo lint (biome, prettier, markdownlint) if configured.
 5. **Report** — one-line summary of what changed and where.
@@ -44,8 +44,8 @@ Record a durable candidate from a user-provided note or a session finding. The n
 - Do NOT log routine edits, diff-obvious fixes/refactors, or documented facts.
 - Route by scope:
   - Subtree-specific (rule, quirk, ownership, gotcha) → folder-local `AGENTS.md`.
-  - Project-wide repeatable trap or lesson → root `AGENTS.md` or `docs/playbooks/`.
-  - Project-wide operating rule → root `AGENTS.md` or `docs/coding-rule.md`.
+  - Project-wide repeatable trap or lesson → root `AGENTS.md`, or the page its ownership map names.
+  - Project-wide operating rule → root `AGENTS.md`, or the page its ownership map names.
 - Append a concise bullet under the relevant heading. Match existing convention. Do not rewrite unrelated content.
 
 ## update
@@ -76,9 +76,9 @@ Bootstrap a project's harness architecture. Idempotent — safe to re-run on an 
 
 - **Root `AGENTS.md`** — project purpose, layout, commands, conventions, doc policy. Keep under 150 lines; link to `docs/` for detail.
 - **`CLAUDE.md`** — symlink to `AGENTS.md` (Claude discovery).
-- **`docs/README.md`** — docs index with ownership map.
-- **`docs/coding-rule.md`** — project coding rules. See `references/coding-rule.md` for the canonical seed (file size 200-500 lines, agent readability, etc.).
-- **`docs/templates/AGENTS.md.template`** — folder-local template.
+- **docs index with ownership map** — at whatever path the root harness names (`doc/README.md`, `docs/README.md`, …).
+- **project coding rules** — a page in that same directory. See `references/coding-rule.md` for the canonical seed.
+- **folder-local template** — a template page in that same directory.
 - **Folder-local `AGENTS.md`** — only for folders with non-obvious constraints. Format: `## Purpose` (1-2 lines) + `## Notes` (bullets). Keep 10-30 lines total.
 - **Harness guards** (optional, ask user):
   - Pre-commit/pre-push hook that runs changed-file guard + test/doc nudges.
@@ -104,7 +104,7 @@ Apply across all harness docs and project source files:
 
 - **Target file size: 200-500 lines** for source files (frontend and backend alike). Agents read, navigate, and manage smaller files more reliably; context stays focused.
 - **Under 200** — likely fine if cohesive; too small may indicate premature splitting.
-- **Over 500** — split by responsibility (route, feature, layer). Agents lose context tracking in large files.
+- **Over 500** — consider splitting by responsibility (route, feature, layer). This is advisory for source files and does **not** override a harness that deliberately keeps one canonical page per kind of fact; splitting such a page recreates the drift it was consolidated to end.
 - **AGENTS.md files** — root under 150 lines, folder-local under 30 lines. These are indexes, not manuals.
 - **One responsibility per file** — agents grep for a symbol or rule and want the whole answer in one place.
 

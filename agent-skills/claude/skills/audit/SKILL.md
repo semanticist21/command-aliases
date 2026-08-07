@@ -43,6 +43,8 @@ Trace inputs, state, side effects, boundaries, and failure paths. Check design r
 
 Rank by impact × likelihood: critical (security/data loss/outage), high, medium, low. Each finding must give ID, severity/category, precise location, triggering scenario, evidence, impact, smallest safe remediation direction, and validation. Separate confirmed findings from questions/risks. Include positive checks only when they materially constrain a conclusion.
 
-Before creating, appending to, or overwriting a findings ledger, ask the user explicitly, "Should I record these findings?" and wait for the answer. Only when proposing that actual write, also ask, "If I record them, should I clean up obsolete or legacy audit ledgers?" so stale documents do not accumulate. Do not ask about legacy cleanup for a chat-only report. Write only when the user explicitly approves recording, and archive or delete only when the user explicitly approves cleanup.
+Report in chat by default; a ledger file needs the user to say yes. Before writing one, ask "Should I record these findings?" and wait.
+
+A ledger is scratch, not a document. Delete it once its findings are fixed or rejected — say so in the same report. A ledger whose findings already landed reads to the next session as open work. If you find an earlier ledger in that state, name it and delete it.
 
 End with scope audited, methods/checks, findings count by severity, residual limits, and a handoff order. Do not pad with style nits, rewrite one-diff review into audit, or weaken evidence to manufacture findings.

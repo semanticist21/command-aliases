@@ -25,7 +25,7 @@ If scope is omitted, present the user with the scope choices and wait.
 ## Workflow
 
 1. **Resolve scope.** If `scope` arg is missing, ask the user to pick `add | update | polish | setup | audit`. If `request` is missing, ask what the request is.
-2. **Discover the harness.** Read root `AGENTS.md` (or `CLAUDE.md` symlink). Follow its docs index to `docs/README.md` and the ownership map. Identify folder-local `AGENTS.md` files. If no harness exists and scope != `setup`, stop and suggest `harness-doc setup`.
+2. **Discover the harness.** Read root `AGENTS.md` (or `CLAUDE.md` symlink). Follow its own docs index to whatever directory it names — `doc/`, `docs/`, or elsewhere — and read the ownership map there. Never assume the directory name; the harness declares it. Identify folder-local `AGENTS.md` files. If no harness exists and scope != `setup`, stop and suggest `harness-doc setup`.
 3. **Act per scope** (sections below).
 4. **Verify** — re-read changed files; ensure cross-references resolve; run any repo lint (biome, prettier, markdownlint) if configured.
 5. **Report** — one-line summary of what changed and where.
@@ -104,7 +104,7 @@ Apply across all harness docs and project source files:
 
 - **Target file size: 200-500 lines** for source files (frontend and backend alike). Agents read, navigate, and manage smaller files more reliably; context stays focused.
 - **Under 200** — likely fine if cohesive; too small may indicate premature splitting.
-- **Over 500** — split by responsibility (route, feature, layer). Agents lose context tracking in large files.
+- **Over 500** — consider splitting by responsibility (route, feature, layer). This is advisory for source files and does **not** override a harness that deliberately keeps one canonical page per kind of fact; splitting such a page recreates the drift it was consolidated to end.
 - **AGENTS.md files** — root under 150 lines, folder-local under 30 lines. These are indexes, not manuals.
 - **One responsibility per file** — agents grep for a symbol or rule and want the whole answer in one place.
 

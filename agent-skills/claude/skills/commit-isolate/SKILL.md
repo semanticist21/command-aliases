@@ -5,13 +5,16 @@ description: "Split a dirty tree into isolated Conventional Commits for /commit-
 
 # commit-isolate
 
-Leave the working tree clean. Every outstanding change gets committed, including
-changes you did not make, but separate unrelated concerns into their own atomic
-Conventional Commits.
+Commit your own outstanding work, separating unrelated concerns into their own
+atomic Conventional Commits.
 
 Distinguishing rule: do not silently carry, stash, or discard pre-existing
-uncommitted changes. Commit them too, separate from your own work when they are a
-different concern.
+uncommitted changes. **Changes you did not make are not yours to commit** — in a
+repository where several agents share a checkout, sweeping them into your commit
+takes someone else's unfinished work with it. Report them by path and leave them.
+A dirty tree you did not create is the correct outcome, not a failure.
+
+Commit a pre-existing change only when the user tells you to in this session.
 
 ## Workflow
 
