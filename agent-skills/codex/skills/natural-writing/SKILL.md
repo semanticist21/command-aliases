@@ -1,12 +1,25 @@
 ---
 name: natural-writing
-description: "Rewrite or draft natural Korean/English text while preserving intent. Use for humanize, tone cleanup, copy edits, or message polish."
+description: "Rewrite or draft natural Korean/English text while preserving intent. Use for humanize, AI-like or TMI cleanup, over-explanation, concise rewriting, tone cleanup, copy edits, or message polish."
 ---
 # Natural Writing
 
 ## Overview
 
-Use this skill to make text sound written by a careful person in the target language. Preserve the user's meaning, facts, names, numbers, constraints, and level of certainty.
+Use this skill to make text sound like the user, not like a polished template. The main failure to remove is unsolicited writing: background, explanation, examples, summaries, or conclusions the text does not need.
+
+## Minimal-change ladder
+
+Use the first sufficient operation:
+
+1. Omit: do not add text the user did not request.
+2. Preserve: keep wording that already works.
+3. Delete: remove filler, repetition, and redundant framing.
+4. Reorder: move the answer or main point forward.
+5. Rewrite: repair only the awkward or unclear passage.
+6. Add: write a new sentence only when required for meaning, accuracy, safety, or the requested effect.
+
+Do not optimize for a fixed word count. Match the source's density and the task's complexity, then stop when the purpose is met.
 
 ## Workflow
 
@@ -14,14 +27,16 @@ Use this skill to make text sound written by a careful person in the target lang
 2. If tone is unspecified, choose a plain, direct, context-appropriate tone:
    - Korean: natural modern Korean, not translated English.
    - English: clear native-sounding prose, not inflated business filler.
-3. Rewrite the text first. Keep explanations short unless the user asks for reasoning.
-4. If meaning is ambiguous, preserve the likely intent and mention the ambiguity briefly after the rewrite.
+3. Apply the minimal-change ladder. Keep the user's phrasing, roughness, fragments, and rhythm when they work.
+4. If meaning is ambiguous, avoid inventing a resolution. Ask when it blocks the rewrite; otherwise preserve the ambiguity.
 5. When the user asks for variants, provide clearly labeled options with distinct tone differences.
 
 ## Rules
 
 - Keep the original intent. Do not add claims, promises, dates, legal meanings, or technical details.
-- Remove AI-like markers: over-polished symmetry, generic enthusiasm, excessive transitions, vague compliments, and unnatural summary phrasing.
+- Return the requested text directly. Do not add a preamble, explanation of the edit, recap, offer to help, or closing note unless requested or materially necessary.
+- Remove AI-like structure: repeated conclusions, unnecessary headings or lists, rule-of-three padding, `not X but Y` symmetry, generic enthusiasm, excessive transitions, vague compliments, and formal wrap-ups.
+- Do not replace one set of stock phrases with another. Word blacklists are a cleanup aid, not the method.
 - Prefer concrete verbs and normal sentence rhythm.
 - Keep the user's domain terms and product names unless they ask for localization.
 - Match formality:
@@ -30,6 +45,7 @@ Use this skill to make text sound written by a careful person in the target lang
   - Direct Korean note/chat: allow fragments when they sound natural.
   - English business: be direct and courteous without padding.
 - Preserve line breaks, bullets, markdown, tables, and code blocks unless the user asks to restructure.
+- Use headings and bullets only when they make real structure easier to read; do not turn ordinary prose into a template.
 - For user-facing copy, reduce cognitive load before adding flourish.
 - For sensitive messages, prioritize clarity and respect over cleverness.
 
@@ -57,7 +73,7 @@ High-frequency AI tells (fix when present):
 - English-like relative clause stacking before a noun — break into two sentences or move the modifier after.
 - Inanimate subject + transitive verb (`이 시스템은 ... 제공합니다`) — often fine, but if it reads stiff, switch to a human subject.
 
-Over-polish guard: if more than ~30% of the text changes, roll back to a more conservative pass. Preserve facts, numbers, names, quotes, domain terms, and the source's formality.
+Over-polish guard: if more than ~30% of the text changes, verify that the request truly requires it; otherwise roll back to a more conservative pass. Preserve facts, numbers, names, quotes, domain terms, uncertainty, and the source's formality.
 
 ## Output Shape
 
@@ -77,7 +93,7 @@ For variants:
 [text]
 ```
 
-For edits with important caveats:
+Only when a brief note is materially necessary, such as for unresolved ambiguity or safety:
 
 ```text
 [rewritten text]
