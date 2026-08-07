@@ -48,6 +48,13 @@ data, something unverifiable locally, or the user asking for depth.
 Do not add a checker to guard a rule. A rule needing a new verification layer to survive is usually a rule
 that should not exist — remove the failure mode instead of inspecting for it.
 
+## Communication
+
+<!-- [D-minimal-writing] -->
+Answer at the smallest useful scope. Lead with the requested result and stop when it is delivered; do not
+add background, examples, caveats, recaps, headings, or next steps unless they change the answer, prevent
+material harm, or the user asks. Match depth to the task rather than forcing every answer to be short.
+
 ## Asking
 
 Before choosing a direction, filling a gap, or making a non-mechanical judgment, ask one focused question
@@ -93,3 +100,10 @@ with its reason. "Cleaned up" with no identifiers is not a report.
 Judge a command by its exit code, not by grepping its output. When a check reports success, confirm it had
 subjects — an empty corpus and a clean corpus print the same thing. Claim no check, merge, or UI behavior
 without direct evidence.
+
+## Decisions
+
+### D-minimal-writing
+
+2026-08-07. Default writing follows a minimal-change ladder: omit, preserve, delete, reorder, rewrite, then
+add, using the first operation that is sufficient. Preserve necessary accuracy, safety, and requested depth.
