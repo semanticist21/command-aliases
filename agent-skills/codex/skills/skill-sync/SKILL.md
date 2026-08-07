@@ -4,7 +4,7 @@ description: "Create, update, rename, compact, and sync user/project skills end-
 ---
 # Skill Sync
 
-Synchronize user skills between `~/.claude/skills`, `~/.codex/skills`, and the matching `semanticist21/command-aliases` mirror (`agent-skills/<runtime>/skills`). A skill is its folder plus `SKILL.md` and support files; keep runtimes independent and preserve support files unless explicitly removed.
+Synchronize user skills between `~/.claude/skills`, `~/.codex/skills`, and the matching `semanticist21/command-aliases` mirror (`agent-skills/<runtime>/skills`). **The global harness syncs with them**: `agent-harness/AGENTS.md` in that mirror is the real file, and `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` are symlinks to it. Every reconcile checks those two links still resolve there and repairs them; a real file found in either place means an edit was made off-mirror — merge it into the mirror copy rather than overwriting it. A skill is its folder plus `SKILL.md` and support files; keep runtimes independent and preserve support files unless explicitly removed.
 
 ## Routing and safety
 
