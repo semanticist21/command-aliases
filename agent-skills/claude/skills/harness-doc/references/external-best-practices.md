@@ -220,7 +220,7 @@ OpenAI Codex's principle: **"productive within a restricted environment, low-ris
 - **Traditional security logs tell you "what" happened, not "why" the agent did it.** Codex logs explain intent [O].
 - **AI security triage agents** cross-reference endpoint alerts with Codex context to distinguish normal behavior, mistakes, and genuine escalation [O].
 
-**Rule:** Local layer is for speed; CI and merge policy are for authority. [Gen]
+**Rule:** Local layer is for speed; CI and merge policy carry authority **only where the platform actually enforces them** — on a repo without branch protection a pre-merge wait simulates a gate rather than being one, and the local gates are the authority. [Gen]
 
 ---
 

@@ -47,214 +47,98 @@ allowed-tools:
 ---
 # Task
 
-Treat `/task` or `$task` argument as concrete goal. Preserve user scope, acceptance criteria, prohibitions. Own work until it lands, is cleanly removed, or is genuinely blocked.
+Treat the `/task` or `$task` argument as the concrete goal. Preserve the user's scope, acceptance criteria, and prohibitions. Own the work until it lands, is cleanly removed, or is genuinely blocked.
 
-## Root-cause rule
+## Root cause
 
-For defect and problem-solving work, root-cause resolution is a non-negotiable gate:
+For defect work, fix the cause, not where the symptom showed up.
 
-1. Before choosing or implementing a fix, establish an evidence-backed causal chain from the observed
-   failure through the responsible boundary to the defect in the owning layer. Use reproduction,
-   logs/traces, state transitions, contract violations, or equivalent direct evidence. Correlation, a
-   plausible theory, the symptom's location, or a passing acceptance check is not root-cause proof.
-2. Fix the identified defect at its owning source. Scope, cost, schedule, or implementation size never
-   justify substituting a nearer workaround. Forbidden substitutes include symptom-layer guards or
-   formatting, retries or fallbacks, duplicated state/config, wrappers or monkey patches, error/test
-   suppression, and one-off data repair that leaves the faulty producer in place. Monkey patches and
-   temporary workaround artifacts remain forbidden even after the root fix. A permanent defense-in-depth
-   control is allowed only when it enforces a separate invariant at its own owning boundary, is independently
-   required, and neither masks, duplicates, nor compensates for the original defect.
-3. If the evidence is insufficient, keep investigating rather than editing speculatively. If the root fix
-   requires new product direction, authority, or scope, stop and request an explicit user decision. If the
-   cause or required access is external and cannot be changed, report `blocked` with the evidence, owner,
-   and exact required action; do not ship a temporary mitigation.
-4. Do not declare the problem solved until verification exercises the original causal path and proves the
-   owning defect is removed. The visible symptom disappearing by itself is not completion evidence.
+- Establish an evidence-backed chain from the observed failure to the defect in the owning layer — reproduction, logs, traces, state transitions, a violated contract. A plausible theory or a now-passing check is not that evidence.
+- Fix it at that layer, whatever the size. Symptom-layer guards, retries, fallbacks, duplicated state, wrappers, suppressed errors or tests, and one-off data repair that leaves the faulty producer in place are not fixes, and stay wrong even next to a real one. A permanent control at its own boundary is fine when it enforces a separate invariant and is independently required.
+- Insufficient evidence means keep investigating, not edit speculatively. A fix that needs new product direction is a user decision. A cause you cannot reach is `blocked`, with the owner and the exact required action — not a shipped mitigation.
+- Verification has to exercise the original path. The symptom disappearing is not proof.
 
 ## Start
 
-1. Read nearest `AGENTS.md`, project instructions, git status/branch/worktrees, active goal. Never alter unowned worktrees, branches, queues, or caller-tree changes.
-2. Reuse matching active goal. Unrelated active goal = conflict; do not replace it.
-3. Inspect `<root>/.agent-tmp/task-queue.md` when available. Queue new owned work behind active; drain oldest first. Never report done with queued or unmerged owned work.
-4. Resolve target repo and caller base branch. Caller dirty state normally does not block: preserve read-only, branch from committed `HEAD`. Ask only if user requires uncommitted changes.
-5. For `audit` findings, read caller-root `.agent-tmp/audit-findings.md`, act only on user-selected findings, mark landed findings resolved after cleanup, never stage that ledger.
+1. Read the nearest `AGENTS.md`, project instructions, and git status/branch/worktrees. Never alter unowned worktrees, branches, or caller-tree changes.
+2. Reuse a matching active goal; an unrelated one is a conflict, not something to replace.
+3. Check `<root>/.agent-tmp/task-queue.md` when present. Queue new owned work behind active work and drain oldest first. Never report done with owned work still queued or unmerged.
+4. Resolve the target repo and caller base branch. A dirty caller tree normally does not block: leave it untouched and branch from committed `HEAD`.
+5. For `audit` findings, read `.agent-tmp/audit-findings.md`, act only on user-selected ones, mark them resolved after cleanup, and never stage that ledger.
 
 ## Worktree
 
-For any repo write or implementation plan, create one prepared worktree before detailed inspection:
+For any repo write, create one prepared worktree before detailed inspection. Use the repo's own wrapper if it has one (some seed build caches, which saves minutes); otherwise:
 
 ```bash
 node ~/.claude/skills/task/scripts/task-worktree-create.mjs <slug> \
   --id <unique-id> --repo <repo-root> --summary "<task summary>"
 ```
 
-- Unique lowercase safe slug/ID. Record base, branch, path, caller, owner marker, summary in `.agent-tmp/task-state.md`; keep ignored. Plan, edit, test, commit there.
-- Do not create a second worktree after setup failure; repair retained one. Work in caller tree only if user explicitly requests, repo is not git, or worktree setup cannot run (state reason).
-- `--plan-only`: do not implement or commit. Clean only with `task-worktree-plan-cleanup.mjs` after its state checks pass. Never discard changes to force cleanup.
-- Prior owned task complete but uncleaned: land only with known recorded base, then clean. For unknown
-  ownership/base, an unfinished git operation, or ambiguous overlap, exhaust safe read-only investigation;
-  use `grill-me` if a user decision can resolve it, and classify it as blocked only under the Closure gate.
+Record base, branch, path, caller, owner marker, and summary in an ignored `.agent-tmp/task-state.md`. Plan, edit, test, and commit there. After a setup failure repair the retained worktree rather than creating a second. Work in the caller tree only when the user asks, the repo is not git, or worktree setup cannot run — and say which. `--plan-only` means no implementation and no commit; clean it with `task-worktree-plan-cleanup.mjs` only after its state checks pass, never by discarding changes.
 
 ## Plan and execute
 
-1. State concise plan: acceptance criteria, root-cause evidence and causal chain, owning layer, affected paths, rejected workarounds, risks, verification, and independent work. The user usually describes a *symptom*, not the fix location: locate the layer that owns the cause (frontend / backend service / DB schema / migration / API contract / config) and fix there. A patch in the layer where the symptom surfaces is acceptable only when that layer genuinely owns the cause — not as a shortcut to avoid a backend/DB change.
-2. Read nested docs and nearby code before edits. Satisfy the Root-cause rule before implementation. Keep scope minimal *within the owning layer(s)* — "minimal" never means patching a nearer layer to dodge a backend/DB/schema/contract change. If the symptom-layer fix is cheaper but the cause lives elsewhere, the cause layer is the scope regardless of work size. Preserve user changes and project conventions. Load named/relevant skills before using their workflows.
-3. Use subagents for independent investigation, implementation, or QA. Brief them with verbatim user goal, constraints, target paths, base/worktree, expected evidence. Main agent owns judgment, integration, verification, landing.
-4. Track meaningful queue items in `.agent-tmp/task-queue.md` with owner, base, status, landed commit. Never queue work owned by another session.
+1. State the plan concisely: acceptance criteria, causal evidence, owning layer, affected paths, risks, and how you will verify. The user usually describes a *symptom*. Find the layer that owns it — frontend, service, schema, migration, API contract, config — and fix there. Patching a nearer layer to dodge a backend or schema change is not "minimal scope".
+2. Read nested docs and nearby code before editing. Preserve user changes and project conventions. Load named skills before using their workflows.
+3. Use subagents for independent investigation, implementation, or review. Brief them with the verbatim goal, constraints, target paths, and the evidence you expect back. You own judgment, integration, verification, and landing.
 
 ## Review budget
 
-Review depth is risk-adaptive, not an automatic multiplier for agent-authored work. Classify the change
-before QA and record the selected tier in the final report:
+Default to reviewing your own diff. Read it in full before you call anything done — most findings are visible there, and a reviewer is not a substitute for having looked.
 
-- `trivial`: docs, copy, formatting, or metadata-only changes, or one-file mechanical edits with no
-  executable behavior, security/permissions, CI/release, data, public API, or workflow-policy impact.
-  The primary agent performs a diff self-review and the relevant gate. Add one independent read-only
-  reviewer when the edit changes a skill/policy, landing/cleanup behavior, or acceptance is ambiguous.
-- `standard`: behavioral code, tests, architecture/docs changes, or multi-file changes. Use one
-  independent read-only reviewer against the verbatim request, current diff, and affected integration
-  surface.
-- `high-risk`: authentication/authorization, security boundaries, migrations or data, CI/release/deploy,
-  concurrency, public APIs, production configuration, root-cause fixes, irreversible changes, or an
-  uncertain causal chain. Use two independent reviewers with complementary perspectives; if the scope
-  becomes high-risk during review, escalate to this tier.
+Bring in **one** independent read-only reviewer when the change touches authentication or authorization, payments or entitlements, a data migration, CI/release/deploy, concurrency, a public API, production configuration, or anything irreversible — or when you are genuinely unsure the cause is right.
 
-If the tier is unclear, choose the higher one. Agent authorship alone does not raise the tier. The author
-must inspect the diff before delegation, and automated checks should filter mechanical failures first.
-Reviewers should start from the diff, form narrow questions, and read only the focused evidence needed to
-answer them; do not spend reviewer budget on duplicated broad repository exploration. Review evidence and
-tests remain gates, while the main agent retains final technical judgment; for standard changes, that means
-evidence-backed adjudication of reviewer findings, never an unsupported override. Material unresolved
-disagreement escalates to the high-risk tier or a user decision. For high-risk and hard-stop items,
-responsible-human acceptance is mandatory; a reviewer is not an approval substitute. This is a technical
-adjudication rule, not a blanket human sign-off gate for standard changes; existing project and platform
-approval policies remain controlling.
-Regardless of tier, weakening CI, expanding privileges, exposing secrets, passing untrusted input into a
-model or shell, or adding production write access is a hard stop until the risk is directly evidenced,
-corrected, and explicitly accepted by the responsible human. If a repository repeatedly uses `trivial`,
-sample completed changes periodically; a missed issue raises the affected pattern to `standard` until the
-classification rule is corrected.
+Brief a reviewer short: the verbatim user request, the diff, and the one question you want answered. Long briefs make reviewers worse, not better; they read past the specifics and restate the prompt. Let them come back with severity-tagged findings and their evidence.
 
-## Verify and QA
+A finding is actionable when it cites the governing user requirement or project policy, or shows a reproducible correctness, security, regression, accessibility, or integration defect. Reject preference, speculation without an observed failure, and anything contradicting a settled product decision — with the reason. UI copy, layout, and style are not findings unless they break an explicit request or a canonical design/accessibility/i18n rule. You adjudicate; do not apply a suggestion merely because it was made. When the sources genuinely conflict and the product choice is unstated, ask the user rather than letting a reviewer decide.
 
-1. Run standard gates (lint, test, typecheck, build) on changed paths. Don't assume differently-named gates are independent: lint may subsume typecheck, an aggregate script may own several gates. When a broader provider covers a gate, don't rerun a focused one. Count exact-snapshot evidence once. Reuse valid evidence; rerun only gates invalidated by code, base, deps, config, env, or coverage changes, or when reproducing a failure — elapsed time alone doesn't invalidate. Required CI still runs when repo policy demands it. For a problem fix, verification must cover the identified causal path and owning-layer correction; a symptom-only assertion is insufficient. Changed behavior needs regression coverage unless genuinely untestable (explain exception). UI work needs live browser or screenshot/render evidence; code inspection alone is insufficient.
-2. `task-verify` only for explicitly uncovered gates:
+Weakening security controls, expanding privileges, exposing secrets, passing untrusted input into a model or shell, or adding production write access needs the risk evidenced and accepted by the user before it lands.
+
+## Verify
+
+1. Run the repo's gates for the changed paths — lint, test, typecheck, build. Do not assume differently-named gates are independent: lint may subsume typecheck, and an aggregate script may own several. Reuse valid evidence; rerun only what code, base, deps, config, env, or coverage changes invalidated. Elapsed time alone invalidates nothing.
+2. For a defect fix, verification must cover the causal path, not just the symptom. Changed behavior needs regression coverage unless it is genuinely untestable — say which. For UI work, look at the actual screen when you reasonably can; a render or screenshot beats reading the diff.
+3. `task-verify` only for gates the repo does not already cover:
 
 ```bash
 node ~/.claude/skills/task/scripts/task-verify.mjs --base <recorded-base> \
   --gate <test|lint|typecheck|build> [--gate ...] [--package <relative-root>]...
 ```
 
-   No implicit all-gates mode. Treat unsupported-package/no-command output as documented N/A, not green. Database soft-skips and any relevant red gate fail verification. Keep available runners; apply concurrency caps only from measured saturation, tune per-job parallelism before reducing runner count. Concurrent runners must isolate databases/schemas, service namespaces, ports, mutable temp state. When verification/harness maintenance is in scope, simplify structurally duplicated scripts or CI; otherwise report one optional improvement without creating owned side work.
-
-3. Apply the selected review tier. For each assigned independent reviewer, provide the verbatim user request,
-   current diff, affected integration surface, acceptance criteria, plausible false positives, and direct
-   evidence needed to rule them out. Each reviewer must challenge the causal chain and explicitly answer:
-   is the identified cause supported by direct evidence, and is the fix in the owning layer rather than a
-   symptom-layer monkey patch? Reviewers must cite owning-layer code and verification evidence, and flag
-   a wrong-layer or mitigation-only fix even when visible criteria pass. They must provide requirement
-   evidence and severity-tagged findings. Do not declare QA clean while material requirements or failure
-   modes remain unverified: record verification gaps, obtain missing evidence, and never invent a finding
-   solely because evidence is missing. Reviewers independently reconcile the request with acceptance
-   criteria rather than inheriting the primary agent's interpretation. Fix actionable findings, rerun
-   affected verification, and repeat the assigned tier after behavior changes. Do not call self-review
-   QA-clean when the selected tier requires an independent reviewer. If reviewers are unavailable, exhaust
-   retry and alternate paths; use `grill-me` for a user-controlled resolution, and classify the condition
-   as blocked only under the Closure gate. Continue while progress exists.
-
-4. Review correctness, security, tests, docs, architecture, and UI duplication. A finding is actionable only
-   when it cites the exact governing user requirement or canonical project policy, or supplies direct,
-   reproducible evidence of a correctness, security, regression, accessibility, or integration defect. It
-   must identify severity, location, concrete impact, evidence, and the required outcome. Reject findings
-   that contradict a governing policy, ignore an explicit product decision, merely restate reviewer
-   preference, or propose speculative cleanup without an observed failure. Do not apply a reviewer suggestion
-   merely because it was reported; adjudicate it against the cited source and evidence.
-5. UI labels, copy, layout, and style opinions are not findings unless they violate an explicit user request,
-   canonical design/accessibility/internationalization rule, or demonstrably worsen observable behavior. A
-   reviewer proposing a UI change must cite that rule or evidence and explain why the required outcome is an
-   improvement without overriding settled product policy. When sources genuinely conflict or the correct
-   product choice is unstated, do not let the reviewer choose; use `grill-me` under the Closure gate. Stop only
-   at zero findings or zero valid actionable findings, with concrete rejection reasons for every invalid one.
+   There is no implicit all-gates mode. Unsupported-package output is a documented N/A, not a pass. A red gate on a path you touched fails verification. Concurrent runners must isolate databases, ports, and mutable temp state.
 
 ## Commit and land
 
-1. Stage explicit changed paths only. Commit after QA clean using Conventional Commit style matching recent history; inspect status afterward. Never blanket-stage caller-tree changes.
-2. Fetch recorded base before landing. Merge and re-verify affected behavior only when fetched base moved since verified merge; do not repeat unchanged-base merge or already-covered verification.
-3. With tracked CI: push branch, create/update PR, watch required checks for current head, repair task-caused failures, merge only after passing checks, prove merge commit is ancestor of fetched base. Human approval only when platform requires.
-4. Without CI, from the caller base checkout, record the exact resource inventory outside the removable
-   worktree before invoking finalization; then journal and squash task paths. Never replace this with manual
-   reset/commit. Confirm the landed commit on the recorded base:
+1. Stage explicit changed paths only — never blanket-stage a shared tree. Commit in the repo's existing Conventional Commit style and inspect `git status` afterward.
+2. Fetch the recorded base before landing. Merge and re-verify only if it moved since you verified.
+3. Follow the repo's landing policy for CI. Where checks are advisory or unenforceable, push, open the PR, merge, and move on — do not sit in a polling loop waiting on a check that gates nothing. Where they are enforced, let the platform hold the merge rather than watching it yourself.
+4. When the repo has no CI at all and no pull-request landing policy, record the resource inventory (step 5) from the caller checkout *before* finalizing, then:
 
 ```bash
 node ~/.claude/skills/task/scripts/task-finalize.mjs --repo <caller-root> --base <base> \
   --branch <task-branch> --worktree <task-worktree> --slug <slug> --head <task-head>
 ```
 
-5. Before invoking `task-finalize` or any landing cleanup that can remove the worktree, record an inventory
-   in a caller-side ignored task journal keyed by task ID (for example `.agent-tmp/task-resources/<task-id>.md`).
-   Include each task-owned temporary resource's type/namespace/ID, creation-time task/launch marker, owner
-   evidence, discovery query, and current-use result. A Compose project is only a handle when paired with a
-   unique task or launch marker and a current-use check; a shared/default project is not ownership proof.
-6. After landing, remove the task worktree first, then the landed local branch, then the branch's pushed
-   remote ref — `gh pr merge --delete-branch` skips a branch a worktree still holds. Verify each with
-   `git worktree list`, `git branch --list <branch>`, and `git ls-remote --heads origin <branch>`; run
-   `git push origin --delete <branch>` when the remote ref survives, and re-query after every deletion.
-   Release only exact resource matches through a repository-specific scoped cleanup adapter that
-   accepts those recorded IDs; if the repo
-   has only a broad orphan sweep, do not use it as task cleanup. Recheck process PID/command/launch marker,
-   container attachment, and DB current use immediately before every stop or volume deletion. Treat stopping
-   a container/process and deleting its DB volume as separate actions; volume deletion requires explicit
-   authorization and proven quiescence. Never remove the primary stack or touch active, dirty, or unowned
-   resources. If the adapter is unavailable, cleanup fails, any post-action query fails or still finds an
-   owned resource, or ownership/current use/quiescence is unknown, retain the journal and exhaust safe
-   investigation. Use `grill-me` if a user decision can resolve the condition; classify it as blocked only
-   under the Closure gate, with direct evidence, the external owner, and the exact unblock action. Complete
-   only after every owned resource has a successful action and verified absence.
-7. Cleanup is per round of work, not once per session. Before finishing any round, re-run steps 5-6 over
-   every still-present task-owned resource: those created this round, and any earlier-round resource whose
-   absence was never verified. Never carry owned resources forward on the assumption that a later round
-   will collect them, and never treat an earlier cleanup report as covering resources created or surviving
-   after it.
-8. Every cleanup report states, per category, each resource's ID, owner evidence, action, command/result,
-   post-action result, and what deliberately survived with its reason: worktrees, local branches, remote
-   branches, database stacks/containers, volumes, networks, and generated or scratch directories.
-   "Cleaned up" without those identifiers is not a report.
+5. Journal task-owned resources only when the task actually created some beyond the worktree and branch — a container, a volume, a generated tree. Keep it in an ignored scratch file by task ID: type, namespace, ID, creation marker, owner evidence, and the query that finds it. A shared or default Compose project is not ownership proof. **Delete the journal once every resource in it is verified gone** — a journal outliving its task reads as live state to the next session.
+6. Clean up in order — worktree, local branch, remote ref — because `gh pr merge --delete-branch` skips a branch a worktree still holds. Verify each with `git worktree list`, `git branch --list <branch>`, and `git ls-remote --heads origin <branch>`. Use the repo's scoped cleanup command when it has one; a broad orphan sweep is not task cleanup. Re-check PID, container attachment, and DB use immediately before stopping anything, and treat stopping a container and deleting its volume as separate decisions. Never touch the primary stack or any resource whose ownership you cannot prove.
+7. Cleanup is per round of work. Before finishing any round, re-run steps 5-6 over every still-present owned resource, including ones an earlier round left behind.
+8. A cleanup report names each resource: ID, action, command and result, the query proving absence, and what deliberately survived with its reason. "Cleaned up" without identifiers is not a report.
 
 ## Output
 
-Final response: changed work; root-cause evidence and owning layer for problem fixes; verification evidence;
-review tier, QA rounds, and final/valid finding counts; per-resource cleanup action, exact identifier, owner evidence,
-command/result, post-action query/result, preservation reason, or blocker, grouped by the Commit and land
-step 8 categories so a reader can tell at a glance what is gone and what deliberately survives;
-goal status; commit(s); required
-user decision or residual blocker. End with one concise Korean summary sentence.
+Report: what changed; causal evidence and owning layer for a defect fix; verification evidence; whether a reviewer was used and what survived review; per-resource cleanup with exact identifiers and what deliberately survives; goal status; commits; any decision you need from the user. End with one concise Korean summary sentence.
 
-## Closure gate
+## Closure
 
-1. Before any final response, inventory every unresolved item and residual risk from the request, plan, queue,
-   verification, reviewer findings, landing, CI, cleanup, and newly discovered scope. A report is not a
-   resolution. Do not finish while any in-scope action remains executable by the agent; perform it and repeat
-   the inventory after each resulting change.
-2. When agent-executable work is exhausted but a user choice, authority grant, acceptance decision, or missing
-   fact still controls completion, invoke `grill-me`. Ask one focused question at a time, wait for the answer,
-   act on it, and repeat the inventory and question loop until no such decision remains. Do not defer a known
-   decision to a final summary or convert it into an optional follow-up.
-3. `complete` requires zero unresolved items and zero in-scope residual risks, and zero task-owned resources
-   still present except those journalled with an explicit preservation reason under Commit and land step 6.
-   Re-run the resource inventory as the last check before every final response, including a response that
-   only reports follow-up work, so no round closes over a resource an earlier cleanup left behind.
-   Optional improvements outside
-   the explicit goal are not residual task risk, but label them as out of scope rather than silently treating
-   them as required work.
-4. `blocked` is allowed only for an externally unremovable condition that neither agent action nor a user
-   decision can currently clear. Record direct blocker evidence, the external owner, the exact unblock action,
-   and why further questioning cannot resolve it. A vague dependency, failed attempt, missing convenience, or
-   merely risky outcome is not a blocker; continue working or use the `grill-me` loop.
+1. Before any final response, inventory what is unresolved across the request, plan, queue, verification, review, landing, and cleanup. Reporting an item is not resolving it. Do not finish while something in scope is still executable by you.
+2. When only a user decision remains, ask it — one focused question at a time — and act on the answer. Do not defer a known decision into a summary or an optional follow-up.
+3. `complete` means zero unresolved in-scope items and zero owned resources still present except those journalled with a stated reason. This includes **the scratch files this task wrote** — state, queue, journal, plan, findings: delete the ones whose purpose is served, in this round. Optional improvements outside the goal are out of scope, not residual risk; label them that way.
+4. `blocked` is only for a condition neither you nor a user decision can clear. Record the evidence, the external owner, and the exact unblock action. A failed attempt or a risky outcome is not a blocker.
 
 ## Safety
 
-- Never stash, reset, overwrite, delete, or move user work. Only documented task finalizer recovery may use its scoped reset after every proof check.
-- Never ship a monkey patch or temporary workaround, even alongside a root fix, or describe one as task completion.
-- Do not weaken user or repository constraints to claim completion. Budget exhaustion is not closure: preserve
-  active status and the exact owned queue for continuation, then resume through the Closure gate.
-- Do not claim external checks, merges, or UI verification without direct evidence.
+- Never stash, reset, overwrite, delete, or move user work. Only the documented finalizer recovery may use its scoped reset, after its proof checks.
+- Never ship a workaround as completion, even alongside a real fix.
+- Budget exhaustion is not closure: preserve active status and the owned queue for continuation.
+- Do not claim checks, merges, or UI verification you did not actually observe.

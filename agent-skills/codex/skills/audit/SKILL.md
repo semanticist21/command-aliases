@@ -20,4 +20,6 @@ Lead with findings ordered P0–P3; omit empty severity sections. Include eviden
 
 ## Recording consent
 
-Before creating, appending to, or overwriting `.agent-tmp/audit-findings.md`, ask the user explicitly, "Should I record these findings?" and wait for the answer. Only when proposing that actual write, also ask, "If I record them, should I clean up obsolete or legacy audit ledgers?" so stale documents do not accumulate. Do not ask about legacy cleanup for a chat-only report. Write only when the user explicitly approves recording, and archive or delete only when the user explicitly approves cleanup.
+Report in chat by default; a ledger file needs the user to say yes. Before writing `.agent-tmp/audit-findings.md`, ask "Should I record these findings?" and wait.
+
+A ledger is scratch, not a document. Delete it once its findings are fixed or rejected — say so in the same report. A ledger whose findings already landed reads to the next session as open work. If you find an earlier ledger in that state, name it and delete it.

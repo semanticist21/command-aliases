@@ -51,7 +51,7 @@ description: "Safely update dependencies within current major versions or upgrad
 
 ## Autonomous completion (default: commit and push when green)
 
-Once every required check passes and the dependency diff is fully explained, carry the work all the way to a pushed commit WITHOUT waiting for a separate "commit"/"push" request. Commit the manifests, lockfiles, and required source/test changes together with a Conventional Commit message (e.g. `chore(deps): update <pkgs> within-major` or `build(deps): upgrade <pkg> to vN`), let `$task` merge the worktree back to its base branch, then push the base branch to its upstream. Report the pushed commit and branch.
+Once every required check passes and the dependency diff is fully explained, carry the work all the way to a pushed commit WITHOUT waiting for a separate "commit"/"push" request. Commit the manifests, lockfiles, and required source/test changes together with a Conventional Commit message (e.g. `chore(deps): update <pkgs> within-major` or `build(deps): upgrade <pkg> to vN`), then land it the way the repository lands work — read its harness first. Where it requires a pull request, open and merge one; never push the base branch directly. Report the landed commit and how it landed.
 
 STOP and ask instead of pushing when ANY of these holds — do not auto-push through them:
 - Required checks fail, are skipped, or cannot run, or a lockfile is not reproducible.

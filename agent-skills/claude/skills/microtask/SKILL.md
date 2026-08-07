@@ -47,107 +47,34 @@ allowed-tools:
 ---
 # Microtask
 
-Use for one small, bounded change that can safely finish in current task context. `/microtask` input is
-the goal; preserve user constraints and follow `task` unless this file overrides it.
+One small, bounded change that can safely finish in the current context. The `/microtask` input is the goal. Follow `task` for everything this file does not override.
 
-## Root-cause gate
+## When to hand off
 
-- Before any defect or problem-solving edit, satisfy `task`'s Root-cause rule with an evidence-backed
-  causal chain and identified owning layer. Do not edit from a plausible theory or symptom alone.
-- A task may be small; its root fix may not be. If the root fix exceeds microtask scope, crosses into
-  another owning layer, or requires broader isolation, hand the entire job to `task`. Never narrow the fix,
-  add a temporary mitigation, or patch the symptom merely to keep the work a microtask. Monkey patches and
-  temporary workaround artifacts remain forbidden even after the root fix; follow `task`'s narrow rule for
-  separately justified permanent defense-in-depth.
-- If the root fix needs new product direction, authority, or scope, stop for an explicit user decision. If
-  the cause or access is externally unchangeable, report `blocked` with evidence, owner, and required
-  action. Do not add a workaround while waiting.
+- Satisfy `task`'s Root cause section before any defect edit. A task may be small while its root fix is not: if the fix crosses into another owning layer, needs isolation, or is high-risk (auth, payments, migrations, CI/release, concurrency, public API, production config, anything irreversible), hand the whole job to `task`. Never shrink the fix, patch the symptom, or add a mitigation just to keep the work in this lane.
+- If the fix needs new product direction or authority, stop and ask. If the cause is externally unchangeable, report `blocked` with evidence, owner, and the required action — without adding a workaround while waiting.
 
-## Scope and location
+## Where to work
 
-1. Read nearest instructions, git status/operation, active goal, and owned queue. Reuse matching goal;
-   unrelated active goal is a conflict. Claude creates a goal before planning and uses `/goal` only for
-   terminal states.
-2. Work in active parent `task` worktree and branch when one exists; otherwise use the current base only
-   when it is a non-protected branch that permits direct microtask work. Never create a worktree or task
-   branch here. If the only available checkout is a protected/default branch, hand off to `task` instead of
-   committing or pushing there. Do not touch unowned worktrees, queues, or branches.
-3. Direct work may be dirty: preserve unrelated files, stage explicit changed paths only, and never stash,
-   reset, move, or overwrite user changes. Stop on unfinished git operation or ambiguous overlapping edits.
-4. If task is not genuinely small/bounded, queued work needs isolation, user asks for a plan, or the proven
-   root fix exceeds this lane, hand off to `task` before implementation. Do not expand microtask scope or
-   substitute any mitigation, fallback, retry, guard, wrapper, duplicated state/config, or monkey patch.
+1. Read the nearest instructions, git status, and the active goal. Reuse a matching goal; an unrelated one is a conflict.
+2. Work in the active parent `task` worktree when one exists; otherwise the current base, but only if it is a branch that permits direct work. Never create a worktree or task branch here. If the only checkout is a protected or default branch, hand off to `task` for the worktree — but the work stays this size. Handing off buys isolation, not ceremony: no reviewer panel, no staged plan, no journal for a change that creates no resources.
+3. A dirty tree is fine: preserve unrelated files, stage explicit paths only, and never stash, reset, move, or overwrite user changes. Stop on an unfinished git operation or ambiguous overlapping edits.
 
 ## Work
 
-1. Plan briefly: requested behavior, root-cause evidence and causal chain, owning layer, paths, rejected
-   workarounds, risk, and verification. Read relevant docs and nearby code. Do not implement until the
-   causal chain is established. The user usually states a symptom, not the fix location: locate the layer
-   that owns the cause (frontend / backend service / DB schema / migration / API contract / config) and fix
-   there. Do not patch the symptom layer to avoid a backend/DB change.
-2. Follow `task` contracts for implementation, regression tests, architecture, security, UI browser/render
-   verification, queue ownership, and audit-ledger handling. UI code inspection alone is insufficient.
-3. Run standard gates on changed paths without duplicate focused, aggregate, or CI coverage. For a problem
-   fix, verification must exercise the identified causal path and owning-layer correction; symptom-only
-   evidence is insufficient. Use `task-verify` only for explicitly uncovered gates.
-4. Apply `task`'s risk-adaptive review tiers. A trivial docs/copy/formatting or one-file mechanical change
-   with no behavior, security, CI/release, data, API, or workflow-policy impact gets a diff self-review;
-   use one independent read-only reviewer when the edit changes a skill/policy, landing/cleanup behavior,
-   or acceptance is ambiguous. A standard behavioral or multi-file change gets one independent reviewer.
-   A high-risk change (security/auth, migrations/data, CI/release/deploy, concurrency, public API,
-   production config, root-cause fixes, or irreversible/uncertain changes) must be handed to `task`, where
-   two complementary reviewers are used. If risk is unclear, escalate. Agent authorship alone does not
-   raise the tier, and reviewer breadth should follow the diff and focused review questions rather than
-   broad duplicate repository exploration. Every assigned reviewer must use the verbatim request, diff,
-   affected surface, and acceptance criteria; challenge the causal evidence and owning-layer fix, cite
-   direct evidence, reject preference-only findings, and flag mitigation-only patches. Fix actionable
-   findings, rerun affected verification, and repeat the assigned tier after behavior changes. Reviewer
-   unavailability never permits self-review: exhaust alternate paths, use `grill-me` when a user decision
-   can resolve it, and classify blocked only under `task`'s Closure gate. Weakening CI, expanding
-   privileges, exposing secrets, untrusted model/shell input, or production writes are hard stops in every
-   tier. If a repo repeatedly uses the trivial lane, sample it periodically and raise a pattern to standard
-   after any missed issue.
+1. Plan briefly: requested behavior, causal evidence, owning layer, paths, verification. The user usually states a symptom, not the fix location — find the layer that owns it and fix there.
+2. Run the repo's gates for the changed paths; do not duplicate coverage an aggregate script already provides. For a defect fix, verification must exercise the causal path. For UI work, look at the actual screen when you reasonably can.
+3. Review your own diff. Bring in one independent reviewer only for the cases `task`'s Review budget names — and by then you are usually handing off to `task` anyway. A short brief beats a long one.
 
-## Commit, landing, output
+## Land and report
 
-1. After clean QA, commit explicit paths using project Conventional Commit style. Do not commit or push
-   directly to a protected/default branch; use the parent task or PR lane, and do not push unless task CI/PR
-   lane or user explicitly requires it. After a rejected or non-fast-forward push, never force push or
-   automatically rebase, merge, or stash unrelated work. Exhaust safe inspection and parent/PR landing paths,
-   use `grill-me` for a user-controlled landing decision, and classify it as blocked only under `task`'s
-   Closure gate. Follow parent task landing/cleanup; direct work must land on intended base before completion.
-2. Drain eligible owned queue items oldest first. Never report done with owned queued, side-worktree, or
-   unmerged work; keep working through `task`'s Closure gate instead of converting the remaining queue into
-   a final report.
-3. Final response uses `task` Output: changed work, verification, QA counts, status, commit, and risk.
-   Include per-resource cleanup action, exact identifier, owner evidence, command/result, post-action
-   query/result, preservation reason, or blocker. Before completion, inventory exact microtask-owned resource
-   IDs and creation-time markers in a caller-side ignored task journal keyed by task ID, outside any removable
-   worktree. Include resource type/namespace, owner evidence, discovery query, and current-use result; when a
-   parent task exists, hand the journal to the parent and require parent import/recheck. Release only exact
-   microtask-owned matches through the supported scoped cleanup path; parent-task resources remain with parent
-   finalization unless the parent explicitly completes a handoff naming exact resource IDs. Recheck process
-   PID/command/launch marker, container attachment, and DB current use immediately before every stop or volume
-   deletion. Treat stopping a container/process and deleting its DB volume separately; if the adapter is
-   unavailable, cleanup fails, any post-action query fails or still finds an owned resource, or ownership,
-   current use, or quiescence cannot be proven, retain the journal and exhaust safe investigation. Use
-   `grill-me` if a user decision can resolve the condition; set blocked status only under `task`'s Closure gate,
-   with direct evidence, the external owner, and the exact unblock action. Complete only after every owned resource has a successful action
-   and verified absence. Preserve active, dirty, primary, and unowned resources.
-   Group the report per `task` Output, naming what is gone and what deliberately survives with its reason;
-   "cleaned up" without identifiers is not a report. A merge that claims to delete a remote branch does not
-   prove it: re-query `git ls-remote --heads origin <branch>` and run `git push origin --delete <branch>`
-   when the ref survives. Cleanup is per round of work, not once per session: before finishing any round,
-   re-inventory every still-present owned resource, including any earlier-round resource whose absence was
-   never verified, rather than assuming an earlier cleanup report still covers it.
-   End with one concise Korean summary sentence.
+1. After gates pass, commit explicit paths in the project's Conventional Commit style. Do not commit or push to a protected or default branch; use the parent task or the PR lane. After a rejected or non-fast-forward push, never force push or auto-rebase unrelated work — inspect, then ask.
+2. Drain eligible owned queue items oldest first. Never report done with owned queued or unmerged work.
+3. Journal microtask-owned resources by task ID outside any removable worktree, and hand the journal to the parent task when one exists. Release only exact matches through the repo's scoped cleanup path; parent-task resources stay with parent finalization. Re-check current use immediately before stopping anything, and treat stopping a container and deleting its volume as separate decisions.
+4. Report per `task`'s Output section: what changed, verification, status, commit, and per-resource cleanup with exact identifiers and what deliberately survives. "Cleaned up" without identifiers is not a report. End with one concise Korean summary sentence.
 
 ## Safety
 
-- `complete` requires verification, review, intended commit, landing/cleanup when applicable, and queue drain.
-- Apply `task`'s Closure gate before every final response. Do not stop after listing unfinished work or risk:
-  perform every executable action, then use `grill-me` one question at a time for each remaining user-controlled
-  decision until none remains. Permit `blocked` only for the externally unremovable, evidenced condition defined
-  by that gate, with its owner and exact unblock action recorded.
-- Never ship a monkey patch or temporary workaround, even alongside a root fix.
-- Do not weaken user/repository constraints to claim zero findings or completion.
+- `complete` requires verification, the intended commit, landing and cleanup where applicable, and a drained queue. Apply `task`'s Closure section before every final response.
+- Never ship a workaround as completion, even alongside a real fix.
+- Do not weaken user or repository constraints to claim completion.
