@@ -4,7 +4,7 @@ description: "Create, update, rename, compact, and sync user/project skills end-
 ---
 # Skill Sync
 
-Keep user skills aligned between `~/.claude/skills`, `~/.codex/skills`, and the matching `semanticist21/command-aliases` mirror. A skill is its folder plus `SKILL.md` and support files; preserve support files unless deletion is explicitly approved. Runtimes are independent.
+Keep user skills aligned between `~/.claude/skills`, `~/.codex/skills`, and the matching `semanticist21/command-aliases` mirror. **The global harness syncs with them**: `agent-harness/AGENTS.md` in that mirror is the real file, and `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` are symlinks to it. Every reconcile checks those two links still resolve there and repairs them; a real file found in either place means an edit was made off-mirror — merge it into the mirror copy rather than overwriting it. A skill is its folder plus `SKILL.md` and support files; preserve support files unless deletion is explicitly approved. Runtimes are independent.
 
 ## Operations and safety
 
@@ -14,11 +14,9 @@ Before any mirror write, use a dedicated worktree/branch from a clean fetched ba
 
 ## Reconcile and update
 
-Inventory both local and mirror runtimes and version markers: mirror `agent-skills/VERSION`; local `.sync-version` files. Classify each name as identical, repo-only (install), drift, or local-not-in-repo. Surface a one-line table/plan before writing. Refresh a clean mirror then reclassify if needed.
+Inventory both local and mirror runtimes and version markers: mirror `agent-skills/VERSION`; local `.sync-version` files. Classify each name as identical, repo-only (install), local-only (private/no action), or drift. Surface a one-line table/plan before writing. Refresh a clean mirror then reclassify if needed.
 
-A name with no repo counterpart is never automatically "no action" — disambiguate it before deciding: check the mirror's git history for that path (`git log --diff-filter=D -- agent-skills/<runtime>/skills/<name>`). If it was deleted from the repo, it's an **orphan**: propose removing the local (dangling-symlink or copy) install and act once the user confirms, same bar as any delete. Only a name that never existed in repo history is genuinely **local-private**; that one stays quarantined and untouched unless the user names it for publish. Never treat "not in repo" as evidence of privacy by itself.
-
-For drift, merge non-overlapping edits; for a line clash prefer the newer edit and report it. Stop only for a semantic contradiction, secrets/private-context scan hit, destructive action, unclear target, or unavailable required push identity. Genuine local-private skills stay quarantined during reconcile unless the user explicitly names them for publish. Never auto-publish `ktbase-push`, Codex `.system/*`, `chronicle`, or `codex-primary-runtime`.
+For drift, merge non-overlapping edits; for a line clash prefer the newer edit and report it. Stop only for a semantic contradiction, secrets/private-context scan hit, destructive action, unclear target, or unavailable required push identity. Local-only skills stay quarantined during reconcile unless the user explicitly names them for publish. Never auto-publish `ktbase-push`, Codex `.system/*`, `chronicle`, or `codex-primary-runtime`.
 
 `add` needs explicit scope and targets both runtimes unless narrowed. `update` preserves existing selected runtimes. Keep frontmatter minimal and runtime-safe; user skills must not contain private paths/hosts/credentials. A rename requires explicit user intent before removing the old directory. A delete always needs a second confirmation naming skill, runtime, and side.
 
