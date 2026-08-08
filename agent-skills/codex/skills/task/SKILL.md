@@ -51,6 +51,8 @@ Treat the `/task` or `$task` argument as the concrete goal. Preserve the user's 
 
 ## Root cause
 
+Name variables, methods, and state types after the lifecycle or observable side effect they own, not the generic phase that happens to call them.
+
 For defect work, fix the cause, not where the symptom showed up.
 
 - Establish an evidence-backed chain from the observed failure to the defect in the owning layer — reproduction, logs, traces, state transitions, a violated contract. A plausible theory or a now-passing check is not that evidence.
