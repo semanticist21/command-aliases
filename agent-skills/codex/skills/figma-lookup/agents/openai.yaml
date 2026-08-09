@@ -1,6 +1,6 @@
 interface:
   display_name: "Figma Lookup"
   short_description: "Index storyboard screens and planning nodes"
-  default_prompt: "Use $figma-agent with $figma-lookup when available to list screen links and matching planning/spec nodes from this Figma storyboard."
+  default_prompt: "Use $figma-lookup with the available Figma tools to list screen links and matching planning/spec nodes from this storyboard."
 policy:
   allow_implicit_invocation: true
