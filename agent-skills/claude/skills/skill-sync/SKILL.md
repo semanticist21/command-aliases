@@ -18,7 +18,7 @@ Inventory both local and mirror runtimes and version markers: mirror `agent-skil
 
 For drift, merge non-overlapping edits; for a line clash prefer the newer edit and report it. Stop only for a semantic contradiction, secrets/private-context scan hit, destructive action, unclear target, or unavailable required push identity. Local-only skills stay quarantined during reconcile unless the user explicitly names them for publish. Never auto-publish `ktbase-push`, Codex `.system/*`, `chronicle`, or `codex-primary-runtime`.
 
-`add` needs explicit scope and targets both runtimes unless narrowed. `update` preserves existing selected runtimes. Keep frontmatter minimal and runtime-safe; user skills must not contain private paths/hosts/credentials. A rename requires explicit user intent before removing the old directory. A delete always needs a second confirmation naming skill, runtime, and side.
+`add` needs explicit scope and targets both runtimes unless narrowed. `update` preserves existing selected runtimes. Keep frontmatter minimal and runtime-safe; user skills must not contain private paths/hosts/credentials. A rename requires explicit user intent before removing the old directory. A delete always needs a second confirmation naming skill, runtime, and side; remove runtime hooks/settings that reference deleted support files and verify no stale paths remain.
 
 ## Finish
 
