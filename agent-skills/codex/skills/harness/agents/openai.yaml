@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness"
+  short_description: "Set up, add to, or polish minimal agent docs"
+  default_prompt: "Use $harness to polish this project’s agent documentation."

@@ -26,6 +26,7 @@ Synchronize user skills between `~/.claude/skills`, `~/.codex/skills`, and the m
 - User create/update/compact: edit mirror under isolation, merge detached local changes, spawn/obtain an independent read-only reviewer for meaningful edits (unavailable blocks completion), apply high/medium fixes, sync both intended local targets after landing.
 - Compact non-breakingly: concise frontmatter/body, canonical shared rules, compatibility aliases. Delete aliases/skills only after explicit second confirmation naming runtimes and sides.
 - Rename only when explicitly requested: create new directory/frontmatter, search literal references, then remove old copy. Delete likewise requires a second explicit confirmation with exact repo/local sides.
+- Remove runtime hooks/settings that reference deleted support files and verify no stale paths remain.
 - Project scope follows its repository task/verification/landing workflow only.
 
 ## Publish/version/identity
