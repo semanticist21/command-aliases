@@ -22,6 +22,7 @@ agent-skills/
 | Skill            | claude | codex | What it does                                              |
 |------------------|:------:|:-----:|----------------------------------------------------------|
 | agent-review     |   ✓    |   ✓   | Review this session's work via delegated subagent loop    |
+| android-phone-remote-access | ✓ | ✓ | Connect to an authorized Android phone over USB or Tailscale ADB and control it with scrcpy |
 | analysis         |   ✓    |   ✓   | Parallel adversarial root-cause bug investigation          |
 | audit            |   ✓    |   ✓   | Read-only systemic-risk audit; lists findings to fix      |
 | commit           |   ✓    |   ✓   | Stage + commit as clean Conventional Commits              |
