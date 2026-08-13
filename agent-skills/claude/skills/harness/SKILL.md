@@ -1,0 +1,1 @@
+../../../codex/skills/harness/SKILL.md

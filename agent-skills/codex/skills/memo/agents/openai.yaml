@@ -1,7 +1,7 @@
 interface:
   display_name: "Memo"
-  short_description: "Save durable notes from memo arguments"
-  default_prompt: "Use $memo to save this instruction, preference, follow-up, or environment fact as a durable note."
+  short_description: "Route and save a one- or two-line durable note"
+  default_prompt: "Use $memo to save this as a minimal durable project or user note."
 
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

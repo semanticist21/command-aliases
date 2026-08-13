@@ -1,32 +1,20 @@
-# edit
-alias edit='vi ~/.zshrc'
-alias apply='source ~/.zshrc'
-
-# pnpm
-alias i='pnpm i'
-alias b='pnpm i && pnpm build'
-alias d='pnpm i && pnpm dev'
-alias t='pnpm test'
-
-# git
-alias s='hub sync'
-alias tod='git switch develop'
-alias tom='git switch main'
-alias md='git switch main && git merge develop && git push origin main && git switch develop'
-
-alias u='git pull'
-alias p='git push && git push --tags'
-alias a='git add .'
-alias m='git commit -m'
-
-alias v='git branch -vv'
-
-# cmd
+# Shell
 alias c='clear'
-alias myip='ipconfig getifaddr en1'
+alias edit='vi ~/.zshrc'
 
-# others
-alias nx='npx nx'
+# Git
+alias s='hub sync'
+function m() { git commit -m "$*"; }
+alias p='git push'
+alias u='git pull'
 
-alias cl='claude --dangerously-skip-permissions'
-
+# AI tools
+alias cl='claude --dangerously-skip-permissions --chrome'
+alias cdx='codex --yolo'
+function ccl() {
+  local node_opts="${NODE_OPTIONS:-}"
+  if [[ "$node_opts" != *"--max-old-space-size="* ]]; then
+    node_opts="${node_opts:+$node_opts }--max-old-space-size=8192"
+  fi
+  NODE_OPTIONS="$node_opts" openclaude --dangerously-skip-permissions --chrome "$@"
+}
