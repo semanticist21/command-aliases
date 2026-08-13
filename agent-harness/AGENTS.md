@@ -5,3 +5,5 @@
 - Cross-project machine/user facts live in `~/.agents/doc/AGENTS.md`; read it only when relevant.
 - Do not create status, handoff, memory, plan, audit, or checklist files by default.
 - Ask one focused question before a non-mechanical or conflicting choice. Match process, review, tests, and cleanup to actual risk.
+- When using the `task` skill, always merge the completed task branch/worktree before reporting completion.
+- Report any blocking condition to the user immediately and explicitly.
