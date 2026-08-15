@@ -14,6 +14,24 @@ An explicit `$secrets-sync` request authorizes a reconcile. A user-scope
 Every reconcile starts with the dry inventory; transfer is permitted only for
 the resulting explicit approved-source list.
 
+## Request contract
+
+- `$secrets-sync` in a repository reconciles its project inputs and performs
+  missing-only restores for its registered user collections; it never uploads,
+  prunes, or updates a user-collection manifest.
+- `$secrets-sync user` selects the sole canonical owner/default collection in
+  the private bootstrap source. `$secrets-sync user <owner-id>/<collection-id>`
+  selects exactly that registered pair. Fail closed if the default is absent or
+  ambiguous, or if the named pair is unregistered. A user request reconciles
+  only that collection: inventory, exact transfer, checksum verification, and
+  manifest update happen in the same request.
+- On a new machine, that same request performs the full bootstrap after the
+  user has joined the approved tailnet. Stop only if the machine's fresh public
+  key or a selected collection has not received its one-time NAS allowlist;
+  request only that setup, then resume the same request. Multiple registered
+  collections are authorized and restored independently; one failure never
+  broadens access to another.
+
 ## Scope
 
 - Use the local `synology-kkomjang` SSH alias only. It is the restricted sync
@@ -25,13 +43,15 @@ the resulting explicit approved-source list.
   convenient filename. Validate every ID against
   `^[a-z0-9][a-z0-9-]{0,62}$`.
 - Resolve project sources only beneath the repository root. Resolve user-scope
-  sources only beneath the preconfigured private-key folder from the private
-  bootstrap source; never copy a shared credential into a repository merely to
-  make it syncable. Use normalized relative paths with no `..`, leading `/`,
-  control characters, or shell metacharacters.
-- A user-scope request selects one registered owner/collection, never every
-  user secret. Keep its ownership and repository consumers in the private
-  bootstrap source, not Git, manifests, or chat.
+  sources only beneath the selected collection's exact source root and
+  approved-path allowlist in the private bootstrap source; never copy a shared
+  credential into a repository merely to make it syncable. Files outside that
+  collection are not inventory, upload, restore, or prune candidates. Use
+  normalized relative paths with no `..`, leading `/`, control characters, or
+  shell metacharacters.
+- A user-scope request selects the registered default or one named
+  owner/collection, never every user secret. Keep its ownership and repository
+  consumers in the private bootstrap source, not Git, manifests, or chat.
 - Reuse the registered user collection for new shared credentials; never create
   a collection per key or repository.
 - Ignore rules only produce inventory candidates; they never authorize
@@ -88,9 +108,9 @@ pass.
 
 1. For a project scope, inspect the repository ignore rules and enumerate
    ignored regular files with `git ls-files --others --ignored --exclude-standard`.
-   For a user scope, inventory only the preconfigured private-key folder. In
-   either case classify every candidate before transfer; ignore rules never
-   authorize a file.
+   For a user scope, inventory only the selected collection's exact source
+   root and approved-path allowlist. In either case classify every candidate
+   before transfer; ignore rules never authorize a file.
 2. Read the matching, independent private manifest and present added, changed, missing-local,
    and excluded candidates. A manifest contains normalized relative paths,
    octal modes, and SHA-256 checksums only—never contents, timestamps, hosts,
@@ -105,9 +125,10 @@ pass.
    Prune only exact validated paths absent from the new approved manifest;
    never derive a delete set from a glob or recursive option.
 5. For clone/worktree recovery, restore only missing project files by default.
-   Restore only the required registered user collection into the preconfigured
-   private-key folder; project and user manifests never overwrite each other.
-   Show a checksum conflict and obtain approval before overwriting a local file.
+   Restore only the required registered user collection into its exact
+   destination root and approved-path allowlist from the private bootstrap
+   source; project and user manifests never overwrite each other. Show a
+   checksum conflict and obtain approval before overwriting a local file.
 
 ## Guardrails
 
