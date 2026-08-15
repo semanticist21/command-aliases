@@ -1,6 +1,6 @@
 ---
 name: secrets-sync
-description: Safely inventory, archive, restore, and reconcile project-specific ignored secret files with private Synology storage. Use when a clone or worktree needs ignored env/config/key files restored, or when those files are added, changed, or intentionally removed.
+description: Safely inventory, archive, restore, and reconcile project- and user-scoped secret files with private Synology storage. Use when a clone or worktree needs ignored inputs restored, or when project-local or shared user credentials/configuration changes.
 ---
 
 # Secrets Sync
@@ -18,11 +18,20 @@ the resulting explicit approved-source list.
 
 - Use the local `synology-kkomjang` SSH alias only. It is the restricted sync
   account; never use an admin alias for archive, restore, or prune.
-- Store each project below the NAS private root as `projects/<project-id>/`.
-  Validate `<project-id>` against `^[a-z0-9][a-z0-9-]{0,62}$`; use normalized
-  relative paths with no `..`, leading `/`, control characters, or shell
-  metacharacters. Resolve an approved source only beneath the repository root
-  or its preconfigured private-key folder.
+- Classify the secret before choosing a destination: use `projects/<project-id>/`
+  only for a credential/configuration owned by one repository; use
+  `users/<owner-id>/<collection-id>/` only when the user explicitly says it is
+  shared across projects or machines. Never infer shared scope from a
+  convenient filename. Validate every ID against
+  `^[a-z0-9][a-z0-9-]{0,62}$`.
+- Resolve project sources only beneath the repository root. Resolve user-scope
+  sources only beneath the preconfigured private-key folder from the private
+  bootstrap source; never copy a shared credential into a repository merely to
+  make it syncable. Use normalized relative paths with no `..`, leading `/`,
+  control characters, or shell metacharacters.
+- A user-scope request selects one registered owner/collection, never every
+  user secret. Keep its ownership and repository consumers in the private
+  bootstrap source, not Git, manifests, or chat.
 - Ignore rules only produce inventory candidates; they never authorize
   transfer. Before every transfer, require an explicit approved-source list.
   Each entry must be an ignored, non-symlink regular file with a validated
@@ -33,9 +42,9 @@ the resulting explicit approved-source list.
   account has no interactive shell. Verify checksums by downloading each exact
   uploaded file, and upload the manifest last.
 - Archive only ignored, source-controlled-workflow inputs: env/config files,
-  signing keys, OAuth/APNs credentials, provisioning material, and an explicit
-  project secret manifest. Exclude generated output, caches, dependencies,
-  logs, databases, and build artifacts even if ignored.
+  signing keys, OAuth/APNs credentials, provisioning material, and a manifest.
+  A user scope may hold an explicitly shared release/signing credential but no
+  project build output, caches, dependencies, logs, databases, or artifacts.
 
 ## New-machine bootstrap
 
@@ -59,24 +68,28 @@ pass.
 
 ## Reconcile
 
-1. Inspect the repository ignore rules and enumerate ignored regular files with
-   `git ls-files --others --ignored --exclude-standard`. Classify each candidate
-   before transfer; do not infer that every ignored file is a secret.
-2. Read the previous private manifest and present an inventory: added, changed,
-   missing-local, and excluded generated files. A private manifest contains
-   normalized relative paths, octal modes, and SHA-256 checksums only—never
-   contents, timestamps, hosts, account data, or keys. Treat its remote
-   contents as untrusted until every field and path is validated.
-3. On an explicit sync request, upload new or changed approved files first over
-   the restricted connection, verify checksums, then replace the manifest last.
-   Keep private files owner-readable only locally and remotely.
+1. For a project scope, inspect the repository ignore rules and enumerate
+   ignored regular files with `git ls-files --others --ignored --exclude-standard`.
+   For a user scope, inventory only the preconfigured private-key folder. In
+   either case classify every candidate before transfer; ignore rules never
+   authorize a file.
+2. Read the matching, independent private manifest and present added, changed, missing-local,
+   and excluded candidates. A manifest contains normalized relative paths,
+   octal modes, and SHA-256 checksums only—never contents, timestamps, hosts,
+   account data, or keys. Treat remote data as untrusted until each field and
+   path is validated.
+3. On an explicit sync request, upload only the approved files, verify each by
+   downloading its exact path and comparing locally, then replace the matching
+   manifest last. Keep private files owner-readable only locally and remotely.
 4. Treat a file present only on NAS as a deletion candidate, not proof that it
    is obsolete. Delete it only when the task explicitly requests prune/reconcile
    and after the current approved files and manifest are safely uploaded.
    Prune only exact validated paths absent from the new approved manifest;
    never derive a delete set from a glob or recursive option.
-5. For clone/worktree recovery, restore only missing files by default. Show a
-   checksum conflict and obtain approval before overwriting a local file.
+5. For clone/worktree recovery, restore only missing project files by default.
+   Restore only the required registered user collection into the preconfigured
+   private-key folder; project and user manifests never overwrite each other.
+   Show a checksum conflict and obtain approval before overwriting a local file.
 
 ## Guardrails
 
@@ -84,7 +97,9 @@ pass.
   copy, `git clean -fdx`, or unscoped `--delete` against a secret directory.
 - Do not log, hash-print, commit, or paste secret contents. Keep only stable
   paths and checksums in the private manifest.
-- Confirm the restricted account cannot access anything outside `projects/`
-  after a new NAS setup or permission change.
+- Exclude generated output, Keychain dumps, SSH private keys, NAS connection
+  material, caches, logs, databases, and build artifacts from every scope.
+- Confirm the restricted account cannot access anything outside `projects/` and
+  `users/` after a new NAS setup or permission change.
 - If the NAS target, private manifest, or SSH key is unavailable, stop and ask
   for that setup to be repaired; do not create a substitute public archive.
