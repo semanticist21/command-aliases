@@ -1,0 +1,7 @@
+interface:
+  display_name: "Secrets Sync"
+  short_description: "Synchronize ignored project secrets with NAS"
+  default_prompt: "Use $secrets-sync to safely archive or restore this project's ignored secret files."
+
+policy:
+  allow_implicit_invocation: false
