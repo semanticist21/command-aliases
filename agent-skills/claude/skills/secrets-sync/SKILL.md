@@ -1,0 +1,1 @@
+../../../codex/skills/secrets-sync/SKILL.md
