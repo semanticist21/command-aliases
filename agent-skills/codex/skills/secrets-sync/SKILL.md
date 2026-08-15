@@ -37,6 +37,26 @@ the resulting explicit approved-source list.
   project secret manifest. Exclude generated output, caches, dependencies,
   logs, databases, and build artifacts even if ignored.
 
+## New-machine bootstrap
+
+For each new machine, first join the approved tailnet using the normal
+enrollment flow. Generate a fresh, passphrase-protected SSH key on that
+machine; never copy an existing private key or place one in shared/bootstrap
+material.
+
+Use the private bootstrap source to obtain the approved destination and local
+alias settings, then register only the new public key with the designated
+restricted account through its approved authorization path. Keep that account's
+limited command, filesystem, and forwarding restrictions intact; this grants
+no broader shell or administrative access.
+
+Configure the local alias from the private bootstrap source rather than
+recording hostnames, usernames, or private paths in this shared skill. Verify
+legacy transfer compatibility with a harmless, explicitly authorized `scp -O`
+operation against the restricted account. Treat failure as a configuration or
+authorization issue—never relax account restrictions just to make the check
+pass.
+
 ## Reconcile
 
 1. Inspect the repository ignore rules and enumerate ignored regular files with
