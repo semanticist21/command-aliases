@@ -31,6 +31,17 @@ the resulting explicit approved-source list.
   request only that setup, then resume the same request. Multiple registered
   collections are authorized and restored independently; one failure never
   broadens access to another.
+- When a user explicitly provides a credential, signing key, or secret file
+  and asks to retain, configure, release, or deploy with it, treat that exact
+  file as an approved `$secrets-sync` source in the same turn. Before consuming
+  it, dry-inventory the one regular non-symlink file, classify it from the
+  user's stated owner/scope, install it owner-readable only in its approved
+  local private root, reconcile it to the matching NAS collection, and verify
+  the returned checksum before configuring a CLI to reference that private
+  root. Never use a transient Downloads/Desktop path as durable CLI state.
+  If the user did not state whether it is project- or user-scoped, or its
+  registered collection is absent or ambiguous, ask one focused question and
+  do not archive, upload, or configure around a guessed destination.
 
 ## Scope
 
