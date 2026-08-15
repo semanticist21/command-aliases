@@ -32,6 +32,8 @@ the resulting explicit approved-source list.
 - A user-scope request selects one registered owner/collection, never every
   user secret. Keep its ownership and repository consumers in the private
   bootstrap source, not Git, manifests, or chat.
+- Reuse the registered user collection for new shared credentials; never create
+  a collection per key or repository.
 - Ignore rules only produce inventory candidates; they never authorize
   transfer. Before every transfer, require an explicit approved-source list.
   Each entry must be an ignored, non-symlink regular file with a validated
@@ -45,6 +47,22 @@ the resulting explicit approved-source list.
   signing keys, OAuth/APNs credentials, provisioning material, and a manifest.
   A user scope may hold an explicitly shared release/signing credential but no
   project build output, caches, dependencies, logs, databases, or artifacts.
+
+## User-collection provisioning
+
+A registered `users/<owner-id>/<collection-id>/` collection needs one initial
+restricted-account allowlist and ownership setup. Treat that as persistent NAS
+configuration, not per-sync authentication. Before requesting administrator
+action, verify the collection is registered in the private bootstrap source and
+test that exact path through `synology-kkomjang`. Never request `sudo -v` just
+because an old sudo ticket expired.
+
+If the exact-path test proves the collection is unprovisioned, request one
+terminal-bound administrator session to grant only that collection's existing
+restricted access. Keep its command, path, and forwarding limits intact. After
+setup, verify one approved `scp -O` transfer and checksum (manifest last), and
+confirm an unregistered sibling remains denied. Record completion only in the
+private bootstrap source.
 
 ## New-machine bootstrap
 
@@ -101,5 +119,6 @@ pass.
   material, caches, logs, databases, and build artifacts from every scope.
 - Confirm the restricted account cannot access anything outside `projects/` and
   `users/` after a new NAS setup or permission change.
-- If the NAS target, private manifest, or SSH key is unavailable, stop and ask
-  for that setup to be repaired; do not create a substitute public archive.
+- For a registered user collection, request administrator setup only after the
+  exact-path test proves it is unprovisioned. Otherwise report the ordinary
+  NAS/alias failure; never create a substitute public archive.
