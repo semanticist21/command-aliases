@@ -5,4 +5,4 @@
 - For Kobbokkom production services, use the company-owned organization/account as the primary owner; keep personal accounts as secondary operators.
 - After completing work on a worktree or other branch, open a PR or merge it into the primary branch, then clean up the owned worktree and branch resources.
 - Do not retain legacy worktrees or branches as preservation; Git history is the record. If retaining an unmerged worktree/branch may be needed, ask the user first rather than silently keeping it.
-- When clone-critical ignored credentials or config files are added, changed, missing, or intentionally removed, use `$secrets-sync`; keep the private NAS archive current and never rely on `git clean -fdx` to preserve ignored files.
+- When clone-critical ignored project inputs or explicitly shared user credentials change, use `$secrets-sync`; classify the scope before transfer, keep the private NAS archive current, and never rely on `git clean -fdx` to preserve ignored files. Restore only each project's registered user collections into the private-key folder, never a full user archive.
