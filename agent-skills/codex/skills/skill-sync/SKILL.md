@@ -13,4 +13,11 @@ Public user-skill source is `semanticist21/command-aliases`; live Claude/Codex c
 
 `~/.agents/doc/AGENTS.local.md` remains a machine-local overlay: inventory its existence and type only, and never copy, merge, publish, overwrite, or synchronize it. New devices get a fresh local overlay and their required secrets through the approved restore flow; do not copy device SSH private keys between machines.
 
+## Third-party skill installation checklist
+
+- On an explicit third-party skill installation request, cover every configured runtime by default: Codex (`~/.codex/skills`), Claude (`~/.claude/skills`), and OpenCode (`~/.config/opencode/skills`). The user may restrict that scope.
+- Before installing, inventory each target root and the named skill path. Do not overwrite an existing file, directory, or symlink.
+- Verify `SKILL.md` and every bundled reference match the fetched source in every selected runtime. Report the installed and skipped runtimes.
+- Keep third-party skills vendor-local. Do not merge or publish them into the public user-skill source unless the user explicitly requests it.
+
 Before writes, inventory the public source, private companion when present, live links/copies, and drift direction; then use a clean fetched-base worktree. Preserve runtime-specific support; merge detached improvements and never publish local-private/system/vendor skills. Deletion/rename needs explicit second confirmation naming skill, runtimes, and mirror/local sides. Meaningful user-scope edits require independent read-only review, secret/internal-detail scan, VERSION bump, explicit commit/push as `semanticist21`, merge, live sync, and zero residual drift. Project skills follow their repository workflow only.
