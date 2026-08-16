@@ -1,13 +1,17 @@
 ---
 name: secrets-sync
-description: Safely inventory, archive, restore, and reconcile project- and user-scoped secret files with private Synology storage. Use when a clone or worktree needs ignored inputs restored, or when project-local or shared user credentials/configuration changes.
+description: Bootstrap and synchronize user- and project-scoped agent credentials, CLI configuration, SSH/NAS access, and ignored project inputs with private Synology storage. Use on a new or repaired machine, when a clone/worktree needs its ignored inputs, or when a project adds, changes, or removes secret-backed configuration.
 ---
 
 # Secrets Sync
 
 Keep clone-critical credentials outside Git but reproducibly available from the
-private NAS. Never put secret values, NAS passwords, hosts, account IDs, or
-private paths in Git, chat, manifests, or shared documentation.
+private archive. `secrets-sync` is both the persistent sync mechanism and the
+post-enrollment machine bootstrap: the one-time OS/account enrollment makes the
+registered bootstrap profile and credential locally available, then it makes
+credentials, access profiles, CLIs, and project inputs usable without repeated
+machine-specific instructions. Never put secret values, NAS passwords, hosts,
+account IDs, or private paths in Git, chat, manifests, or shared documentation.
 
 An explicit `$secrets-sync` request authorizes a reconcile. A user-scope
 `AGENTS.md` directive may also require one after clone-critical inputs change.
@@ -25,12 +29,18 @@ the resulting explicit approved-source list.
   ambiguous, or if the named pair is unregistered. A user request reconciles
   only that collection: inventory, exact transfer, checksum verification, and
   manifest update happen in the same request.
-- On a new machine, that same request performs the full bootstrap after the
-  user has joined the approved tailnet. Stop only if the machine's fresh public
-  key or a selected collection has not received its one-time NAS allowlist;
-  request only that setup, then resume the same request. Multiple registered
-  collections are authorized and restored independently; one failure never
-  broadens access to another.
+- On a new or repaired machine, that same request performs the full bootstrap
+  after the user completes the one-time OS/account enrollment required by the
+  private profile. Discover or install registered CLIs, restore and validate
+  their registered login/configuration, create a fresh device SSH key, configure
+  aliases, register the public key through the approved bootstrap credential,
+  and verify each required connection. Ask only for a missing initial OS/account
+  enrollment; do not turn a routine missing CLI, alias, credential, or public-key
+  registration into repeated user instructions. If the registered bootstrap
+  profile/credential is not locally available, request only that exact initial
+  enrollment repair; never guess or substitute a credential or operator path.
+  Multiple registered collections are authorized and restored independently; one
+  failure never broadens access to another.
 - When a user explicitly provides a credential, signing key, or secret file
   and asks to retain, configure, release, or deploy with it, treat that exact
   file as an approved `$secrets-sync` source in the same turn. Before consuming
@@ -42,10 +52,18 @@ the resulting explicit approved-source list.
   If the user did not state whether it is project- or user-scoped, or its
   registered collection is absent or ambiguous, ask one focused question and
   do not archive, upload, or configure around a guessed destination.
+- When repository work adds, changes, or removes a secret-backed requirement,
+  reconcile its exact project archive and private manifest, then update the
+  owning repository's non-secret contract as needed: ignored-path rule,
+  example/template, and concise setup documentation. Never put the secret value
+  or a private host/account identifier in that contract.
 
 ## Scope
 
-- `secrets-sync` is not NAS service-operation access. A missing manifest or failed restricted-alias transfer does not establish that a repository's NAS administrator connection is unavailable. For deployment, database migration, or cutover work, return to the relevant repository's operating documentation and use only its authorized administrator connection.
+- `secrets-sync` owns bootstrap and repair of local NAS administrator access,
+  service credentials, and CLI profiles; use the resulting operator connection
+  for service work. A missing manifest or failed restricted-alias transfer does
+  not establish that administrator access is unavailable.
 - Use the local `synology-kkomjang` SSH alias only. It is the restricted sync
   account; never use an admin alias for archive, restore, or prune.
 - Classify the secret before choosing a destination: use `projects/<project-id>/`
@@ -76,7 +94,10 @@ the resulting explicit approved-source list.
   account has no interactive shell. Verify checksums by downloading each exact
   uploaded file, and upload the manifest last.
 - Archive only ignored, source-controlled-workflow inputs: env/config files,
-  signing keys, OAuth/APNs credentials, provisioning material, and a manifest.
+  signing keys, OAuth client credentials and secrets, API/service-account keys,
+  CLI tokens, APNs credentials, provisioning material, and a manifest. Restore
+  those values only to their registered private/NAS-only destinations; repository
+  contracts name required keys but never contain their values.
   A user scope may hold an explicitly shared release/signing credential but no
   project build output, caches, dependencies, logs, databases, or artifacts.
 
@@ -96,25 +117,20 @@ setup, verify one approved `scp -O` transfer and checksum (manifest last), and
 confirm an unregistered sibling remains denied. Record completion only in the
 private bootstrap source.
 
-## New-machine bootstrap
+## Machine bootstrap and repair
 
-For each new machine, first join the approved tailnet using the normal
-enrollment flow. Generate a fresh, passphrase-protected SSH key on that
-machine; never copy an existing private key or place one in shared/bootstrap
-material.
+Use the private bootstrap profile to determine the approved enrollment path,
+credential destination, aliases, expected CLIs, and account checks. Generate a
+fresh device SSH key; never copy an existing private key or Keychain database.
+Use the registered bootstrap credential to enroll that public key, configure the
+operator and restricted-transfer aliases, then verify their intended roles.
 
-Use the private bootstrap source to obtain the approved destination and local
-alias settings, then register only the new public key with the designated
-restricted account through its approved authorization path. Keep that account's
-limited command, filesystem, and forwarding restrictions intact; this grants
-no broader shell or administrative access.
-
-Configure the local alias from the private bootstrap source rather than
-recording hostnames, usernames, or private paths in this shared skill. Verify
-legacy transfer compatibility with a harmless, explicitly authorized `scp -O`
-operation against the restricted account. Treat failure as a configuration or
-authorization issue—never relax account restrictions just to make the check
-pass.
+Install or repair every registered CLI and its credential/configuration before
+declaring the machine ready. Complete browser or OS approval only when it is an
+unavoidable first-enrollment requirement; after that, record no machine-specific
+walkthrough in public docs. Validate the required account, target, and access
+mode non-mutatively: CLI identity, SSH alias, restricted `scp -O` transfer,
+operator connection, and any declared non-interactive sudo capability.
 
 ## Reconcile
 
@@ -141,6 +157,9 @@ pass.
    destination root and approved-path allowlist from the private bootstrap
    source; project and user manifests never overwrite each other. Show a
    checksum conflict and obtain approval before overwriting a local file.
+6. When a project's secret contract changed, keep its archive manifest and
+   repository-owned non-secret contract in the same reconciliation: add or remove
+   the approved ignored path, template/example, and minimal documentation together.
 
 ## Guardrails
 
@@ -148,8 +167,11 @@ pass.
   copy, `git clean -fdx`, or unscoped `--delete` against a secret directory.
 - Do not log, hash-print, commit, or paste secret contents. Keep only stable
   paths and checksums in the private manifest.
-- Exclude generated output, Keychain dumps, SSH private keys, NAS connection
-  material, caches, logs, databases, and build artifacts from every scope.
+- Exclude generated output, raw Keychain dumps, SSH private keys, caches, logs,
+  databases, and build artifacts from every scope. A registered private bootstrap
+  credential or connection profile is allowed in its user collection; install it
+  into the local platform credential store or private root rather than publishing
+  or copying an existing device key.
 - Confirm the restricted account cannot access anything outside `projects/` and
   `users/` after a new NAS setup or permission change.
 - For a registered user collection, request administrator setup only after the
