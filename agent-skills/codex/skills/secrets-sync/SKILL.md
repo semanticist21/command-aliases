@@ -45,6 +45,7 @@ the resulting explicit approved-source list.
 
 ## Scope
 
+- `secrets-sync` is not NAS service-operation access. A missing manifest or failed restricted-alias transfer does not establish that a repository's NAS administrator connection is unavailable. For deployment, database migration, or cutover work, return to the relevant repository's operating documentation and use only its authorized administrator connection.
 - Use the local `synology-kkomjang` SSH alias only. It is the restricted sync
   account; never use an admin alias for archive, restore, or prune.
 - Classify the secret before choosing a destination: use `projects/<project-id>/`
