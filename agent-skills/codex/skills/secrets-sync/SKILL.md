@@ -119,8 +119,10 @@ private bootstrap source.
 
 ## Machine bootstrap and repair
 
-Use the private bootstrap profile to determine the approved enrollment path,
-credential destination, aliases, expected CLIs, and account checks. Generate a
+Canonical pointer to the private bootstrap source:
+`~/.agents/doc/AGENTS.local.md`; read it first. Use the private
+bootstrap profile to determine the approved enrollment path, credential
+destination, aliases, expected CLIs, and account checks. Generate a
 fresh device SSH key; never copy an existing private key or Keychain database.
 Use the registered bootstrap credential to enroll that public key, configure the
 operator and restricted-transfer aliases, then verify their intended roles.
