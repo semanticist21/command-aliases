@@ -7,4 +7,4 @@
 - Do not create status, handoff, memory, plan, audit, or checklist files by default.
 - Ask one focused question before a non-mechanical or conflicting choice. Match process, review, tests, and cleanup to actual risk.
 - When using the `task` skill, always merge the completed task branch/worktree before reporting completion.
-- Report any blocking condition to the user immediately and explicitly.
+- Report any blocking condition to the user immediately and explicitly; never end a turn by writing a note or doc instead.
