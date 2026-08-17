@@ -60,6 +60,11 @@ the resulting explicit approved-source list.
 
 ## Scope
 
+- The private bootstrap source is its registered Git repository, not a
+  machine-local path. When collection registration, archive layout, or NAS
+  details are needed and no local checkout exists, obtain the registered
+  source (e.g. `gh repo clone`) and treat its documents as authoritative;
+  never probe for a guessed manifest filename or archive layout.
 - `secrets-sync` owns bootstrap and repair of local NAS administrator access,
   service credentials, and CLI profiles; use the resulting operator connection
   for service work. A missing manifest or failed restricted-alias transfer does
@@ -167,6 +172,11 @@ operator connection, and any declared non-interactive sudo capability.
 
 - Run a dry inventory before every external write. Never use blanket recursive
   copy, `git clean -fdx`, or unscoped `--delete` against a secret directory.
+- Treat `scp -O` exit 126 with `lost connection` on an authenticating SSH session
+  as ForceCommand allowlist rejection, not a broken account; read the wrapper
+  read-only through the operator connection before requesting provisioning.
+- When tightening an allowlist, preserve every registered collection's entries and
+  keep a dated wrapper backup.
 - Do not log, hash-print, commit, or paste secret contents. Keep only stable
   paths and checksums in the private manifest.
 - Exclude generated output, raw Keychain dumps, SSH private keys, caches, logs,
