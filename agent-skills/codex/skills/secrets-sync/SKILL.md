@@ -13,16 +13,20 @@ credentials, access profiles, CLIs, and project inputs usable without repeated
 machine-specific instructions. Never put secret values, NAS passwords, hosts,
 account IDs, or private paths in Git, chat, manifests, or shared documentation.
 
-An explicit `$secrets-sync` request authorizes a reconcile. A user-scope
-`AGENTS.md` directive may also require one after clone-critical inputs change.
-Every reconcile starts with the dry inventory; transfer is permitted only for
-the resulting explicit approved-source list.
+An explicit `$secrets-sync` request authorizes an automatic reconcile of its
+project archive, or of the one user collection explicitly selected with
+`$secrets-sync user`. A user-scope `AGENTS.md` directive may also require one
+after clone-critical inputs change. Every reconcile starts with the local dry
+inventory and a read of the matching NAS manifest; transfer is permitted only
+for the resulting explicit approved-source list. NAS is an archive, never a
+directly edited source: it records the last version synchronized by any
+registered machine.
 
 ## Request contract
 
-- `$secrets-sync` in a repository reconciles its project inputs and performs
-  missing-only restores for its registered user collections; it never uploads,
-  prunes, or updates a user-collection manifest.
+- `$secrets-sync` in a repository automatically reconciles its project inputs
+  and performs missing-only restores for its registered user collections; it
+  never uploads, prunes, or updates a user-collection manifest.
 - `$secrets-sync user` selects the sole canonical owner/default collection in
   the private bootstrap source. `$secrets-sync user <owner-id>/<collection-id>`
   selects exactly that registered pair. Fail closed if the default is absent or
@@ -97,7 +101,9 @@ the resulting explicit approved-source list.
 - Use `scp -O` over `synology-kkomjang` for every file transfer, including the
   manifest. Do not use SFTP, rsync, or `scp` without `-O`; this restricted
   account has no interactive shell. Verify checksums by downloading each exact
-  uploaded file, and upload the manifest last.
+  uploaded file, and upload the manifest last. Read-only manifest retrieval is
+  required for automatic reconciliation, but a reconciled no-op performs no
+  file or manifest upload.
 - Archive only ignored, source-controlled-workflow inputs: env/config files,
   signing keys, OAuth client credentials and secrets, API/service-account keys,
   CLI tokens, APNs credentials, provisioning material, and a manifest. Restore
@@ -146,25 +152,34 @@ operator connection, and any declared non-interactive sudo capability.
    For a user scope, inventory only the selected collection's exact source
    root and approved-path allowlist. In either case classify every candidate
    before transfer; ignore rules never authorize a file.
-2. Read the matching, independent private manifest and present added, changed, missing-local,
-   and excluded candidates. A manifest contains normalized relative paths,
-   octal modes, and SHA-256 checksums only—never contents, timestamps, hosts,
-   account data, or keys. Treat remote data as untrusted until each field and
-   path is validated.
-3. On an explicit sync request, upload only the approved files, verify each by
+2. Read the matching, independent private manifest and classify added, changed,
+   missing-local, and excluded candidates. A manifest contains normalized
+   relative paths, octal modes, SHA-256 checksums, and the source file's UTC
+   modification timestamp—never contents, hosts, account data, or keys. Treat
+   remote data as untrusted until every field and path is validated against the
+   current project ignore rule or selected user collection allowlist; a
+   NAS-only manifest entry never authorizes its own restore.
+3. Reconcile each approved path automatically. If it exists only locally,
+   upload it. If it exists only on NAS, restore it unless the task explicitly
+   requests prune. If both checksums match, do nothing. If both exist and
+   checksums differ, the version with the later manifest/source modification
+   timestamp wins: upload the newer local file or restore the newer NAS file.
+   If timestamps are equal, malformed, or otherwise cannot establish an order,
+   use `$grill-me` to ask one consequential resolution question before touching
+   that path. Keep private files owner-readable only locally and remotely.
+4. Upload only paths selected by that classification, verify each upload by
    downloading its exact path and comparing locally, then replace the matching
-   manifest last. Keep private files owner-readable only locally and remotely.
-4. Treat a file present only on NAS as a deletion candidate, not proof that it
-   is obsolete. Delete it only when the task explicitly requests prune/reconcile
-   and after the current approved files and manifest are safely uploaded.
-   Prune only exact validated paths absent from the new approved manifest;
-   never derive a delete set from a glob or recursive option.
-5. For clone/worktree recovery, restore only missing project files by default.
+   manifest last only when its contents changed. A fully reconciled no-op must
+   not upload files or rewrite the manifest.
+5. Treat a file present only on NAS as a deletion candidate only when prune was
+   explicitly requested. Prune only exact validated paths absent from the new
+   approved manifest after current approved files and the manifest are safely
+   uploaded; never derive a delete set from a glob or recursive option.
+6. For clone/worktree recovery, restore only missing project files by default.
    Restore only the required registered user collection into its exact
    destination root and approved-path allowlist from the private bootstrap
-   source; project and user manifests never overwrite each other. Show a
-   checksum conflict and obtain approval before overwriting a local file.
-6. When a project's secret contract changed, keep its archive manifest and
+   source; project and user manifests never overwrite each other.
+7. When a project's secret contract changed, keep its archive manifest and
    repository-owned non-secret contract in the same reconciliation: add or remove
    the approved ignored path, template/example, and minimal documentation together.
 
@@ -178,7 +193,8 @@ operator connection, and any declared non-interactive sudo capability.
 - When tightening an allowlist, preserve every registered collection's entries and
   keep a dated wrapper backup.
 - Do not log, hash-print, commit, or paste secret contents. Keep only stable
-  paths and checksums in the private manifest.
+  paths, modes, checksums, and UTC modification timestamps in the private
+  manifest.
 - Exclude generated output, raw Keychain dumps, SSH private keys, caches, logs,
   databases, and build artifacts from every scope. A registered private bootstrap
   credential or connection profile is allowed in its user collection; install it
