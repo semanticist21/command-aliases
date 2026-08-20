@@ -138,6 +138,51 @@ fresh device SSH key; never copy an existing private key or Keychain database.
 Use the registered bootstrap credential to enroll that public key, configure the
 operator and restricted-transfer aliases, then verify their intended roles.
 
+### Remote-access recovery
+
+- A CI host, Apple build host, or other managed machine is a registered
+  bootstrap target, never a short hostname inferred from DNS or the current
+  local account. Its selected user collection must own an owner-readable
+  connection profile and a key-independent recovery transport. The profile
+  declares a symbolic target, the exact local SSH alias and login fields, normal
+  transport, recovery transport and its identity-enrollment prerequisite, fresh
+  identity/key-store policy, and the allowed public-key enrollment action. It
+  contains no device private key. A tailnet SSH lane or a console-approved
+  management lane can be that recovery transport. Private bootstrap documents
+  retain only a non-secret discovery pointer to this selected profile; target
+  connection values stay in the owner-readable collection.
+- After the user completes the one-time NAS and identity enrollment on a new
+  device, restore that profile, create a fresh device SSH key, add it to the
+  declared platform provider, and install an explicit local host profile with
+  an owner-only `IdentityFile`, its required agent/key-store behavior, and
+  `IdentitiesOnly yes`. Run `ssh -G` and an explicit-identity probe without
+  printing identifiers before using the registered recovery transport. Device
+  keys are never archived or shared between machines.
+- On a repaired device, test the explicit configured identity, including the
+  platform key store when the profile requires it. If the server rejects it,
+  test the registered recovery transport before asking the user for a key or
+  generating a replacement. A stable host key or a reachable bare hostname is
+  not evidence that the intended account, identity, or profile is present.
+- The recovery transport must have a non-mutating readiness probe that is
+  verified while normal SSH still works. Its enrollment action is pinned to the
+  declared target and login, accepts only one validated fresh public key, and
+  is idempotent and atomic; it cannot run arbitrary remote commands or modify
+  another account. Verify the exact configured identity through the normal
+  alias after enrollment.
+- If the target profile or its recovery transport is absent, report a
+  bootstrap-contract defect immediately. Do not fall back to `ssh <hostname>`
+  with default identities, and do not claim the target is unreachable merely
+  because that unaffiliated connection fails. Restore or repair the registered
+  profile first. Only when the declared recovery transport also fails may a
+  one-time console or identity-enrollment action be requested.
+
+Fresh-machine readiness is one sequence: verify the user's Git identity and
+initial NAS enrollment, restore and checksum-verify the selected profile,
+verify restricted NAS transfer, probe the recovery transport, then verify the
+configured normal alias with its exact fresh identity. Report the first missing
+enrollment, profile, or transport distinctly. A legacy whole-directory backup
+or normal interactive SSH session is not a substitute for this sequence.
+
 Install or repair every registered CLI and its credential/configuration before
 declaring the machine ready. Complete browser or OS approval only when it is an
 unavoidable first-enrollment requirement; after that, record no machine-specific
