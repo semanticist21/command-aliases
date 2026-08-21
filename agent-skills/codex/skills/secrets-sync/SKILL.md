@@ -120,6 +120,15 @@ registered machine.
   collection are not inventory, upload, restore, or prune candidates. Use
   normalized relative paths with no `..`, leading `/`, control characters, or
   shell metacharacters.
+- Each private-bootstrap project registration owns the explicit mapping from
+  archive name to scope and exact destination. A project mapping names one
+  normalized repository-relative destination; a user mapping names its
+  registered collection and destination. Archive-side root selectors or legacy
+  placeholders (such as `repo/` or `external/`) are not destination paths:
+  never strip, rebase, or create repository directories from them. Migrate one
+  only by dry-classifying it and recording its exact mapping in that private
+  project registration. Without a mapping, stop for the entry; never infer a
+  user collection from an outside-repository path.
 - A user-scope request selects the registered default or one named
   owner/collection, never every user secret. Keep its ownership and repository
   consumers in the private bootstrap source, not Git, manifests, or chat.
@@ -130,6 +139,12 @@ registered machine.
   Each entry must be an ignored, non-symlink regular file with a validated
   relative path. Reject directories, generated output, and every unlisted
   candidate.
+- Git clones contain only committed tracked files. A registered,
+  currently-untracked ignored project file is therefore intentionally absent
+  after clone and is a valid missing-only restore candidate only when its exact
+  mapping, regular-file status, checksum, and mode validate. Preserve and report
+  an untracked, non-ignored file; never add it to Git or archive it merely to
+  make recovery work.
 - Use `scp -O` over `synology-kkomjang` for every file transfer, including the
   manifest. Do not use SFTP, rsync, or `scp` without `-O`; this restricted
   account has no interactive shell. Verify checksums by downloading each exact
@@ -246,9 +261,11 @@ operator connection, and any declared non-interactive sudo capability.
    missing-local, and excluded candidates. A manifest contains normalized
    relative paths, octal modes, SHA-256 checksums, and the source file's UTC
    modification timestamp—never contents, hosts, account data, or keys. Treat
-   remote data as untrusted until every field and path is validated against the
-   current project ignore rule or selected user collection allowlist; a
-   NAS-only manifest entry never authorizes its own restore.
+   remote data as untrusted until every field and mapped destination is
+   validated against the current project ignore rule or selected user
+   collection allowlist; a NAS-only manifest entry never authorizes its own
+   restore. Reject an unresolved legacy root selector rather than treating it
+   as a repository path.
 3. Reconcile each approved path automatically. If it exists only locally,
    upload it. If it exists only on NAS, restore it unless the task explicitly
    requests prune. If both checksums match, do nothing. If both exist and
@@ -265,9 +282,10 @@ operator connection, and any declared non-interactive sudo capability.
    explicitly requested. Prune only exact validated paths absent from the new
    approved manifest after current approved files and the manifest are safely
    uploaded; never derive a delete set from a glob or recursive option.
-6. For clone/worktree recovery, restore only missing project files by default.
-   Restore only the required registered user collection into its exact
-   destination root and approved-path allowlist from the private bootstrap
+6. For clone/worktree recovery, restore only missing project files by default,
+   and only into their exact registered ignored repository-relative
+   destinations. Restore only the required registered user collection into its
+   exact destination root and approved-path allowlist from the private bootstrap
    source; project and user manifests never overwrite each other.
 7. When a project's secret contract changed, keep its archive manifest and
    repository-owned non-secret contract in the same reconciliation: add or remove
