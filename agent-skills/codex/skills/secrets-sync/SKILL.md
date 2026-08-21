@@ -98,6 +98,13 @@ registered machine.
   profile, and operator failures separately. Do not change NAS Tailscale or SSH
   configuration, use the operator for archive transfer, or bulk-restore another
   collection.
+- Before a declared Tailscale SSH probe, distinguish an unavailable local
+  client/daemon, signed-out state, and additional web authentication. For the
+  latter, capture the official CLI's one-time URL without logging or copying it,
+  open it only in that device's local UI, and ask the user to approve it; never
+  fetch or approve it automatically. Then repeat only the same non-mutating
+  declared probe once. Do not diagnose the remote target as unreachable or
+  alter its configuration until local Tailscale readiness succeeds.
 - Use the local `synology-kkomjang` SSH alias only. It is the restricted sync
   account; never use an admin alias for archive, restore, or prune.
 - Classify the secret before choosing a destination: use `projects/<project-id>/`
