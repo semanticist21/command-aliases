@@ -57,8 +57,9 @@ registered machine.
   organization/repository authority, and required non-secret scopes without a
   write, then read only the exact deployment-environment mapping owned by the
   private bootstrap source. That mapping must name the canonical repository,
-  Environment, typed secret or variable name, NAS-backed user collection and
-  approved owner-only local credential destination, whether creation is
+  Environment, typed secret or variable name, NAS-backed user collection,
+  collection-relative source-record ID, and approved opaque owner-local
+  destination ID, whether creation is
   authorized, required GitHub authority, and a workflow contract with explicit
   `dispatch`, `observe`, or `never` mode, protected ref, exact allowed inputs,
   and change-trigger policy. It contains no values or endpoint/account details.
@@ -66,7 +67,8 @@ registered machine.
   existing Environment, or GitHub UI state.
 - Actual GitHub Environment values belong in the registered NAS user collection,
   not in the repository or private-bootstrap Git documents. Restore each exact
-  approved source to its owner-only local destination and validate it against
+  mapped source record to the destination resolved from its opaque owner-local
+  destination ID and validate it against
   that collection's private manifest before use. Feed one value at a time to
   `gh secret set` or `gh variable set` through owner-only stdin/file handling;
   never place a value in an argument, shell trace, environment dump, artifact,
@@ -204,19 +206,29 @@ registered machine.
 
 A registered `users/<owner-id>/<collection-id>/` collection needs one initial
 restricted-account allowlist and ownership setup. Treat that as persistent NAS
-configuration, not per-sync authentication. Before requesting administrator
-action, verify the collection is registered in the private bootstrap source and
-test that exact path through `synology-kkomjang`. Never request `sudo -v` just
-because an old sudo ticket expired.
+configuration, not per-sync authentication. Its private-bootstrap registration
+must also declare a bootstrap access anchor outside the affected collection:
+an already-enrolled recovery/operator authority and one exact, idempotent
+action that can ensure read access to that collection's registered manifest and
+approved records. The anchor may repair access only; it never creates values,
+uses a substitute source, or grants paths outside the registered collection.
+Before requesting administrator action, verify the collection and its anchor in
+the private bootstrap source and test that exact path through
+`synology-kkomjang`. Never request `sudo -v` just because an old sudo ticket
+expired.
 
 Provisioning is complete only after `scp -O` can read the collection manifest
 and every required connection profile, and every profile passes its
 manifest-declared checksum and mode validation. The restricted allowlist must
 admit both the manifest and each approved profile; a directory existing on NAS
-is not evidence of recovery readiness. An authenticated exact-path `scp -O`
-exit 126 is an incomplete allowlist: read the wrapper through the registered
-operator connection, provision only the registered paths, and repeat the full
-preflight. Keep authentication and other transfer failures distinct.
+is not evidence of recovery readiness. On an authenticated exact-path
+allowlist rejection, use the declared bootstrap access anchor before reading a
+profile from the affected collection: run only its exact ensure-read action,
+then repeat the full manifest/profile preflight. Keep authentication and other
+transfer failures distinct. An anchor that is absent, unavailable, or cannot
+restore the declared read grant is a bootstrap-contract defect; request the one
+registered enrollment/administrator action and make no GitHub Environment
+write, creation, or dispatch.
 
 If the exact-path test proves the collection is unprovisioned, request one
 terminal-bound administrator session to grant only that collection's existing
@@ -296,8 +308,9 @@ operator connection, and any declared non-interactive sudo capability.
 Treat GitHub Environment setup as a registered credential consumer, never as a
 workflow-discovery exercise. The private bootstrap mapping is authoritative and
 must explicitly bind each canonical repository to its Environment names,
-secret/variable kinds and names, NAS user-collection source records,
-owner-readable local destinations, creation permission, minimum GitHub
+secret/variable kinds and names, NAS user-collection and collection-relative
+source-record IDs, opaque owner-local destination IDs, creation permission,
+minimum GitHub
 authority, and allowed workflow contract: `dispatch`, `observe`, or `never`;
 exact workflow file path or ID; protected ref; exact input schema; complete
 dispatch group; and whether a verified source change or new Environment permits
@@ -313,9 +326,13 @@ a credential visible in a shell/keychain authorizes a write.
    without logging its URL and request that single approval. Stop and report the
    exact GitHub authority/API/quota failure rather than retrying through another
    account or diagnosing a remote host.
-2. Read the mapping and restore its exact NAS-backed source records to their
-   approved owner-only destinations. Refuse an absent, unregistered, malformed,
-   or manifest-mismatched record. Never obtain an Environment value from
+2. Preflight each mapped collection through its declared bootstrap access
+   anchor before restoring anything. Read the mapping and restore only its exact
+   NAS-backed source-record IDs to destinations resolved from their opaque
+   owner-local IDs. Refuse an absent, unregistered, malformed, or
+manifest-mismatched record. A failed collection preflight forbids every
+GitHub Environment write, creation, and dispatch in its groups. Never obtain
+an Environment value from
    `.env`, ignored files, command output, a secret listing, or guessed filenames.
 3. For each mapped Environment, query/create it only through the mapping's
    canonical `--repo`; create it only if it is absent and the mapping
