@@ -69,6 +69,16 @@ registered machine.
   details are needed and no local checkout exists, obtain the registered
   source (e.g. `gh repo clone`) and treat its documents as authoritative;
   never probe for a guessed manifest filename or archive layout.
+- Before using a registered managed target, preflight its selected collection:
+  take exact manifest and profile paths only from the private-bootstrap
+  registration and collection allowlist, retrieve the manifest with `scp -O`,
+  validate its schema and approved entries, then retrieve each approved profile
+  with `scp -O`. Validate every profile's manifest-declared checksum and mode,
+  required non-secret fields, and key-independent recovery transport before any
+  target probe. A missing, malformed, unapproved, or checksum/mode-mismatched
+  profile is a bootstrap-contract defect. Do not substitute an ambient SSH
+  alias or default identities; repair the archived profile and its exact
+  allowlist entries first.
 - `secrets-sync` owns bootstrap and repair of local NAS administrator access,
   service credentials, and CLI profiles; use the resulting operator connection
   for service work. A missing manifest or failed restricted-alias transfer does
@@ -120,6 +130,15 @@ configuration, not per-sync authentication. Before requesting administrator
 action, verify the collection is registered in the private bootstrap source and
 test that exact path through `synology-kkomjang`. Never request `sudo -v` just
 because an old sudo ticket expired.
+
+Provisioning is complete only after `scp -O` can read the collection manifest
+and every required connection profile, and every profile passes its
+manifest-declared checksum and mode validation. The restricted allowlist must
+admit both the manifest and each approved profile; a directory existing on NAS
+is not evidence of recovery readiness. An authenticated exact-path `scp -O`
+exit 126 is an incomplete allowlist: read the wrapper through the registered
+operator connection, provision only the registered paths, and repeat the full
+preflight. Keep authentication and other transfer failures distinct.
 
 If the exact-path test proves the collection is unprovisioned, request one
 terminal-bound administrator session to grant only that collection's existing
@@ -175,6 +194,10 @@ operator and restricted-transfer aliases, then verify their intended roles.
   because that unaffiliated connection fails. Restore or repair the registered
   profile first. Only when the declared recovery transport also fails may a
   one-time console or identity-enrollment action be requested.
+- If the selected profile is absent both locally and from its registered archive,
+  or cannot declare a recovery transport, target recovery cannot be automated.
+  Report that exact missing prerequisite and request only the one owner or
+  console enrollment that creates the profile and recovery lane.
 
 Fresh-machine readiness is one sequence: verify the user's Git identity and
 initial NAS enrollment, restore and checksum-verify the selected profile,
