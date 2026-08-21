@@ -24,9 +24,14 @@ registered machine.
 
 ## Request contract
 
-- `$secrets-sync` in a repository automatically reconciles its project inputs
-  and performs missing-only restores for its registered user collections; it
-  never uploads, prunes, or updates a user-collection manifest.
+- `$secrets-sync` in a repository treats its project inputs and every user
+  collection that the private bootstrap source registers to that canonical
+  repository as one bootstrap request. Dry-inventory and preflight each scope
+  independently, reconcile project inputs, and restore only missing,
+  manifest-approved user files to their registered owner-readable destinations.
+  A scope failure never expands another scope or blocks its independent result;
+  no separate `$secrets-sync user` is needed for those dependencies. It never
+  uploads, prunes, or updates a user-collection manifest.
 - `$secrets-sync user` selects the sole canonical owner/default collection in
   the private bootstrap source. `$secrets-sync user <owner-id>/<collection-id>`
   selects exactly that registered pair. Fail closed if the default is absent or
