@@ -9,9 +9,10 @@ Keep clone-critical credentials outside Git but reproducibly available from the
 private archive. `secrets-sync` is both the persistent sync mechanism and the
 post-enrollment machine bootstrap: the one-time OS/account enrollment makes the
 registered bootstrap profile and credential locally available, then it makes
-credentials, access profiles, CLIs, and project inputs usable without repeated
-machine-specific instructions. Never put secret values, NAS passwords, hosts,
-account IDs, or private paths in Git, chat, manifests, or shared documentation.
+credentials, access profiles, CLIs, GitHub deployment environments, and project
+inputs usable without repeated machine-specific instructions. Never put secret
+values, NAS passwords, hosts, account IDs, or private paths in Git, chat,
+manifests, or shared documentation.
 
 An explicit `$secrets-sync` request authorizes an automatic reconcile of its
 project archive, or of the one user collection explicitly selected with
@@ -50,6 +51,46 @@ registered machine.
   enrollment repair; never guess or substitute a credential or operator path.
   Multiple registered collections are authorized and restored independently; one
   failure never broadens access to another.
+- For a registered repository deployment, the same request also bootstraps its
+  registered GitHub Environment configuration. Install or restore the
+  registered GitHub CLI configuration, validate the authenticated identity,
+  organization/repository authority, and required non-secret scopes without a
+  write, then read only the exact deployment-environment mapping owned by the
+  private bootstrap source. That mapping must name the canonical repository,
+  Environment, typed secret or variable name, NAS-backed user collection and
+  approved owner-only local credential destination, whether creation is
+  authorized, required GitHub authority, and a workflow contract with explicit
+  `dispatch`, `observe`, or `never` mode, protected ref, exact allowed inputs,
+  and change-trigger policy. It contains no values or endpoint/account details.
+  Never infer a mapping from a workflow, `.env`, ignored file, filename,
+  existing Environment, or GitHub UI state.
+- Actual GitHub Environment values belong in the registered NAS user collection,
+  not in the repository or private-bootstrap Git documents. Restore each exact
+  approved source to its owner-only local destination and validate it against
+  that collection's private manifest before use. Feed one value at a time to
+  `gh secret set` or `gh variable set` through owner-only stdin/file handling;
+  never place a value in an argument, shell trace, environment dump, artifact,
+  chat, Git, or a read-back check. Compare only registered names/existence and
+  local manifest/checksum state. A missing or unregistered exact source is an
+  enrollment gap: request that source only, never substitute a project `.env`
+  or another credential.
+- Create a missing GitHub Environment only when its exact private mapping
+  authorizes creation. Set only the mapped secret/variable names; do not delete
+  an Environment, prune keys, change protection/deployment rules, or alter
+  unrelated configuration. Persist only checksums in separate owner-only local
+  mapping state, never in a user-collection manifest. Revalidate names only
+  after a write; dispatch only when a mapping explicitly authorizes it for a
+  verified source-checksum change or newly created Environment, never for a
+  no-op sync or missing local applied state. On a missing state, store a
+  names-only baseline only after every exact group write and name check succeeds;
+  it is not deployment verification. Use the mapped canonical `--repo`,
+  protected ref, and exact inputs, then verify each run's repository, workflow,
+  and head SHA before monitoring its result. An `observe` contract is status
+  evidence only, not proof that a newly written value works.
+  Browser/device authentication, insufficient GitHub authority,
+  absent/unregistered exact credential sources, and unresolved timestamp
+  conflicts are the only user-facing setup requests. Report API/quota failures
+  as GitHub failures; never reinterpret them as NAS or target reachability.
 - When a user explicitly provides a credential, signing key, or secret file
   and asks to retain, configure, release, or deploy with it, treat that exact
   file as an approved `$secrets-sync` source in the same turn. Before consuming
@@ -249,6 +290,64 @@ unavoidable first-enrollment requirement; after that, record no machine-specific
 walkthrough in public docs. Validate the required account, target, and access
 mode non-mutatively: CLI identity, SSH alias, restricted `scp -O` transfer,
 operator connection, and any declared non-interactive sudo capability.
+
+### GitHub deployment-environment bootstrap
+
+Treat GitHub Environment setup as a registered credential consumer, never as a
+workflow-discovery exercise. The private bootstrap mapping is authoritative and
+must explicitly bind each canonical repository to its Environment names,
+secret/variable kinds and names, NAS user-collection source records,
+owner-readable local destinations, creation permission, minimum GitHub
+authority, and allowed workflow contract: `dispatch`, `observe`, or `never`;
+exact workflow file path or ID; protected ref; exact input schema; complete
+dispatch group; and whether a verified source change or new Environment permits
+dispatch. A source record is usable only after the
+registered collection manifest approves it and its restored owner-only file
+checksum/mode validate. Neither a matching variable name in a project file nor
+a credential visible in a shell/keychain authorizes a write.
+
+1. Discover/install `gh`, restore its registered configuration, and run only
+   non-mutating identity, token-scope, repository, and Environment-name checks
+   against the mapping's canonical `--repo`.
+   If browser/device approval is required, open the official device-local flow
+   without logging its URL and request that single approval. Stop and report the
+   exact GitHub authority/API/quota failure rather than retrying through another
+   account or diagnosing a remote host.
+2. Read the mapping and restore its exact NAS-backed source records to their
+   approved owner-only destinations. Refuse an absent, unregistered, malformed,
+   or manifest-mismatched record. Never obtain an Environment value from
+   `.env`, ignored files, command output, a secret listing, or guessed filenames.
+3. For each mapped Environment, query/create it only through the mapping's
+   canonical `--repo`; create it only if it is absent and the mapping
+   explicitly permits creation. Set each exact mapped name as its declared kind
+   with `gh secret set --repo ... --env` or `gh variable set --repo ... --env`;
+   pass the value only on stdin or from a protected file descriptor. Do not read
+   secret values back, print commands containing values, enable shell tracing,
+   or modify protections, deployment branches, reviewers, unrelated names, or
+   retention rules.
+4. Re-list only the registered names after successful writes. Resolve the
+   current merged commit from the mapping's canonical repository. Coalesce all
+   writes by their mapped Environment/workflow dispatch group; dispatch exactly
+   once only after every required record in that group wrote successfully and a
+   verified checksum changed or its Environment was newly created. A missing
+   local applied-state record is names-only, not a change. Force the declared
+   canonical `--repo`, exact workflow file path/ID, protected ref, and inputs.
+   If an existing Environment has no state, store a names-only baseline only
+   after every group write and name check succeeds; it does not verify a deploy.
+   If a changed-group write, dispatch, or verification fails, retain its prior
+   baseline and record no verified-dispatch state. Otherwise store only the
+   resulting checksums and verified dispatch result in separate owner-only local
+   state after its run succeeds. A no-op sync revalidates names only. Verify
+   each resulting run reports that repository, workflow, and SHA before normal
+   status monitoring. An `observe` workflow is reported as status evidence only;
+   a workflow lacking the registered contract is not improvised.
+
+Routine CLI installation/configuration, authorized Environment creation, exact
+mapped secret/variable registration, registered dispatch, and run monitoring
+are autonomous bootstrap work. Do not prompt for routine mapping migrations,
+commits, merges, sync, or cleanup. Prompt only for the first browser/device
+approval, insufficient GitHub authority, missing/unregistered exact source, or
+an unresolved same-timestamp conflict.
 
 ## Reconcile
 
