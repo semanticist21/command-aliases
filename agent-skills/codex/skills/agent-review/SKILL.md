@@ -5,7 +5,7 @@ description: Review the current task with independent agents.
 
 # Agent review
 
-Give reviewers the verbatim request, instructions, and actual diff. Assign 1–4 independent, read-only reviewers in proportion to risk, complexity, changed surface, and verification difficulty; use distinct semantic, correctness, and verification lenses when useful.
+Give reviewers the verbatim request, applicable instructions, and a task evidence packet derived from what the agent actually did—not a diff-only handoff. Include the relevant materials it relied on; artifacts it created or changed (including a diff when applicable); commands, test/runtime outputs, and observations; plus key decisions, assumptions, and unresolved constraints. Omit irrelevant bulk evidence, but make each claim traceable. For investigation, debugging, planning, or other work with no code change, provide its evidence even when there is no diff. Assign 1–4 independent, read-only reviewers in proportion to risk, complexity, changed surface, and verification difficulty; use distinct semantic, correctness, and verification lenses when useful.
 
 Run two rounds. In round one, each reviewer submits atomic items with the problem, impact/severity, concrete evidence (request, file/diff, test, or runtime result), and recommended action. Merge duplicates without dropping distinct evidence. In round two, give every reviewer every merged item without its author or prior votes. First, each reviewer marks it accept, reject, or defer and explains why; reject and defer are dissent. Then reveal dissent rationales without authorship so the other reviewers can judge each one as concrete and relevant, evidence-backed, or non-blocking.
 
