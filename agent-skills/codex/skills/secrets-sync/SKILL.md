@@ -83,6 +83,16 @@ registered machine.
   service credentials, and CLI profiles; use the resulting operator connection
   for service work. A missing manifest or failed restricted-alias transfer does
   not establish that administrator access is unavailable.
+- After the user installs and signs in to Tailscale on a new or repaired device,
+  `$secrets-sync user` bootstraps the selected collection's registered NAS
+  operator profile alongside its restricted archive alias. First verify local
+  Tailscale identity and profile-declared reachability, then restore the exact
+  approved profile through restricted `scp -O`, create a fresh device identity,
+  run its declared enrollment/recovery action, and probe the configured operator
+  identity plus its declared non-mutating privilege check. Report Tailnet,
+  profile, and operator failures separately. Do not change NAS Tailscale or SSH
+  configuration, use the operator for archive transfer, or bulk-restore another
+  collection.
 - Use the local `synology-kkomjang` SSH alias only. It is the restricted sync
   account; never use an admin alias for archive, restore, or prune.
 - Classify the secret before choosing a destination: use `projects/<project-id>/`
