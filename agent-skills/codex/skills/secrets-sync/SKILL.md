@@ -32,7 +32,9 @@ registered machine.
   manifest-approved user files to their registered owner-readable destinations.
   A scope failure never expands another scope or blocks its independent result;
   no separate `$secrets-sync user` is needed for those dependencies. It never
-  uploads, prunes, or updates a user-collection manifest.
+  uploads, prunes, or updates a user-collection manifest, except the one
+  explicitly mapped record under the declared project-archive source-migration
+  rule below.
 - `$secrets-sync user` selects the sole canonical owner/default collection in
   the private bootstrap source. `$secrets-sync user <owner-id>/<collection-id>`
   selects exactly that registered pair. Fail closed if the default is absent or
@@ -76,6 +78,16 @@ registered machine.
   local manifest/checksum state. A missing or unregistered exact source is an
   enrollment gap: request that source only, never substitute a project `.env`
   or another credential.
+- A mapped Environment source record missing only from its registered user
+  collection is repairable without user input when the same private bootstrap
+  registration explicitly names one exact project-archive source for that
+  record. Retrieve it with `scp -O`, verify its project-manifest checksum and
+  any registered release-contract digest, then materialize the exact
+  owner-readable user record. Upload and download-verify the record, replace
+  the user manifest last, and only then apply the mapped Environment value.
+  This is a declared source migration, not inference from a workflow, filename,
+  or arbitrary project `.env`; without that explicit link or either validation,
+  keep treating it as an enrollment gap.
 - Create a missing GitHub Environment only when its exact private mapping
   authorizes creation. Set only the mapped secret/variable names; do not delete
   an Environment, prune keys, change protection/deployment rules, or alter
