@@ -100,6 +100,9 @@ Restore or install the registered CLI configuration and connection profiles.
 When the provider supports both, prefer the owner's registered durable access
 key over an expiring temporary credential; use a temporary credential only when
 the provider requires it or the declared recovery path calls for it.
+For an owner's personal recovery path, prefer a durable, revocable credential
+over a short-lived temporary key whenever the provider and declared recovery
+path permit it.
 Create a fresh device key when the profile requires one, enroll it through the
 registered recovery path, and verify the configured identity rather than a
 bare hostname or ambient SSH identity. Repair NAS access and every registered
