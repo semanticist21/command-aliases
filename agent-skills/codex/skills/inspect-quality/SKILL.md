@@ -1,0 +1,28 @@
+---
+name: inspect-quality
+description: Audit and improve project structure, architecture, API/domain hierarchy, database shape, and stale code across the surfaces a project actually has.
+---
+
+# Inspect quality
+
+Run a project-agnostic architecture and code-quality pass. Inspect only the surfaces that exist; do not assume a web app, backend, database, mobile app, language, or database engine. Rust and PostgreSQL are examples, not requirements.
+
+Before starting, preserve the complete relevant user request, including follow-ups, verbatim for reviewers. Keep that exact copy; if it cannot be passed directly, save it in a temporary file and reference that file in the evidence packet without committing it. If a reviewer cannot consume skill-call markup, add a normalized copy with the skill names written as plain-language instructions rather than replacing the only copy. If intent, scope, or a proposed change is unclear, use `grill-me` one consequential question at a time and resolve it before choosing a branch.
+
+Inventory every project-defined surface first, using web, mobile, app/client, backend, domain, persistence, CLI, worker, library, and infrastructure as examples. Apply the relevant checks to every surface that exists, including client feature ownership, SSOT, stale code, and API boundaries.
+
+Inspect:
+
+- SSOT, feature ownership and feature SSOT, YAGNI, duplicated responsibility, over-extracted functions or files, simple non-reusable logic kept inline, overly long files, and feature-oriented organization when the project's idiomatic structure warrants it.
+- Stale features and dead code. Exclude commercial-readiness and localization/i18n capabilities from this deletion scope regardless of current usage. Before deleting anything else, verify reachability and intentional use, including non-static entry points and public/exported/API-contract consumers where applicable; if the evidence is uncertain, use `grill-me` or report a blocker. Do not count an unresolved item as zero findings or claim success while it remains unresolved.
+- Available backend APIs, client surfaces, domain models, and persistence schemas for clear information hierarchy and domain relationships, including end-to-end consistency of ownership and relationships across those layers.
+- Inefficient storage/query structures, keys, indexes, relationships, and their repository-equivalent concepts; check excessive normalization and excessive denormalization where applicable.
+- Other improvements that are supported by concrete evidence.
+
+For every atomic finding, record its severity, evidence, impact, and proposed action. During this skill's creation or revision, use `agent-review` with the verbatim request and complete evidence packet to verify that the skill faithfully implements the request; change only the skill artifact and its required mirrors/metadata in that mode. During a project pass, use the same review for each finding and resulting change. The user's explicit instruction for this task overrides the reviewer's default majority rule: every assigned reviewer must agree. If a reviewer raises, rejects, or defers an item, do not suppress it or dismiss it by coordinator judgment; use `grill-me` for any ambiguity, revise the finding or project change during a project pass, and revise this skill's handling only during its creation/revision or when the user explicitly requests it. Run the full two-round review again. Objections based only on backward compatibility or the amount of work do not reject a warranted item under the user's request; substantive correctness, safety, or domain objections must be resolved.
+
+Repeat the applicable two-round review without an arbitrary attempt limit. For this skill's creation or revision, stop only when the final round has zero findings and every reviewer explicitly agrees that it faithfully implements the user's request. For a project pass, stop only when every finding and resulting change is unanimously accepted and a final review of the complete evidence packet produces zero new findings. If reviewers cannot run, do not apply unreviewed changes or claim success; report a blocked result instead.
+
+After unanimous review in skill creation or revision, run applicable artifact, mirror, metadata, and runtime checks without changing the audited project. Classify failures first: retry or isolate flaky checks, record pre-existing or unrelated failures as evidence, and report a blocker only when a failure prevents judging the current change. A relevant new problem becomes a finding and re-enters the full two-round review loop. Do not claim zero findings or completion while required validation is unresolved.
+
+After unanimous review in a project pass, apply the confirmed improvements, including refactors, deletions, API changes, or schema changes when warranted. Follow the project's migration and contract procedures, run applicable affected tests, lint, migration, contract, and runtime checks, and include their results in the evidence packet and final report. Classify failures the same way: retry or isolate flaky checks, record pre-existing or unrelated failures as evidence, and treat them as blockers only when they prevent judging the current change; relevant new problems become findings. For a new finding, revise the change, rerun the full two-round review and affected checks, and do not claim zero findings while verification remains unresolved. Complete only when all required checks pass. If a genuine blocker remains, report a blocked result with unapplied changes, unresolved items, and the blocker; do not report completion or zero findings. Report what changed and what was verified.
