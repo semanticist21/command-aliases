@@ -1,0 +1,7 @@
+interface:
+  display_name: "Project Architecture"
+  short_description: "Plan and set up a stable new-project foundation"
+  default_prompt: "Use $project-architecture to plan and set up this new project."
+
+policy:
+  allow_implicit_invocation: false
