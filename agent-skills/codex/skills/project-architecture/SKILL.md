@@ -17,6 +17,7 @@ Work in this order:
 3. Read only the applicable references below after those decisions. They are defaults, not requirements; an intentional alternative must have an explicit decision and owner.
 4. Once the plan is decision-complete, invoke `$harness` with the selected runtimes and `setup`. Let it create the minimum root/local harness and compatible structure. Preserve established structure unless the user explicitly approves migration.
 5. When the user requests a new React setup, actually scaffold and configure the React baseline in [react.md](references/react.md): install the listed packages, write the required Vite/Tailwind/Router/Query configuration, and run its checks. Do not reduce this to guidance or defer the toolchain setup.
+6. When at least one runnable surface was selected, create the root `Makefile` from [makefile.md](references/makefile.md). The primary runnable surface owns unprefixed commands; additional surfaces use namespaced targets and `verify` aggregates only non-destructive checks. Do not create a Makefile for a database-only or no-runnable-surface setup until its safe commands are decided through `$grill-me`. Never infer a database bootstrap, reset, migration, or environment target.
 
 Do not create a sample domain, vertical slice, generic helper layer, extra service, or documentation history. Stop after the minimum setup requested by the user.
 
@@ -26,3 +27,4 @@ References:
 - React/web: [react.md](references/react.md)
 - Database: [database.md](references/database.md)
 - Code style: [code-style.md](references/code-style.md)
+- Makefile: [makefile.md](references/makefile.md)

@@ -9,6 +9,32 @@ Use this only for a requested React/TypeScript web surface. For a new app, use B
 
 Use `tanstackRouter({ target: 'react', autoCodeSplitting: true })` before `react()` in `vite.config.ts`, then add the Tailwind v4 Vite plugin. Keep file routes in `src/routes/`, commit the generated `src/routeTree.gen.ts`, and never edit it by hand. Create the minimal `src/routes/__root.tsx`, `src/router.tsx`, and `src/main.tsx` wiring for `RouterProvider` and a root `QueryClientProvider`. In `src/styles.css`, import `tailwindcss` and `tw-animate-css`. Set scripts to `dev: vite`, `typecheck: tsc --noEmit`, `lint: biome check .`, `test: bun test`, and `build: tsc --noEmit && vite build`.
 
+For a React-only project, create this root `Makefile`. For a `web/` + `server/` project, use the concrete root delegation template in [makefile.md](makefile.md) and keep these targets in `web/Makefile`.
+
+```make
+.PHONY: dev typecheck lint test build format verify
+
+dev:
+	bun run dev
+
+typecheck:
+	bun run typecheck
+
+lint:
+	bun run lint
+
+test:
+	bun run test
+
+build:
+	bun run build
+
+format:
+	bunx biome format --write .
+
+verify: typecheck lint test build
+```
+
 Organize feature slices around route modules, components, API/query code, and mappers; keep route composition/navigation separate from feature ownership. ConnectRPC gRPC-Web owns selected gRPC transport, TanStack Query owns server/cache state, and TanStack Router owns route composition. Do not add another client-state or transport layer without a concrete need and an explicit decision.
 
 Existing projects may use another intentional shape. Ask through `$grill-me` whether to preserve it or migrate it, then let `$harness` record the result.
