@@ -16,6 +16,7 @@ Work in this order:
 2. Invoke `$grill-me` for each consequential unknown or conflict, one at a time with a recommended answer. Required triggers include an unclear runtime or transport, an existing structure that might be preserved or migrated, an unclear database lifecycle, or production data/platform constraints.
 3. Read only the applicable references below after those decisions. They are defaults, not requirements; an intentional alternative must have an explicit decision and owner.
 4. Once the plan is decision-complete, invoke `$harness` with the selected runtimes and `setup`. Let it create the minimum root/local harness and compatible structure. Preserve established structure unless the user explicitly approves migration.
+5. When the user requests a new React setup, actually scaffold and configure the React baseline in [react.md](references/react.md): install the listed packages, write the required Vite/Tailwind/Router/Query configuration, and run its checks. Do not reduce this to guidance or defer the toolchain setup.
 
 Do not create a sample domain, vertical slice, generic helper layer, extra service, or documentation history. Stop after the minimum setup requested by the user.
 
