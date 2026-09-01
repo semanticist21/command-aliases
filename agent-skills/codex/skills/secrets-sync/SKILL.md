@@ -39,13 +39,21 @@ not a completed setup. Do not make bootstrap availability depend on one source
 workstation being online.
 
 When the pointer is absent, discover the registered access anchor from
-authenticated Tailnet state and recover the pointer through its value-free,
-platform-neutral bootstrap action. Do not stop merely because the local pointer
-is missing, and do not require the user to copy it manually. If more than one
-plausible anchor would produce different registrations, ask one focused anchor
-question. If the anchor is reachable but its declared bootstrap action was
-never installed or needs an OS approval, report that incomplete setup and
-request only the exact approval needed to install or invoke it.
+authenticated Tailnet state: enumerate online peers from `tailscale status
+--json`, select only the peer carrying the registered
+`tag:secrets-sync-anchor`, and probe its
+`https://<peer>/.well-known/secrets-sync` without following redirects. Send the
+local stable Tailnet device ID and require the deny-by-default endpoint to bind
+it to the authenticated connection. Reject untagged responders and tag
+ambiguity. Download its owner-only bootstrap snapshot, restore it to the
+platform-native user config location, and create the fresh local pointer from
+that snapshot. Do not stop
+merely because the local pointer is missing, and do not require the user to copy
+it manually. If more than one authorized anchor would produce different
+registrations, ask one focused anchor question. If the anchor is reachable but
+its declared bootstrap action was never installed or needs an OS approval,
+report that incomplete setup and request only the exact approval needed to
+install or invoke it.
 
 Treat reachability and authorization separately. The bootstrap transport must
 work from macOS, Linux, and Windows with authenticated Tailscale membership as
@@ -56,12 +64,14 @@ and ACL with deny-by-default behavior. OS-specific SSH support may be used for
 later managed host access, but is not the portable bootstrap contract. Never
 describe Tailnet reachability alone as file or shell access.
 
-The authorized anchor action must recover the pointer and complete or initiate
-scoped, revocable bootstrap-repository credential enrollment without exposing
-the credential. Only an unavoidable OS confirmation may interrupt it; do not
-require a copied secret, key, manual pointer step, or separate account/browser
-login. Then fetch or clone the private bootstrap repository. Never guess a
-path, host, account, or substitute credential.
+The authorized anchor action must provide the verified secret-free bootstrap
+snapshot and enroll only a fresh locally generated public key for the registered
+restricted transfer account. Bind its fingerprint to the authenticated stable
+Tailnet device ID, keep at most one anchor-managed active key per device, and
+replace or revoke it through the same registered action. Only an unavoidable OS
+confirmation may interrupt it; do not require a copied secret, private key,
+manual pointer step, or separate account/browser login. Never guess a path,
+host, account, or substitute credential.
 
 ## Reconcile with judgment
 
@@ -138,10 +148,12 @@ Windows fixtures or equivalent value-free platform tests. The action must
 restore only the non-secret pointer to the platform-native user configuration
 location, authenticate the requesting Tailnet device, require no copied private
 key, authorize it against the registered deny-by-default bootstrap policy,
-complete scoped credential enrollment, and disclose no private mapping or
-endpoint. A setup that works only from one OS, requires another pre-existing
-trust input, or needs a manually copied pointer is not healthy and must be
-repaired before reporting sync completion.
+return the verified bootstrap snapshot, enroll only a fresh public key for the
+registered restricted transfer account, bind it to the stable device identity,
+and prove rotation and revocation. A setup
+that works only from one OS, requires another pre-existing trust input, or needs
+a manually copied pointer is not healthy and must be repaired before reporting
+sync completion.
 
 ## Operational reference
 

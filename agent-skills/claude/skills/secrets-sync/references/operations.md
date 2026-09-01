@@ -67,12 +67,20 @@ GitHub deployment actions.
   serve Tailscale SSH.
 - The Tailnet bootstrap action must authenticate the requesting Tailnet device,
   authorize it against the registered bootstrap identity and ACL, and deny by
-  default. For an authorized device it may return only the non-secret pointer
-  and initiate or complete a scoped, revocable bootstrap-repository credential
-  enrollment. It must reject non-Tailnet and merely reachable-but-unauthorized
-  devices, avoid ambient SSH identities and manual account/browser login, and
-  never expose repository contents, archive records, credentials, or
-  endpoint/account details.
+  default. Discovery uses authenticated control-plane state and accepts only an
+  online peer carrying `tag:secrets-sync-anchor`; reject untagged responders,
+  multiple tagged anchors, and redirects. The client sends its stable Tailnet
+  device ID, and the service must bind it to the proxied connection before
+  authorizing the fixed `/.well-known/secrets-sync` HTTPS path. For an
+  authorized device it may return the verified secret-free
+  bootstrap snapshot and enroll one bare, locally generated `ssh-ed25519`
+  public key for the registered restricted transfer account. Bind the key
+  fingerprint to that device ID, keep at most one anchor-managed active key per
+  device, and provide atomic idempotent replace and revoke operations. It must
+  reject non-Tailnet and merely
+  reachable-but-unauthorized devices, private keys, copied device keys, key
+  comments, other key types, ambient SSH identities, and manual account/browser
+  login, and never expose archive values or credentials.
 - Restore registered profiles before probing a managed target. Generate fresh
   device keys locally; never copy an existing device private key or Keychain
   dump. Enroll only through the declared recovery action.
