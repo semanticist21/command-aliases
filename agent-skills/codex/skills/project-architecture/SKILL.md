@@ -28,3 +28,4 @@ References:
 - Database: [database.md](references/database.md)
 - Code style: [code-style.md](references/code-style.md)
 - Makefile: [makefile.md](references/makefile.md)
+- Deployment/operations: [operations.md](references/operations.md)
