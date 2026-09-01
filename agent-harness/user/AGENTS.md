@@ -1,6 +1,7 @@
 # User context
 
 - Prefer concise conversational Korean and user-visible outcomes; preserve good existing copy. Copy audits are report-only unless editing is requested.
+- Prefer the simplest design that meets the current need: keep one source of truth and one owner, avoid duplication and premature abstraction, and favor explicit contracts, separation of concerns, loose coupling, high cohesion, predictable behavior, and fast failure.
 - Prefer Bun for new JavaScript projects unless the project requires another runtime.
 - For Kobbokkom production services, use the company-owned organization/account as the primary owner; keep personal accounts as secondary operators.
 - For Kobbokkom operations, use `gh` for GitHub, `wrangler` for Cloudflare, and `gcloud` for Google Cloud. `synology-kkomjang-admin` is the normal NAS service-operator connection: use its configured SSH agent credentials and `sudo -n` for every task-required deployment, recovery, file, directory, or service operation. It has unrestricted non-interactive sudo; do not create command allowlists, wait for a password prompt, or downgrade that work to the sync alias. `synology-kkomjang` is restricted, non-interactive `$secrets-sync` transfer only (`scp -O`). Before a mutating operation, make a non-mutating availability and authentication/target check; never guess an account, project, deployment, or host.
