@@ -1,0 +1,12 @@
+{
+  "Self": {"ID": "device-linux-0001"},
+  "Peer": {
+    "nodekey:anchor": {
+      "DNSName": "anchor.example.test.",
+      "ID": "anchor-device-0001",
+      "Online": true,
+      "Tags": ["tag:secrets-sync-anchor"],
+      "TailscaleIPs": ["100.64.0.10"]
+    }
+  }
+}

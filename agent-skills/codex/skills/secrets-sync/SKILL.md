@@ -55,6 +55,19 @@ its declared bootstrap action was never installed or needs an OS approval,
 report that incomplete setup and request only the exact approval needed to
 install or invoke it.
 
+Use the bundled client for this contract; do not reconstruct a raw HTTP request
+or ask the user to copy a pointer. From this skill directory, run
+`sh scripts/bootstrap.sh bootstrap` on macOS or Linux, or
+`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/bootstrap.ps1 bootstrap`
+on Windows. The clients discover the tagged anchor, send the connection-bound
+stable device ID, reject redirects, validate and install the owner-only
+snapshot without overwriting existing state, generate or reuse the local
+Ed25519 device key, enroll only its bare public key, and create the fresh local
+pointer. They also expose `enroll`, `rotate`, and `revoke` actions for the same
+authenticated device registration. Linux needs Python 3 or `jq`; macOS falls
+back to its built-in JXA JSON parser; Windows uses `ConvertFrom-Json` and needs
+the OpenSSH Client capability only when `ssh-keygen.exe` is absent.
+
 Treat reachability and authorization separately. The bootstrap transport must
 work from macOS, Linux, and Windows with authenticated Tailscale membership as
 the only pre-existing machine trust and input, without a pre-copied private key,
