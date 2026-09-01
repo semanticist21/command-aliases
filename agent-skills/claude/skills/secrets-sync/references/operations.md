@@ -58,6 +58,21 @@ GitHub deployment actions.
 
 ## Machine access
 
+- Bootstrap recovery over Tailscale requires a continuously available,
+  pre-registered access anchor; peer discovery and network reachability are not
+  authorization. Its client path must work on macOS, Linux, and Windows without
+  SSH or a pre-copied device key, using authenticated Tailscale membership as
+  the only pre-existing machine trust and input. Use OS-specific SSH only after
+  bootstrap for a separately registered managed-host profile; macOS cannot
+  serve Tailscale SSH.
+- The Tailnet bootstrap action must authenticate the requesting Tailnet device,
+  authorize it against the registered bootstrap identity and ACL, and deny by
+  default. For an authorized device it may return only the non-secret pointer
+  and initiate or complete a scoped, revocable bootstrap-repository credential
+  enrollment. It must reject non-Tailnet and merely reachable-but-unauthorized
+  devices, avoid ambient SSH identities and manual account/browser login, and
+  never expose repository contents, archive records, credentials, or
+  endpoint/account details.
 - Restore registered profiles before probing a managed target. Generate fresh
   device keys locally; never copy an existing device private key or Keychain
   dump. Enroll only through the declared recovery action.

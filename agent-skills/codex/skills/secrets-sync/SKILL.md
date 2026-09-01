@@ -1,13 +1,13 @@
 ---
 name: secrets-sync
-description: Restore and synchronize a project's inputs plus the machine access needed to use them across Macs. Use on a new or repaired machine, after clone/worktree recovery fails, or when configuration, credentials, or deployment inputs change.
+description: Restore and synchronize a project's inputs plus the machine access needed to use them across macOS, Linux, and Windows machines. Use on a new or repaired machine, after clone/worktree recovery fails, or when configuration, credentials, or deployment inputs change.
 ---
 
 # Secrets Sync
 
 Make a machine ready to work, not merely able to find a secret. A successful
 sync leaves the requested project and its registered common machine baseline
-usable on this Mac, and leaves durable sources ready for the next Mac.
+usable on this machine, and leaves durable sources ready for the next machine.
 
 Keep ordinary, portable configuration in Git. Keep only secrets and
 device-private material in private storage. Never expose a secret value in
@@ -32,11 +32,36 @@ chat, Git, logs, commands, manifests, or a read-back check.
 ## Bootstrap discovery
 
 `~/.agents/doc/AGENTS.local.md` is the stable pointer to the registered private
-bootstrap repository. After its declared one-time OS/account enrollment, fetch
-or clone that repository with the registered bootstrap credential when no
-checkout exists. If the pointer or credential is absent, request only that
-exact enrollment repair; never guess a path, host, account, or substitute
-credential.
+bootstrap repository. A completed setup must also leave a registered,
+continuously available Tailnet access anchor usable by a newly joined macOS,
+Linux, or Windows machine; installing Tailscale without that recovery path is
+not a completed setup. Do not make bootstrap availability depend on one source
+workstation being online.
+
+When the pointer is absent, discover the registered access anchor from
+authenticated Tailnet state and recover the pointer through its value-free,
+platform-neutral bootstrap action. Do not stop merely because the local pointer
+is missing, and do not require the user to copy it manually. If more than one
+plausible anchor would produce different registrations, ask one focused anchor
+question. If the anchor is reachable but its declared bootstrap action was
+never installed or needs an OS approval, report that incomplete setup and
+request only the exact approval needed to install or invoke it.
+
+Treat reachability and authorization separately. The bootstrap transport must
+work from macOS, Linux, and Windows with authenticated Tailscale membership as
+the only pre-existing machine trust and input, without a pre-copied private key,
+ambient shell identity, repository credential, or manual browser enrollment.
+The anchor must authorize the device against the registered bootstrap identity
+and ACL with deny-by-default behavior. OS-specific SSH support may be used for
+later managed host access, but is not the portable bootstrap contract. Never
+describe Tailnet reachability alone as file or shell access.
+
+The authorized anchor action must recover the pointer and complete or initiate
+scoped, revocable bootstrap-repository credential enrollment without exposing
+the credential. Only an unavoidable OS confirmation may interrupt it; do not
+require a copied secret, key, manual pointer step, or separate account/browser
+login. Then fetch or clone the private bootstrap repository. Never guess a
+path, host, account, or substitute credential.
 
 ## Reconcile with judgment
 
@@ -107,6 +132,16 @@ Create a fresh device key when the profile requires one, enroll it through the
 registered recovery path, and verify the configured identity rather than a
 bare hostname or ambient SSH identity. Repair NAS access and every registered
 managed-host path before reporting readiness.
+
+Verify the Tailnet bootstrap action from clean, pointer-free macOS, Linux, and
+Windows fixtures or equivalent value-free platform tests. The action must
+restore only the non-secret pointer to the platform-native user configuration
+location, authenticate the requesting Tailnet device, require no copied private
+key, authorize it against the registered deny-by-default bootstrap policy,
+complete scoped credential enrollment, and disclose no private mapping or
+endpoint. A setup that works only from one OS, requires another pre-existing
+trust input, or needs a manually copied pointer is not healthy and must be
+repaired before reporting sync completion.
 
 ## Operational reference
 
