@@ -19,6 +19,16 @@ chat, Git, logs, commands, manifests, or a read-back check.
   registered common machine baseline: required inputs, CLIs, profiles, device
   identity, NAS access, and managed-host access. It does not restore unrelated
   project collections.
+- If the repository has no registered project collection, continue with the
+  common machine baseline instead of treating that absence as a sync blocker.
+  Keep any project-owned secret or mixed input pending its project scope; route
+  an input to the common collection only when its shared ownership and consumer
+  are explicitly established. A missing project or common collection is
+  repairable: when owner, scope, destination, and approved paths are
+  unambiguous, create its private-bootstrap registration and exact NAS
+  collection/allowlist during the same request, then verify it before use.
+  Preserve every existing collection entry and ask only when those facts would
+  lead to materially different collections or destinations.
 - `$secrets-sync user` restores the common machine baseline plus the registered
   default collection. `$secrets-sync user <owner-id>/<collection-id>` selects
   that exact registered collection. Use it before a project checkout exists.
@@ -104,9 +114,11 @@ shortcut is material already established as wholly non-secret Git content.
    - Keep secrets, device-private material, and mixed files private. Do not
      silently split or redact a mixed file.
    Ignore rules and filenames are leads, never a classification or authority.
-3. A stale or missing mapping is repair work, not a blocker. When the evidence
-   converges, record the resulting current non-secret mapping in the private
-   bootstrap source and continue. It must identify the resolved source record,
+3. A stale or missing mapping or collection is repair work, not a blocker.
+   When the evidence converges, record the resulting current non-secret mapping
+   in the private bootstrap source and continue. If a required collection is
+   absent, create the exact registration and NAS allowlist before transferring
+   any approved file. The record must identify the resolved source record,
    scope/destination, and consumer when one exists.
 4. Ask one focused question only when materially different, plausible mappings
    would send data to different destinations or consumers. Absence of an old
@@ -197,6 +209,9 @@ Use safe dummy fixtures or value-free assertions to verify the changed behavior:
 - competing consumers produce one focused question;
 - both standalone and project requests recover the common machine baseline and
   reach NAS plus each registered managed host;
+- a project with no project collection still recovers the common baseline, and
+  an unambiguous required collection is created with its existing allowlist
+  entries preserved;
 - a GitHub-only secret is rotated into a durable source before GitHub changes;
 - a non-secret configuration is promoted to Git and its exact old archive record
   retires; and
