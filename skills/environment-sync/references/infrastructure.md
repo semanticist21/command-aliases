@@ -52,12 +52,19 @@ registered estate preserves its canonical implementation without asking again
 unless evidence conflicts or the user requests a change.
 
 The runner estate must publish and test a backend-neutral contract containing a
-common estate label, OS, architecture, and applicable workload capabilities.
-Concrete labels or scale-set names belong to the canonical estate. Discover that
-contract from the source and actual GitHub configuration. Do not hardcode one
-user's labels in this general skill, expose provider implementations or physical
-machines as consumer routing, invent automatic `self-hosted`/OS/architecture
-labels, or call a scale-to-zero set absent because no runner is currently listed.
+common estate label, OS, architecture, and applicable workload capabilities. Read
+the shared
+[runner capability catalog](../../task-runner-setup/references/capability-labels.md)
+before publishing, restoring, or validating labels. The canonical estate owns one
+exact machine-readable estate label, with no aliases, plus its provider
+declarations and capability probe results. The shared catalog owns every portable
+OS, architecture, capability, and selector string. Scale-set names remain canonical
+estate inventory and are not consumer labels. Cross-check the canonical declaration
+and actual GitHub configuration against the catalog; reject unknown portable labels
+instead of preserving or approximating them. Do not expose provider implementations
+or physical machines as consumer routing, invent automatic
+`self-hosted`/OS/architecture labels, or call a scale-to-zero set absent because no
+runner is currently listed.
 
 Creating, rebuilding, or recovering a runner host, cluster, VM, service,
 cache/storage layout, or runner group is an `environment-sync` infrastructure

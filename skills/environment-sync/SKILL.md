@@ -54,7 +54,9 @@ read-back check.
   registered infrastructure, read
   [infrastructure.md](references/infrastructure.md). Also read
   [operations.md](references/operations.md) before any access, secret, external
-  write, deployment, or cutover.
+  write, deployment, or cutover. For a runner estate, also read the shared
+  [runner capability catalog](../task-runner-setup/references/capability-labels.md)
+  before publishing or restoring labels.
 
 Do not load unrelated references merely because they exist.
 
@@ -66,9 +68,12 @@ Do not load unrelated references merely because they exist.
   values or duplicated infrastructure implementation.
 - A private manifest owns only integrity metadata for approved private records.
 - Each project's canonical repository owns its portable configuration,
-  infrastructure code, images, tests, and capability contracts. Discover and
-  execute those declarations; do not restate package lists, labels, resource
-  numbers, or deployment procedures in this skill or private mappings.
+  infrastructure code, images, tests, and capability declarations. A runner
+  estate owns its one exact estate label and its provider declarations and probe
+  results; the shared runner catalog owns portable label strings and selectors.
+  Discover and execute those declarations; do not restate package lists, label
+  catalogs, resource numbers, or deployment procedures in this skill or private
+  mappings.
 - Live machines and services provide evidence and drift, not a second desired
   state. Reconcile them to the verified canonical declaration unless evidence
   shows that declaration is stale or two plausible states conflict.

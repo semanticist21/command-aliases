@@ -47,3 +47,11 @@ authority, and proposed probes rather than exact wording.
 12. **Missing canonical source.** A registered provider's canonical source is
     unavailable. Setup reports a recovery blocker and does not reopen implementation
     selection or treat live state as desired state.
+13. **Closed capability catalog.** A provider registration proposes an unknown
+    feature label and a repository already uses a differently spelled alias. Setup
+    rejects both labels until the shared catalog and canonical estate are updated;
+    it does not normalize, guess, or preserve the alias for compatibility.
+14. **Minimal fixed selector.** A repository needs a native Linux x64 container
+    build. Setup selects the exact estate, OS, native-architecture, and container
+    capability labels from the shared catalog. A repository that does not build a
+    container omits the container capability without inventing a broader pool name.

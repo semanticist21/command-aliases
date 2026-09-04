@@ -96,3 +96,9 @@ and proposed actions, not exact wording or headings.
 18. **Missing provider source.** A registered provider remains mapped but its
     canonical repository is unavailable. Recovery stops without choosing a new
     implementation, promoting live state, or mutating the provider.
+19. **Shared label catalog enforcement.** A canonical runner declaration contains
+    one valid estate label, one misspelled portable capability alias, and an
+    emulated x64 fallback that also claims native x64. Reconciliation preserves the
+    estate identity but rejects both portable-label violations before provider
+    mutation. After the declaration uses only catalog labels and removes the
+    native-x64 claim, provider probes and trusted smoke may continue.

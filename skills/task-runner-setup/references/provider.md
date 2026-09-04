@@ -37,18 +37,14 @@ applicable section of [runtimes.md](runtimes.md) before planning provider mutati
 
 ## Publish a capability contract
 
-Every backend publishes the same conceptual dimensions:
-
-- one common estate label;
-- an OS label;
-- an architecture label; and
-- zero or more workload capabilities such as container build, Xcode, or explicit
-  QEMU x64 fallback.
-
-Concrete labels belong to the canonical estate. Prefer a stable typed form such as
-`<estate>`, `os-<value>`, `arch-<value>`, and `cap-<value>`, but discover and verify
-the actual contract rather than copying examples. Provider implementation names,
-hostnames, and physical machine names are inventory, not consumer labels.
+Publish only labels allowed by the closed portable vocabulary and estate-identity
+rule in
+[capability-labels.md](capability-labels.md). Every backend publishes the canonical
+estate label, one catalog OS label, one catalog native-architecture label, and only
+the optional capability labels whose probes pass. The canonical estate owns its
+exact common label; this catalog owns every portable OS, architecture, and feature
+label. Provider implementation names, hostnames, and physical machine names are
+inventory, not consumer labels.
 
 An emulated x64 provider declares emulation and fallback explicitly and does not
 claim the native-x64 contract. Kubernetes/ARC, native Linux, native macOS, and VM

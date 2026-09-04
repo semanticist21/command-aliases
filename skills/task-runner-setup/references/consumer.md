@@ -12,12 +12,14 @@ architecture, Apple toolchain, container build, service containers, cache, or an
 explicit fallback. Verify GitHub authority, runner-group access, and the published
 estate contract before editing `runs-on`.
 
-Capabilities are an AND contract. Use the estate's observed common label plus its
-observed OS, architecture, and feature labels; never invent labels or assume an ARC
-scale set has the automatic `self-hosted`, OS, or architecture labels of a classic
-runner. Consumer jobs must not select hostnames, physical machines, Kubernetes,
-OrbStack, systemd, or another provider implementation. Pinning is valid only for a
-real workload requirement and must say why.
+Use the closed portable vocabulary and estate-identity rule in
+[capability-labels.md](capability-labels.md). Capabilities are an AND contract. Use
+the estate's observed common label plus its observed catalog OS, architecture, and
+feature labels; never invent labels or assume an ARC scale set has the automatic
+`self-hosted`, OS, or architecture labels of a classic runner. Consumer jobs must
+not select hostnames, physical machines, Kubernetes, OrbStack, systemd, or another
+provider implementation. Pinning is valid only for a real workload requirement and
+must say why.
 
 Prefer a runner whose native architecture matches the artifact target. An emulated
 x64 fallback must publish and require an explicit fallback capability; it must not
