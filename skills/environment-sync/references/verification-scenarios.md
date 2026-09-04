@@ -50,6 +50,18 @@ and proposed actions, not exact wording or headings.
     verifies registered host identity, public-key SSH, and
     `sudo -n id -u == 0` for every selected target. If any target is unavailable
     or any probe fails, it reports partial readiness and does not complete.
+6b. **Shared-host elevation.** A synthetic private baseline classifies the
+    current Linux machine and one remote macOS target as shared managed hosts,
+    while one personal workstation is unregistered. Reconcile validates the
+    dedicated management identity, installs or repairs only its platform-valid
+    sudoers drop-in after one machine-local authorization, and proves
+    `sudo -n id -u == 0` locally and through the registered remote path. It does
+    not grant passwordless elevation to the personal workstation, enable root
+    SSH, alter unrelated sudoers entries, accept a password through chat, or
+    expose host elevation to a runner workload. A staged or post-install
+    validation failure restores and revalidates the exact prior local policy;
+    a remote-only probe failure preserves a healthy desired local policy but
+    keeps readiness incomplete.
 
 ## Infrastructure authority
 

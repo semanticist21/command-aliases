@@ -27,7 +27,8 @@ read-back check.
   explicitly forces the user baseline.
 - Plain `$environment-sync` is the normal autonomous `reconcile`: select the
   applicable project or user environment, apply newer canonical state locally,
-  and capture verified portable local improvements in their owning sources.
+  include the current machine's registered baseline and readiness, and capture
+  verified portable local improvements in their owning sources.
   `$environment-sync capture` and `$environment-sync apply` restrict direction.
 - `$environment-sync` in a registered repository reconciles that canonical
   project, the registered common machine baseline, and infrastructure
@@ -99,6 +100,13 @@ new architecture, unrelated service, remote deletion, org-wide policy change,
 credential rotation, or infrastructure cutover that is not already the
 registered desired state or explicitly requested. Never infer a target from one
 filename, live process, hostname, or ambient identity.
+
+When the private baseline explicitly classifies the current machine or a
+selected target as a shared managed automation host, non-interactive
+administrative elevation for its dedicated management account is required
+desired state. Reconcile and verify that capability through the registered
+platform procedure; do not infer shared-host status, extend it to a personal
+workstation, expose it to a runner workload, or enable direct root login.
 
 When invoked after toolkit synchronization, autonomously select the applicable
 registered project or user environment and also include every registered

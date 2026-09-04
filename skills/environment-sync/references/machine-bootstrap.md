@@ -72,6 +72,49 @@ through the private access collection. Require public-key SSH through the
 authenticated Tailnet path and prove administrative access with a harmless
 `sudo -n id -u`; success output must be `0`. Do not enable direct root SSH.
 
+### Shared managed hosts
+
+The private baseline may classify a machine as a shared managed automation
+host. Never infer this classification from its OS, hostname, installed software,
+Tailnet membership, or current use. On a registered Unix shared host, the
+dedicated management account must retain unrestricted non-interactive sudo so
+both authenticated remote administration and a local agent running as that
+account can recover the machine without repeated password prompts. This is a
+host-management capability, not direct root login or permission for unrelated
+accounts.
+
+Reconcile the capability with a dedicated file under `/etc/sudoers.d`, leaving
+the main sudoers file and unrelated drop-ins untouched. Resolve and validate the
+exact registered account and reject conflicting or duplicate declarations. The
+resulting policy for that one account must be equivalent to
+`ALL=(ALL:ALL) NOPASSWD: ALL`, using syntax accepted by that platform.
+
+Treat installation as a rollback-safe privileged transaction. Refuse a target
+or staging path that is a link or unexpected file type. Preserve any prior
+regular drop-in's exact bytes, owner, group, and mode; create a root-owned
+same-filesystem staging sibling with mode `0600`; copy the exact candidate
+bytes; and run the platform's `visudo -cf` against that staged file. Only after
+it passes, set the native root owner and group with mode `0440` and atomically
+rename it over the target. Then validate the installed full policy and require
+`sudo -n id -u == 0` locally. If any local install, validation, or capability
+step fails, restore the preserved prior file and metadata—or remove the newly
+created target when none existed—and revalidate the prior full policy. A remote
+path failure does not revert a locally healthy desired policy, but remains a
+readiness blocker. Finally require the same capability probe through every
+selected registered access path.
+
+Installing or repairing the drop-in may require one administrator authorization
+on the machine's local terminal. Request only that exact local action and never
+accept, relay, store, or inject its password through chat, a command argument,
+stdin automation, logs, or Git. An unavailable local authorization is a precise
+readiness blocker, not permission to weaken sudo, copy a credential, or enable
+root SSH.
+
+Do not grant this policy to personal or unregistered machines. Do not reuse the
+management account as a CI runner identity, mount host sudo sockets or host
+credentials into runner workloads, or treat a privileged container as proof of
+host administration.
+
 An unavoidable browser, OS, device, or administrator confirmation may pause the
 work. Request only that exact approval and continue afterward.
 
