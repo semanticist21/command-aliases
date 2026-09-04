@@ -1,1 +1,0 @@
-../../../codex/skills/org-kobbokkom-repo-migration/SKILL.md

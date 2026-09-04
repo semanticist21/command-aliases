@@ -1,1 +1,0 @@
-../../../codex/skills/natural-writing/SKILL.md

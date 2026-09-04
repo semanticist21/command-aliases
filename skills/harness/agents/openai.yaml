@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness"
+  short_description: "Manage agent docs and minimum project architecture"
+  default_prompt: "Use $harness to set up or polish agent documentation, or to plan and create the minimum requested project architecture."

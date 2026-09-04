@@ -1,1 +1,0 @@
-../../../codex/skills/grill-me/SKILL.md

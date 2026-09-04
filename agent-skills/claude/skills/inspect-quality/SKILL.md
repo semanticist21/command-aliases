@@ -1,1 +1,0 @@
-../../../codex/skills/inspect-quality/SKILL.md

@@ -1,1 +1,0 @@
-../../../codex/skills/task-runner-setup/SKILL.md

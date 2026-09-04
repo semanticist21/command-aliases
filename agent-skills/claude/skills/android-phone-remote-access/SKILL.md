@@ -1,1 +1,0 @@
-../../../codex/skills/android-phone-remote-access/SKILL.md

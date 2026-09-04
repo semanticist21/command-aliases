@@ -1,1 +1,0 @@
-../../../codex/skills/grilling/SKILL.md

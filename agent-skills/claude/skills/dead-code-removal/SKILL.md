@@ -1,1 +1,0 @@
-../../../codex/skills/dead-code-removal/SKILL.md

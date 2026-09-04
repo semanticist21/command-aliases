@@ -1,1 +1,0 @@
-../../../codex/skills/task/SKILL.md

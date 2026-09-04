@@ -1,1 +1,0 @@
-../../../codex/skills/research/SKILL.md

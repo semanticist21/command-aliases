@@ -1,0 +1,7 @@
+interface:
+  display_name: "Natural Writing"
+  short_description: "Natural Korean and English rewrites"
+  default_prompt: "Use $natural-writing to draft, edit, or diagnose this text while preserving meaning, facts, tone, voice, names, and constraints."
+
+policy:
+  allow_implicit_invocation: true

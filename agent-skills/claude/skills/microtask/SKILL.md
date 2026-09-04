@@ -1,1 +1,0 @@
-../../../codex/skills/microtask/SKILL.md

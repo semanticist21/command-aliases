@@ -1,1 +1,0 @@
-../../../codex/skills/agent-review/SKILL.md

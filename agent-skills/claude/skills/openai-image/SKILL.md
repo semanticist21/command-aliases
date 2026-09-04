@@ -1,1 +1,0 @@
-../../../codex/skills/openai-image/SKILL.md

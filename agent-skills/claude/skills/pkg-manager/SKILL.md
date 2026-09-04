@@ -1,1 +1,0 @@
-../../../codex/skills/pkg-manager/SKILL.md

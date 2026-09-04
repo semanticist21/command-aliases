@@ -1,0 +1,160 @@
+#!/bin/sh
+set -eu
+
+mode=${1:-check}
+case "$mode" in check|sync) ;; *) echo "usage: $0 [check|sync]" >&2; exit 2 ;; esac
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_dir=$(dirname -- "$script_dir")
+version=$(tr -d '[:space:]' < "$repo_dir/VERSION")
+managed='agent-review android-phone-remote-access design figma-lookup grilling harness inspect natural-writing openai-image org-kobbokkom-repo-migration pkg-manager task task-runner-setup toolkit-sync'
+obsolete='agent-review-loop analysis audit commit-isolate dead-code-removal git-push grill-me humanizer inspect-quality memo microtask no-ai-slop project-architecture research skill-sync'
+codex_root=${CODEX_SKILLS_ROOT:-$HOME/.codex/skills}
+claude_root=${CLAUDE_SKILLS_ROOT:-$HOME/.claude/skills}
+opencode_root=${OPENCODE_SKILLS_ROOT:-$HOME/.config/opencode/skills}
+global_doc="$repo_dir/agents/global/AGENTS.md"
+user_doc="$repo_dir/agents/user/AGENTS.md"
+stage_a= stage_b= stage_c= rollback_needed=0 user_was_regular=0
+old_codex_link=__missing__ old_claude_link=__missing__ old_user_link=__missing__
+rollback_root() {
+  root=$1 stage=$2
+  test -n "$stage" && test -d "$stage" || return 0
+  for name in $managed; do
+    target="$root/$name"
+    if test -e "$stage/.old-$name" || test -L "$stage/.old-$name"; then rm -rf -- "$target"; mv "$stage/.old-$name" "$target"
+    elif test -f "$stage/.missing-$name"; then rm -rf -- "$target"; fi
+  done
+  for name in $obsolete; do
+    if test -e "$stage/.obsolete-$name" || test -L "$stage/.obsolete-$name"; then mv "$stage/.obsolete-$name" "$root/$name"; fi
+  done
+  for marker in VERSION .sync-version; do
+    if test -f "$stage/.marker-$marker"; then rm -f -- "$root/$marker"; mv "$stage/.marker-$marker" "$root/$marker"
+    elif test -f "$stage/.missing-marker-$marker"; then rm -f -- "$root/$marker"; fi
+  done
+}
+restore_link() { link=$1 old=$2; if test "$old" = __missing__; then test -L "$link" && unlink "$link" || true; else ln -sfn "$old" "$link"; fi; }
+rollback_docs() {
+  restore_link "$HOME/.codex/AGENTS.md" "$old_codex_link"
+  restore_link "$HOME/.claude/CLAUDE.md" "$old_claude_link"
+  if test "$user_was_regular" -eq 1; then test -L "$HOME/.agents/doc/AGENTS.md" && unlink "$HOME/.agents/doc/AGENTS.md" || true; test -f "$HOME/.agents/doc/AGENTS.local.md" && mv "$HOME/.agents/doc/AGENTS.local.md" "$HOME/.agents/doc/AGENTS.md" || true
+  else restore_link "$HOME/.agents/doc/AGENTS.md" "$old_user_link"; fi
+}
+cleanup() {
+  if test "$rollback_needed" -eq 1; then rollback_docs; rollback_root "$opencode_root" "$stage_c"; rollback_root "$claude_root" "$stage_b"; rollback_root "$codex_root" "$stage_a"; fi
+  for path in "$stage_a" "$stage_b" "$stage_c"; do test -n "$path" && test -d "$path" && rm -rf -- "$path" || true; done
+  return 0
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+validate_source() {
+  python3 - "$repo_dir" $managed <<'PY'
+import pathlib, re, sys
+root = pathlib.Path(sys.argv[1]); managed = sys.argv[2:]
+stale = re.compile(r'\$(?:agent-review-loop|analysis|audit|commit-isolate|dead-code-removal|git-push|grill-me|humanizer|inspect-quality|memo|microtask|no-ai-slop|project-architecture|research|skill-sync)\b')
+for name in managed:
+    skill = root / 'skills' / name / 'SKILL.md'; text = skill.read_text()
+    if not text.startswith('---\n') or '\n---\n' not in text[4:]: raise SystemExit(f'invalid frontmatter: {skill}')
+    header = text.split('\n---\n', 1)[0]
+    if not re.search(rf'^name:\s*["\']?{re.escape(name)}["\']?\s*$', header, re.M): raise SystemExit(f'name mismatch: {skill}')
+    if not re.search(r'^description:\s*\S', header, re.M): raise SystemExit(f'missing description: {skill}')
+for base in (root / 'skills', root / 'agents'):
+    for path in base.rglob('*'):
+        if not path.is_file() or path.suffix not in {'.md', '.yaml', '.yml'}: continue
+        text = path.read_text()
+        if stale.search(text): raise SystemExit(f'stale skill reference: {path}')
+        if path.suffix == '.md':
+            for target in re.findall(r'\]\(([^)]+)\)', text):
+                if '://' in target or target.startswith(('#', '/', 'mailto:')): continue
+                if not (path.parent / target.split('#', 1)[0]).resolve().exists(): raise SystemExit(f'broken local link: {path}: {target}')
+PY
+}
+
+valid_link_slot() { test ! -e "$1" || test -L "$1"; }
+preflight() {
+  command -v python3 >/dev/null; command -v rsync >/dev/null
+  valid_link_slot "$HOME/.codex/AGENTS.md" || { echo "unsupported global document target: $HOME/.codex/AGENTS.md" >&2; return 1; }
+  valid_link_slot "$HOME/.claude/CLAUDE.md" || { echo "unsupported global document target: $HOME/.claude/CLAUDE.md" >&2; return 1; }
+  test -L "$HOME/.codex/AGENTS.md" && old_codex_link=$(readlink "$HOME/.codex/AGENTS.md") || true
+  test -L "$HOME/.claude/CLAUDE.md" && old_claude_link=$(readlink "$HOME/.claude/CLAUDE.md") || true
+  current="$HOME/.agents/doc/AGENTS.md"; overlay="$HOME/.agents/doc/AGENTS.local.md"
+  if test -e "$overlay" && ! test -f "$overlay"; then echo "unsupported local overlay: $overlay" >&2; return 1; fi
+  if test -e "$current" && ! test -L "$current"; then
+    test -f "$current" || { echo "unsupported user document target: $current" >&2; return 1; }
+    test ! -e "$overlay" || { echo "refusing to merge existing user context and overlay" >&2; return 1; }
+    user_was_regular=1
+  elif test -L "$current"; then
+    old_user_link=$(readlink "$current")
+  fi
+  for root in "$codex_root" "$claude_root" "$opencode_root"; do
+    for marker in VERSION .sync-version; do
+      slot="$root/$marker"
+      if test -L "$slot" || { test -e "$slot" && ! test -f "$slot"; }; then echo "unsupported marker target: $slot" >&2; return 1; fi
+    done
+    for name in $managed; do
+      target="$root/$name"
+      if test -e "$target" && ! test -d "$target" && ! test -L "$target"; then echo "unexpected managed target: $target" >&2; return 1; fi
+    done
+  done
+}
+
+populate_stage() {
+  stage=$1
+  for name in $managed; do
+    mkdir -p "$stage/$name"; rsync -a --delete "$repo_dir/skills/$name/" "$stage/$name/"
+    if test -n "${TOOLKIT_SYNC_TEST_FAIL_COPY:-}"; then echo "injected copy failure" >&2; return 1; fi
+  done
+}
+
+commit_root() {
+  root=$1 stage=$2
+  for name in $managed; do
+    target="$root/$name"; backup="$stage/.old-$name"
+    if test -e "$target" || test -L "$target"; then mv "$target" "$backup"; else : > "$stage/.missing-$name"; fi
+    mv "$stage/$name" "$target"
+    if test -n "${TOOLKIT_SYNC_TEST_FAIL_COMMIT:-}"; then unset TOOLKIT_SYNC_TEST_FAIL_COMMIT; echo "injected commit failure" >&2; return 1; fi
+  done
+  for name in $obsolete; do
+    target="$root/$name"
+    if test -e "$target" || test -L "$target"; then test "$(dirname -- "$target")" = "$root" || exit 1; mv "$target" "$stage/.obsolete-$name"; fi
+  done
+  for marker in VERSION .sync-version; do if test -f "$root/$marker"; then mv "$root/$marker" "$stage/.marker-$marker"; else : > "$stage/.missing-marker-$marker"; fi; printf '%s\n' "$version" > "$root/$marker"; done
+}
+
+check_root() {
+  root=$1 failed=0
+  for name in $managed; do
+    if ! test -d "$root/$name" || test -L "$root/$name" || ! diff -qr "$repo_dir/skills/$name" "$root/$name" >/dev/null; then echo "drift: $root/$name" >&2; failed=1; fi
+  done
+  for name in $obsolete; do if test -e "$root/$name" || test -L "$root/$name"; then echo "obsolete: $root/$name" >&2; failed=1; fi; done
+  for marker in VERSION .sync-version; do
+    slot="$root/$marker"
+    if test -L "$slot" || ! test -f "$slot"; then echo "$marker type drift: $root" >&2; failed=1
+    else actual=$(tr -d '[:space:]' < "$slot"); test "$actual" = "$version" || { echo "$marker drift: $root" >&2; failed=1; }; fi
+  done
+  test "$failed" -eq 0
+}
+check_link() { test -L "$1" && test "$(readlink "$1")" = "$2" || { echo "link drift: $1" >&2; return 1; }; }
+
+validate_source
+if test "$mode" = check; then
+  check_root "$codex_root"; check_root "$claude_root"; check_root "$opencode_root"
+  check_link "$HOME/.codex/AGENTS.md" "$global_doc"; check_link "$HOME/.claude/CLAUDE.md" "$global_doc"; check_link "$HOME/.agents/doc/AGENTS.md" "$user_doc"; exit 0
+fi
+
+preflight
+mkdir -p "$codex_root" "$claude_root" "$opencode_root"
+stage_a=$(mktemp -d "$codex_root/.toolkit-stage.XXXXXX"); populate_stage "$stage_a"
+test -z "${TOOLKIT_SYNC_TEST_FAIL_STAGE:-}" || { echo "injected staging failure" >&2; exit 1; }
+stage_b=$(mktemp -d "$claude_root/.toolkit-stage.XXXXXX"); populate_stage "$stage_b"
+stage_c=$(mktemp -d "$opencode_root/.toolkit-stage.XXXXXX"); populate_stage "$stage_c"
+rollback_needed=1
+commit_root "$codex_root" "$stage_a"; commit_root "$claude_root" "$stage_b"; commit_root "$opencode_root" "$stage_c"
+current="$HOME/.agents/doc/AGENTS.md"; overlay="$HOME/.agents/doc/AGENTS.local.md"
+if test -e "$current" && ! test -L "$current"; then mv "$current" "$overlay"; fi
+mkdir -p "$HOME/.codex" "$HOME/.claude" "$HOME/.agents/doc"
+ln -sfn "$global_doc" "$HOME/.codex/AGENTS.md"; ln -sfn "$global_doc" "$HOME/.claude/CLAUDE.md"; ln -sfn "$user_doc" "$HOME/.agents/doc/AGENTS.md"
+check_root "$codex_root"; check_root "$claude_root"; check_root "$opencode_root"
+check_link "$HOME/.codex/AGENTS.md" "$global_doc"; check_link "$HOME/.claude/CLAUDE.md" "$global_doc"; check_link "$HOME/.agents/doc/AGENTS.md" "$user_doc"
+rollback_needed=0

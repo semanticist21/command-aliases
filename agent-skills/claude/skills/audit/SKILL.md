@@ -1,1 +1,0 @@
-../../../codex/skills/audit/SKILL.md

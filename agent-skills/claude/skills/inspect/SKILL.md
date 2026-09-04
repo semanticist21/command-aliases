@@ -1,1 +1,0 @@
-../../../codex/skills/inspect/SKILL.md
