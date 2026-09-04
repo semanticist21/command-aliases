@@ -88,6 +88,12 @@ Do not load unrelated references merely because they exist.
 
 ## Reconciliation and authority
 
+For Tailnet recovery, distinguish an approved login from membership in the
+intended Tailnet. Follow the target verification and connection recovery in
+[machine-bootstrap.md](references/machine-bootstrap.md) before declaring an
+anchor unavailable. A wrong-network connection is recoverable environment drift,
+not a successful login prerequisite or a reason to abandon reconciliation.
+
 Inspect the selected registration, canonical source, current local and remote
 state, consumers, and chronology before changing anything. Repair stale or
 missing non-secret mappings when the evidence converges. A mapping or portable

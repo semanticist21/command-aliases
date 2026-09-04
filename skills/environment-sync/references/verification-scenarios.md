@@ -30,6 +30,29 @@ and proposed actions, not exact wording or headings.
 
 ## Ambiguity
 
+3b. **Approved login, wrong Tailnet.** Two approved owner accounts belong to one
+    registered management Tailnet. A fresh device logged in with the second
+    account is on its separate personal Tailnet, has no saved alternative
+    profile, and sees zero anchors. Trusted owner context identifies the intended
+    network. Reconcile detects the mismatch, prepares local continuation, guides
+    authentication and selection of the existing management Tailnet, verifies
+    the new network, and resumes bootstrap and critical SSH/sudo checks. It does
+    not restart the healthy anchor, broaden ACLs, or finish at login success.
+3c. **No target before bootstrap.** No private pointer or independently trusted
+    target exists. Even if one tagged anchor is visible, the agent asks only for
+    the intended Tailnet and does not trust an arbitrary snapshot or publish a
+    user's network fingerprint. Once supplied, it resumes the same recovery.
+3d. **Correct network, no anchor.** A trusted target matches current network
+    identity. Zero anchors routes to tag/availability/visibility diagnostics;
+    it never automatically implies wrong account or server outage. Duplicate
+    anchors remain ambiguous; 403 and 503 remain distinct authorization/backend
+    failures after discovery.
+3e. **Switch could strand the agent.** A mismatched remote machine has an exact
+    matching saved profile but the agent's only session depends on Tailscale.
+    It establishes verified local continuation before selecting that profile;
+    if unavailable, it requests the one local action and does not disconnect
+    blindly. No profile, unrelated setting, or device key is deleted.
+
 4. **Competing evidence.** Two valid target registrations or two divergent
    private records lack authoritative chronology. The run preserves both, asks
    one focused question, and makes no target mutation.

@@ -11,8 +11,15 @@ Public source is `semanticist21/agent-toolkit`. Canonical managed skills live in
 
 Keep `~/.agents/doc/AGENTS.local.md` machine-local and never copy, merge, publish, overwrite, or synchronize it. Keep the optional private companion separate and verify its identity and private visibility before Git operations. Never store credentials, account identifiers, hosts, private keys, or secret-file paths in public context.
 
-Tailscale installation and login are user prerequisites. Report either absence
-instead of installing it or selecting an account. Bootstrap may enroll only a
+Tailscale installation and interactive authentication are user prerequisites.
+Environment Sync must also verify the intended Tailnet: login with an approved
+account can still leave a device on a different network. Delegate target
+verification and connection recovery to its machine-bootstrap procedure,
+including a local continuation path before a potentially disconnecting switch.
+Do not stop at an anchor count of zero or label it an outage or ACL fault without
+that diagnosis. If target evidence is unavailable before private bootstrap,
+request the intended Tailnet once from the owner rather than inventing it or
+depending on the unreachable anchor to supply it. Bootstrap may enroll only a
 fresh device key's public half. Environment Sync's registered private baseline
 owns concrete targets and uses a management account plus a platform-validated
 cache-independent non-interactive sudo probe, never direct root SSH. A private

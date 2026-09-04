@@ -6,6 +6,54 @@ be restored.
 
 ## Bootstrap discovery
 
+### Verify and recover the intended Tailnet
+
+Tailscale installation and interactive authentication remain user prerequisites;
+Environment Sync owns verifying and recovering the selected network afterward.
+One approved account can belong to multiple Tailnets. An administrator role in
+the intended Tailnet does not prove that the current device joined it. Neither
+`BackendState=Running` nor successful login satisfies network readiness.
+
+Read current `tailscale status --json` and supported saved-profile inventory.
+Resolve the expected Tailnet from already available trusted private registration
+or explicit owner-provided context, including a verified existing management
+session. Compare its network identity with the current device's identity; a
+MagicDNS suffix or its locally computed SHA256 can detect a mismatch but is not
+an authentication credential or a substitute for verifying the target. Keep
+concrete identities and their fingerprints out of public toolkit files.
+
+On a pointer-free machine, the expected network may be unavailable until after
+bootstrap. Do not invent it or require fetching that information from an anchor
+on the network that cannot yet be reached. Use available trusted owner context;
+if none exists, ask one focused question identifying the intended Tailnet, then
+resume recovery. Do not infer it solely from an email, peer name, or anchor tag.
+If exactly one anchor is visible but the intended network cannot be established,
+resolve that uncertainty before trusting its snapshot or enrolling a key.
+
+When the target is established and the current network differs, reconcile the
+connection as part of normal sync. Preserve the current profile and unrelated
+settings. Before switching, establish a machine-local continuation and recovery
+path: a remote session carried by Tailscale may disconnect. Do not switch from
+that session unless continuation is verified. Inspect the installed CLI's help
+for supported profile selection/login operations; use an existing verified
+matching profile when available, otherwise initiate the supported login flow
+and have the user authenticate with an approved account and select the intended
+existing Tailnet. Do not create a new Tailnet, guess an account, blindly log out,
+or reuse a credential. Request only the unavoidable interactive step. Re-read
+network identity after the switch and resume the bundled bootstrap client,
+device-key enrollment, and all selected SSH and no-ticket sudo probes.
+
+An online anchor count of zero alone proves neither an outage nor an ACL fault.
+First distinguish wrong network, unknown target, and unavailable Tailscale state.
+Only on a verified matching network inspect peer visibility, anchor tag/online
+state, and access policy. Separate zero anchors, duplicate anchors, HTTP 403
+authorization failure, and HTTP 503/connection failure. Never broaden ACLs or
+restart a server based only on an absent peer. Multiple approved owner accounts
+must reach the same registered environment; account-specific manual device
+allowlisting is not a replacement for network recovery.
+
+### Discover the anchor and restore
+
 `~/.agents/doc/AGENTS.local.md` is the stable pointer to the registered private
 bootstrap repository. A completed setup must leave a registered, continuously
 available Tailnet access anchor usable by a newly joined macOS, Linux, or Windows
