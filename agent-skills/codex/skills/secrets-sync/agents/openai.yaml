@@ -1,7 +1,0 @@
-interface:
-  display_name: "Secrets Sync (Compatibility)"
-  short_description: "Compatibility alias for Environment Sync"
-  default_prompt: "Use $environment-sync with the same scope and arguments as this $secrets-sync request."
-
-policy:
-  allow_implicit_invocation: false

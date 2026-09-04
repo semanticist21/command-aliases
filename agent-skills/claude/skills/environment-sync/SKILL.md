@@ -1,1 +1,0 @@
-../../../codex/skills/environment-sync/SKILL.md

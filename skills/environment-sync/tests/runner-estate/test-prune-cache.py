@@ -13,7 +13,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 
-SCRIPT = Path(__file__).parents[1] / "remote-runner" / "hooks" / "prune-cache.py"
+SCRIPT = Path(__file__).parents[2] / "scripts" / "runner-estate" / "remote-runner" / "hooks" / "prune-cache.py"
 SPEC = importlib.util.spec_from_file_location("prune_cache", SCRIPT)
 assert SPEC and SPEC.loader
 prune_cache = importlib.util.module_from_spec(SPEC)

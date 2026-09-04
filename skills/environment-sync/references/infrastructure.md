@@ -51,6 +51,14 @@ configuration. Do not hardcode one user's labels in this general skill, invent
 automatic `self-hosted`/OS/architecture labels, or call a scale-to-zero set
 absent because no runner is currently listed.
 
+Creating, rebuilding, or recovering a runner host, VM, service, cache/storage
+layout, or runner group is an `environment-sync` infrastructure operation and
+must resolve a registered canonical runner-estate repository first. Bundled
+assets under `scripts/runner-estate/` are migration aids for that registered
+source, not authority for an ad hoc live-host installation. `task-runner-setup`
+owns only consumer repository workflow, capability-label selection, dispatch,
+and smoke verification.
+
 For an Actions Runner Controller deployment, verify at least:
 
 - the registered GitHub repository/organization/enterprise scope, runner group,

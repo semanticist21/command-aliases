@@ -125,9 +125,12 @@ class ClientHarness:
     def run(self, action: str = "bootstrap", **extra: str) -> subprocess.CompletedProcess[str]:
         env = self.env()
         env.update(extra)
+        unrelated_cwd = self.root / "unrelated-cwd"
+        unrelated_cwd.mkdir(exist_ok=True)
         return subprocess.run(
             ["/bin/sh", str(SHELL_CLIENT), action],
             env=env,
+            cwd=unrelated_cwd,
             capture_output=True,
             text=True,
             timeout=20,
@@ -170,6 +173,7 @@ class BootstrapClientTests(unittest.TestCase):
             result = subprocess.run(
                 ["/bin/sh", str(SHELL_CLIENT), "bootstrap"],
                 env=harness.macos_jxa_env(),
+                cwd=harness.root,
                 capture_output=True,
                 text=True,
                 timeout=20,

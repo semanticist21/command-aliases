@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-scripts=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/task-runner-setup-test.XXXXXX")
+skill_dir=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
+scripts=$skill_dir/scripts/runner-estate
+tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/environment-sync-runner-estate.XXXXXX")
 trap 'rm -rf "$tmp_dir"' EXIT
 
 fail() {
@@ -99,4 +100,4 @@ grep -q '^HOME=\$runner_home$' "$machine_script" \
 grep -q 'mounted_backing=' "$machine_script" \
   || fail 'mounted ext4 backing image is not verified'
 
-printf 'PASS: task-runner-setup input validation\n'
+printf 'PASS: environment-sync runner-estate input validation\n'

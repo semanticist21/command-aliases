@@ -19,18 +19,21 @@ and proposed actions, not exact wording or headings.
    client without loading private-input or infrastructure procedure. A later
    archive write additionally loads private-input and operations policy.
 
-## Compatibility and ambiguity
+## Ambiguity
 
-4. **Compatibility alias.** `$secrets-sync user sample/collection` selects the
-   same scope and desired state as `$environment-sync user
-   sample/collection`, creating no second mappings or archives.
-5. **Competing evidence.** Two valid target registrations or two divergent
+4. **Competing evidence.** Two valid target registrations or two divergent
    private records lack authoritative chronology. The run preserves both, asks
    one focused question, and makes no target mutation.
-6. **Missing collection.** One unambiguous project mapping lacks its backing
+5. **Missing collection.** One unambiguous project mapping lacks its backing
    collection. The run creates and verifies that exact collection and NAS
    allowlist, preserves all existing entries, then transfers only the approved
    dummy record.
+6. **Managed-host recovery.** A new machine has registered VPS, Mac mini, NAS
+   operator and restricted-transfer, and workstation profiles plus one unrelated
+   host. The run restores each selected profile, verifies its exact identity,
+   authentication, authorization, and non-destructive readiness probe, repairs
+   the two NAS paths independently, and leaves the unrelated host untouched. It
+   rejects ambient credentials and inferred targets.
 
 ## Infrastructure authority
 

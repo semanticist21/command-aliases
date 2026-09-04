@@ -11,12 +11,14 @@ bootstrap repository. A completed setup must leave a registered, continuously
 available Tailnet access anchor usable by a newly joined macOS, Linux, or Windows
 machine. Do not make recovery depend on one workstation remaining online.
 
-When the pointer is absent, use the bundled client rather than constructing a raw
-request or asking the user to copy a pointer:
+When the pointer is absent, resolve the active installed `environment-sync`
+skill directory first; do not assume the current working directory is the skill
+directory. Invoke the bundled client by its resolved absolute path rather than
+constructing a raw request or asking the user to copy a pointer:
 
-- macOS/Linux: `sh scripts/bootstrap.sh bootstrap`
+- macOS/Linux: `sh <environment-sync-skill-dir>/scripts/bootstrap.sh bootstrap`
 - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File
-  scripts/bootstrap.ps1 bootstrap`
+  <environment-sync-skill-dir>/scripts/bootstrap.ps1 bootstrap`
 
 The client discovers exactly one online peer tagged
 `tag:secrets-sync-anchor`, uses authenticated Tailnet state and the stable local
@@ -53,10 +55,14 @@ credential when the provider permits it. Generate device keys locally and enroll
 them through the declared recovery action; never copy another device's SSH
 private key or Keychain dump.
 
-Restore a managed-host profile before probing it, then verify the configured
-identity and its non-destructive readiness check. A resolvable hostname,
-reachable port, or ambient login is not proof that the registered profile works.
-Repair registered NAS operator and restricted-transfer paths independently.
+Restore every selected registered managed-host profile before probing it. These
+may include VPS, Mac mini, NAS operator and restricted-transfer, and workstation
+profiles; the registration, not this list, selects the actual targets. For each
+profile verify its configured identity, authentication and authorization, and
+non-destructive readiness check. A resolvable hostname, reachable port, ambient
+login, or guessed target is not proof that the registered profile works. Repair
+NAS operator and restricted-transfer paths independently and leave unrelated or
+unregistered hosts untouched.
 macOS cannot serve Tailscale SSH; OS-specific SSH is a later managed-host path,
 not the portable bootstrap contract.
 
