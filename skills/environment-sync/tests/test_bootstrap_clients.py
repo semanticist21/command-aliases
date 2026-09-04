@@ -186,7 +186,15 @@ class BootstrapClientTests(unittest.TestCase):
             harness = ClientHarness(Path(directory))
             denied = harness.run(FAKE_HTTP_STATUS="403")
             self.assertNotEqual(0, denied.returncode)
+            self.assertIn("login, device identity, or source binding is not authorized", denied.stderr)
             self.assertFalse((harness.home / ".agents/doc/AGENTS.local.md").exists())
+
+    def test_anchor_503_is_reported_as_backend_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            harness = ClientHarness(Path(directory))
+            result = harness.run(FAKE_HTTP_STATUS="503")
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("bootstrap anchor backend is unavailable", result.stderr)
         with tempfile.TemporaryDirectory() as directory:
             harness = ClientHarness(Path(directory))
             redirected = harness.run(FAKE_HTTP_STATUS="302")
@@ -197,11 +205,21 @@ class BootstrapClientTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             harness = ClientHarness(Path(directory))
             value = json.loads(harness.fixture.read_text(encoding="utf-8"))
+            value["Peer"] = {}
+            absent = Path(directory) / "absent.json"
+            absent.write_text(json.dumps(value), encoding="utf-8")
+            result = harness.run(FAKE_STATUS=str(absent))
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn("no online bootstrap anchor is visible", result.stderr)
+        with tempfile.TemporaryDirectory() as directory:
+            harness = ClientHarness(Path(directory))
+            value = json.loads(harness.fixture.read_text(encoding="utf-8"))
             value["Peer"]["nodekey:second"] = dict(value["Peer"]["nodekey:anchor"])
             ambiguous = Path(directory) / "ambiguous.json"
             ambiguous.write_text(json.dumps(value), encoding="utf-8")
             result = harness.run(FAKE_STATUS=str(ambiguous))
             self.assertNotEqual(0, result.returncode)
+            self.assertIn("multiple online bootstrap anchors are visible", result.stderr)
 
     def test_snapshot_links_and_existing_pointer_are_not_installed(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

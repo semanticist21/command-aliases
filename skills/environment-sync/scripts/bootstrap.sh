@@ -68,22 +68,18 @@ peers = status.get("Peer", {})
 if isinstance(peers, dict):
     peers = peers.values()
 anchors = [p for p in peers if p.get("Online") is True and "tag:secrets-sync-anchor" in (p.get("Tags") or [])]
-if len(anchors) != 1:
-    raise SystemExit("anchor_count")
 device_id = str((status.get("Self") or {}).get("ID") or "")
-host = str(anchors[0].get("DNSName") or ((anchors[0].get("TailscaleIPs") or [""])[0])).rstrip(".")
+host = str(anchors[0].get("DNSName") or ((anchors[0].get("TailscaleIPs") or [""])[0])).rstrip(".") if len(anchors) == 1 else ""
 if not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", device_id):
     raise SystemExit("device_id")
-if not host or any(c in host for c in "/\\\t\r\n"):
+if len(anchors) == 1 and (not host or any(c in host for c in "/\\\t\r\n")):
     raise SystemExit("anchor_host")
-print(device_id)
-print(host)
+print(len(anchors)); print(device_id); print(host)
 PY
             ;;
         jq)
             count=$(jq -r '[.Peer[] | select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))] | length' "$status_file") || return 1
-            [ "$count" = 1 ] || return 1
-            jq -r '[.Self.ID, ([.Peer[] | select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))][0] | (.DNSName // .TailscaleIPs[0]) | sub("\\.$"; ""))] | .[]' "$status_file"
+            jq -r '[([.Peer[] | select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))] | length), .Self.ID, (([.Peer[] | select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))][0] // {}) | (.DNSName // .TailscaleIPs[0] // "") | sub("\\.$"; ""))] | .[]' "$status_file"
             ;;
         jxa)
             jxa_file=$temp_root/parse-status.js
@@ -94,12 +90,11 @@ function run(argv) {
   const status = JSON.parse(text);
   const peers = Object.values(status.Peer || {});
   const anchors = peers.filter(p => p.Online === true && (p.Tags || []).includes('tag:secrets-sync-anchor'));
-  if (anchors.length !== 1) throw new Error('anchor_count');
   const device = String((status.Self || {}).ID || '');
-  const host = String(anchors[0].DNSName || (anchors[0].TailscaleIPs || [''])[0]).replace(/\.$/, '');
+  const host = anchors.length === 1 ? String(anchors[0].DNSName || (anchors[0].TailscaleIPs || [''])[0]).replace(/\.$/, '') : '';
   if (!/^[A-Za-z0-9._:-]{8,128}$/.test(device)) throw new Error('device_id');
-  if (!host || /[\/\\\t\r\n]/.test(host)) throw new Error('anchor_host');
-  return device + '\n' + host;
+  if (anchors.length === 1 && (!host || /[\/\\\t\r\n]/.test(host))) throw new Error('anchor_host');
+  return anchors.length + '\n' + device + '\n' + host;
 }
 JXA
             osascript -l JavaScript "$jxa_file" "$status_file" 2>/dev/null
@@ -107,9 +102,15 @@ JXA
     esac
 }
 
-parsed=$(parse_status) || die "expected exactly one online tag:secrets-sync-anchor and a stable local device ID"
-device_id=$(printf '%s\n' "$parsed" | sed -n '1p')
-anchor_host=$(printf '%s\n' "$parsed" | sed -n '2p')
+parsed=$(parse_status) || die "Tailnet discovery state is invalid"
+anchor_count=$(printf '%s\n' "$parsed" | sed -n '1p')
+device_id=$(printf '%s\n' "$parsed" | sed -n '2p')
+anchor_host=$(printf '%s\n' "$parsed" | sed -n '3p')
+case "$anchor_count" in
+    0) die "no online bootstrap anchor is visible; verify the Tailnet, access policy, and anchor availability" ;;
+    1) ;;
+    *) die "multiple online bootstrap anchors are visible; keep exactly one active anchor" ;;
+esac
 [ -n "$device_id" ] && [ -n "$anchor_host" ] || die "Tailnet discovery returned incomplete state"
 case "$device_id" in
     *[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._:-]*) die "stable Tailnet device ID is invalid" ;;
@@ -124,13 +125,23 @@ case "$anchor_host" in
 esac
 base_url=https://$anchor_authority
 
+require_http_ok() {
+    code=$1 context=$2
+    case "$code" in
+        200) ;;
+        403) die "Tailnet login, device identity, or source binding is not authorized for bootstrap" ;;
+        503) die "the bootstrap anchor backend is unavailable" ;;
+        *) die "$context failed (HTTP $code)" ;;
+    esac
+}
+
 http_get() {
     url=$1
     output=$2
     code=$(curl --silent --show-error --max-redirs 0 --proto '=https' \
         --header "X-Secrets-Sync-Device-ID: $device_id" \
         --output "$output" --write-out '%{http_code}' "$url") || die "anchor request failed"
-    [ "$code" = 200 ] || die "anchor denied or failed the request (HTTP $code)"
+    require_http_ok "$code" "the bootstrap anchor request"
 }
 
 discovery=$temp_root/discovery.json
@@ -210,7 +221,7 @@ post_public_key() {
         --header 'Content-Type: application/json' \
         --data-binary "@$body" --output "$response" --write-out '%{http_code}' \
         "$base_url/v1/enroll") || die "key enrollment request failed"
-    [ "$code" = 200 ] || die "key enrollment was denied or failed (HTTP $code)"
+    require_http_ok "$code" "key enrollment"
     validate_action_response "$response" enrolled || die "key enrollment response contract is invalid"
 }
 
@@ -275,7 +286,7 @@ revoke_key() {
     code=$(curl --silent --show-error --max-redirs 0 --proto '=https' \
         --request DELETE --header "X-Secrets-Sync-Device-ID: $device_id" \
         --output "$response" --write-out '%{http_code}' "$base_url/v1/enroll") || die "key revocation request failed"
-    [ "$code" = 200 ] || die "key revocation was denied or failed (HTTP $code)"
+    require_http_ok "$code" "key revocation"
     validate_action_response "$response" revoked || die "key revocation response contract is invalid"
 }
 

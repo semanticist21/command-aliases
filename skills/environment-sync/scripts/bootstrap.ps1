@@ -89,9 +89,8 @@ try {
     $anchors = @($peers | Where-Object {
         $_.Online -eq $true -and @($_.Tags) -contains 'tag:secrets-sync-anchor'
     })
-    if ($anchors.Count -ne 1) {
-        Fail 'expected exactly one online tag:secrets-sync-anchor'
-    }
+    if ($anchors.Count -eq 0) { Fail 'no online bootstrap anchor is visible; verify the Tailnet, access policy, and anchor availability' }
+    if ($anchors.Count -gt 1) { Fail 'multiple online bootstrap anchors are visible; keep exactly one active anchor' }
     $deviceId = [string]$status.Self.ID
     if ($deviceId -notmatch '^[A-Za-z0-9._:-]{8,128}$') {
         Fail 'Tailscale did not report a stable local device ID'
@@ -114,11 +113,16 @@ try {
     $client.Timeout = [TimeSpan]::FromSeconds(20)
     $client.DefaultRequestHeaders.Add('X-Secrets-Sync-Device-ID', $deviceId)
 
+    function Assert-HttpSuccess($Response, [string]$Context) {
+        $code = [int]$Response.StatusCode
+        if ($code -eq 403) { Fail 'Tailnet login, device identity, or source binding is not authorized for bootstrap' }
+        if ($code -eq 503) { Fail 'the bootstrap anchor backend is unavailable' }
+        if ($code -ne 200) { Fail "$Context failed (HTTP $code)" }
+    }
+
     function Get-Bytes([string]$Path) {
         $response = $client.GetAsync($baseUri + $Path).GetAwaiter().GetResult()
-        if ([int]$response.StatusCode -ne 200) {
-            Fail "anchor denied or failed the request (HTTP $([int]$response.StatusCode))"
-        }
+        Assert-HttpSuccess $response 'the bootstrap anchor request'
         $bytes = $response.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
         return ,$bytes
     }
@@ -127,9 +131,7 @@ try {
         $payload = @{ public_key = $PublicKey } | ConvertTo-Json -Compress
         $content = [Net.Http.StringContent]::new($payload, [Text.Encoding]::UTF8, 'application/json')
         $response = $client.PostAsync($baseUri + '/v1/enroll', $content).GetAwaiter().GetResult()
-        if ([int]$response.StatusCode -ne 200) {
-            Fail "key enrollment was denied or failed (HTTP $([int]$response.StatusCode))"
-        }
+        Assert-HttpSuccess $response 'key enrollment'
         Assert-ActionResponse $response 'enrolled'
     }
 
@@ -264,9 +266,7 @@ try {
         'revoke' {
             $request = [Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Delete, $baseUri + '/v1/enroll')
             $response = $client.SendAsync($request).GetAwaiter().GetResult()
-            if ([int]$response.StatusCode -ne 200) {
-                Fail "key revocation was denied or failed (HTTP $([int]$response.StatusCode))"
-            }
+            Assert-HttpSuccess $response 'key revocation'
             Assert-ActionResponse $response 'revoked'
             Write-Output 'secrets-sync: device key revoked'
             return
