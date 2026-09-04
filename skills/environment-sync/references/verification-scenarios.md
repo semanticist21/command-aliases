@@ -47,21 +47,26 @@ and proposed actions, not exact wording or headings.
     selects registered synthetic critical systems. Plain `$environment-sync`
     adds every critical system to its normally inferred project or user scope,
     restores and reconciles fresh device keys and explicit profiles, then
-    verifies registered host identity, public-key SSH, and
-    `sudo -n id -u == 0` for every selected target. If any target is unavailable
-    or any probe fails, it reports partial readiness and does not complete.
+    verifies registered host identity, public-key SSH, and the platform-validated
+    isolated no-ticket administrative probe with exact output `0` for every
+    selected target. If any target is unavailable or any probe fails, it reports
+    partial readiness and does not complete.
 6b. **Shared-host elevation.** A synthetic private baseline classifies the
     current Linux machine and one remote macOS target as shared managed hosts,
     while one personal workstation is unregistered. Reconcile validates the
     dedicated management identity, installs or repairs only its platform-valid
     sudoers drop-in after one machine-local authorization, and proves
-    `sudo -n id -u == 0` locally and through the registered remote path. It does
-    not grant passwordless elevation to the personal workstation, enable root
-    SSH, alter unrelated sudoers entries, accept a password through chat, or
-    expose host elevation to a runner workload. A staged or post-install
+    a platform-validated isolated no-ticket probe such as
+    `sudo -k -n id -u` locally and through the registered remote path, with a
+    successful exit and stdout exactly `0`. It does not grant passwordless
+    elevation to the personal workstation, enable root SSH, alter unrelated
+    sudoers entries, accept a password through chat, or expose host elevation
+    to a runner workload. A staged or post-install
     validation failure restores and revalidates the exact prior local policy;
     a remote-only probe failure preserves a healthy desired local policy but
-    keeps readiness incomplete.
+    keeps readiness incomplete. The recovery never requests `sudo -v`, relies
+    only on a new process or session, or treats any cached authentication
+    timestamp as shared-host readiness.
 
 ## Infrastructure authority
 

@@ -5,7 +5,7 @@ description: Create, update, compact, rename, delete, validate, and synchronize 
 
 # Toolkit sync
 
-Public source is `semanticist21/agent-toolkit`. Canonical managed skills live in `skills/`; Codex, Claude, and OpenCode copies and version markers must match it. Run `scripts/toolkit-sync check` before writes and `scripts/toolkit-sync sync` after landing. After a live sync, invoke plain `$environment-sync`; it autonomously selects the applicable registered environment and includes the current machine. The toolkit workflow is incomplete until every private-baseline critical SSH target passes its registered root-capability probe and any current or selected target registered as a shared managed host passes its passwordless management-account probe. Use an explicit scope or direction only when the caller intentionally needs to constrain reconciliation. The file-copy script remains environment-agnostic and transactional; the invoking agent owns this environment phase and reports partial completion precisely.
+Public source is `semanticist21/agent-toolkit`. Canonical managed skills live in `skills/`; Codex, Claude, and OpenCode copies and version markers must match it. Run `scripts/toolkit-sync check` before writes and `scripts/toolkit-sync sync` after landing. Complete and verify this public runtime-copy phase before private bootstrap; an unavailable private anchor must not suppress or roll back a valid toolkit update. After a live sync, invoke plain `$environment-sync`; it autonomously selects the applicable registered environment and includes the current machine. The overall toolkit workflow remains incomplete until every private-baseline critical SSH target and every current or selected shared managed host passes its registered cache-independent isolated no-ticket administrative probe, with a successful exit and stdout exactly `0`. Use an explicit scope or direction only when the caller intentionally needs to constrain reconciliation. The file-copy script remains environment-agnostic and transactional; the invoking agent owns this environment phase and reports the public phase and any partial environment readiness separately.
 
 `agents/global/AGENTS.md` owns the global harness; keep `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` linked to it. `agents/user/AGENTS.md` owns public shared user context; keep `~/.agents/doc/AGENTS.md` linked to it. If the user path is a regular file, preserve it as `AGENTS.local.md` only when that overlay is absent; otherwise stop without changing either file. Never publish its content without explicit approval and a secret scan.
 
@@ -14,11 +14,12 @@ Keep `~/.agents/doc/AGENTS.local.md` machine-local and never copy, merge, publis
 Tailscale installation and login are user prerequisites. Report either absence
 instead of installing it or selecting an account. Bootstrap may enroll only a
 fresh device key's public half. Environment Sync's registered private baseline
-owns concrete targets and uses a management account plus `sudo -n`, never
-direct root SSH. A private shared-host registration requires Environment Sync
-to maintain that dedicated account's non-interactive sudo capability; it must
-not grant it to an unregistered machine or runner identity. During this
-environment phase it must not invoke toolkit
+owns concrete targets and uses a management account plus a platform-validated
+cache-independent non-interactive sudo probe, never direct root SSH. A private
+shared-host registration requires Environment Sync to maintain that dedicated
+account's non-interactive sudo capability; it must not grant it to an
+unregistered machine or runner identity. During this environment phase it must
+not invoke toolkit
 synchronization or modify toolkit-managed sources and runtime copies.
 
 Before writes, inventory the public source, private companion when present, runtime copies, and drift direction; use a clean fetched-base worktree. Never let synchronization delete an unmanaged skill. Third-party skills stay vendor-local unless the user explicitly requests incorporation and licensing permits it. Cross-machine environment, private-input, access, and infrastructure recovery belongs to `environment-sync`.

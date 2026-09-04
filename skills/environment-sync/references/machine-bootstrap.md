@@ -70,7 +70,10 @@ A user baseline may declare critical logical systems required after toolkit
 installation. Resolve concrete addresses, accounts, identities, and keys only
 through the private access collection. Require public-key SSH through the
 authenticated Tailnet path and prove administrative access with a harmless
-`sudo -n id -u`; success output must be `0`. Do not enable direct root SSH.
+cache-independent non-interactive probe, preferably `sudo -k -n id -u` where
+the platform confirms that form ignores an existing ticket; success output must
+be exactly `0`. Use an equivalent isolated no-ticket probe when required by the
+platform. Do not enable direct root SSH.
 
 ### Shared managed hosts
 
@@ -96,12 +99,13 @@ same-filesystem staging sibling with mode `0600`; copy the exact candidate
 bytes; and run the platform's `visudo -cf` against that staged file. Only after
 it passes, set the native root owner and group with mode `0440` and atomically
 rename it over the target. Then validate the installed full policy and require
-`sudo -n id -u == 0` locally. If any local install, validation, or capability
-step fails, restore the preserved prior file and metadata—or remove the newly
-created target when none existed—and revalidate the prior full policy. A remote
-path failure does not revert a locally healthy desired policy, but remains a
-readiness blocker. Finally require the same capability probe through every
-selected registered access path.
+the cache-independent non-interactive probe to return exactly `0` locally. If
+any local install, validation, or capability step fails, restore the preserved
+prior file and metadata—or remove the newly created target when none
+existed—and revalidate the prior full policy. A remote path failure does not
+revert a locally healthy desired policy, but remains a readiness blocker.
+Finally require the same isolated no-ticket probe through every selected
+registered access path.
 
 Installing or repairing the drop-in may require one administrator authorization
 on the machine's local terminal. Request only that exact local action and never
@@ -109,6 +113,19 @@ accept, relay, store, or inject its password through chat, a command argument,
 stdin automation, logs, or Git. An unavailable local authorization is a precise
 readiness blocker, not permission to weaken sudo, copy a credential, or enable
 root SSH.
+
+Do not request `sudo -v` or rely on a timestamp cache as the repair. Cached
+authentication is temporary and may be scoped to one terminal, so it does not
+establish the registered capability for a new agent process, application, SSH
+session, or reboot. When the required isolated no-ticket probe fails on a
+registered shared host, request only the one machine-local authorization needed
+to run the rollback-safe drop-in transaction above. After that transaction,
+resume with a fresh
+cache-independent non-interactive probe, not merely a new process or session;
+never make the agent's continued execution depend on a password-backed sudo
+cache. Prefer command-scoped ticket invalidation over clearing unrelated sudo
+credentials when the platform supports it. A successful plain `sudo -n` probe
+is not evidence that repair is unnecessary.
 
 Do not grant this policy to personal or unregistered machines. Do not reuse the
 management account as a CI runner identity, mount host sudo sockets or host
