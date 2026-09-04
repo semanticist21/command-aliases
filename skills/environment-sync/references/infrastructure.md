@@ -44,20 +44,49 @@ and images to reviewed versions or immutable digests; do not reconstruct them
 from shell history.
 
 A consumer repository uses the runner capability selected by
-`task-runner-setup`; it does not own the runner implementation. The runner
-estate must publish and test the labels or scale-set names that consumers use.
-Discover that contract from the canonical estate and actual GitHub
-configuration. Do not hardcode one user's labels in this general skill, invent
-automatic `self-hosted`/OS/architecture labels, or call a scale-to-zero set
-absent because no runner is currently listed.
+`task-runner-setup`; it does not own the runner implementation. The same setup
+skill is also the user-facing entrypoint for a new provider: it must ask which
+implementation to use before mutation, then hand the selected host, cluster,
+service, storage, and recovery work to `environment-sync`. Reapplying a
+registered estate preserves its canonical implementation without asking again
+unless evidence conflicts or the user requests a change.
 
-Creating, rebuilding, or recovering a runner host, VM, service, cache/storage
-layout, or runner group is an `environment-sync` infrastructure operation and
-must resolve a registered canonical runner-estate repository first. Bundled
-assets under `scripts/runner-estate/` are migration aids for that registered
-source, not authority for an ad hoc live-host installation. `task-runner-setup`
-owns only consumer repository workflow, capability-label selection, dispatch,
-and smoke verification.
+The runner estate must publish and test a backend-neutral contract containing a
+common estate label, OS, architecture, and applicable workload capabilities.
+Concrete labels or scale-set names belong to the canonical estate. Discover that
+contract from the source and actual GitHub configuration. Do not hardcode one
+user's labels in this general skill, expose provider implementations or physical
+machines as consumer routing, invent automatic `self-hosted`/OS/architecture
+labels, or call a scale-to-zero set absent because no runner is currently listed.
+
+Creating, rebuilding, or recovering a runner host, cluster, VM, service,
+cache/storage layout, or runner group is an `environment-sync` infrastructure
+operation. For an existing provider, resolve and verify its registered canonical
+runner-estate repository first; an unavailable source blocks recovery and never
+authorizes backend reselection. For a new provider whose implementation has been
+explicitly selected, `environment-sync` owns creating and verifying the exact
+registration and canonical declaration when owner, scope, target, consumer, and
+repository all converge. Ask only for an unresolved input and perform no
+infrastructure mutation until registration and declaration are verified. Bundled
+assets under `scripts/runner-estate/` are migration aids for that registered source,
+not authority for an ad hoc live-host installation.
+`task-runner-setup` orchestrates both modes: it owns consumer workflow,
+capability selection, dispatch, and smoke verification; for providers it owns
+mode and implementation selection while `environment-sync` owns infrastructure
+mutation and recovery.
+
+Kubernetes is one implementation, never an inferred default. A new provider
+choice may instead be a native Linux service, native macOS service, VM, or
+another registered implementation. Preserve a registered implementation during
+recovery. Treat a requested implementation change as an architecture/cutover
+decision with isolated canary, drain, rollback, and explicit retirement.
+
+Repository access is part of the provider contract. An all-private policy is
+valid only when explicitly declared as one trust domain and the broad authority of
+every principal able to cause or approve workflow execution is accepted. The
+canonical contract must define private-fork policy and allowed events and refs.
+Public repositories and untrusted direct or indirect fork workflows remain
+forbidden for every implementation.
 
 For an Actions Runner Controller deployment, verify at least:
 

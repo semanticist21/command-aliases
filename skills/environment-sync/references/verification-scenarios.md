@@ -66,3 +66,33 @@ and proposed actions, not exact wording or headings.
     no durable state; it is not forced to invent a backup. A stateful service
     without a restore declaration fails readiness rather than being called
     recovered.
+12. **Integrated consumer setup.** A repository requests runner onboarding and
+    an existing canonical estate publishes compatible capabilities. The setup
+    chooses consumer mode without asking, changes only the repository workflow,
+    dispatches a trusted smoke, and does not reconcile unrelated providers.
+13. **New provider implementation.** A new host can support Kubernetes, a native
+    service, or a VM and no canonical provider choice exists. Runner setup asks
+    once with a recommendation, then environment sync creates and verifies the
+    exact registration and canonical declaration from convergent owner, scope,
+    target, consumer, and repository evidence before applying only the selected
+    implementation; neither infers from the host OS or installed packages.
+14. **Registered provider recovery.** A registered VM provider is absent after
+    host replacement. Runner setup does not repeat implementation selection;
+    environment sync restores the canonical VM declaration and capability probes.
+15. **Stable capability replacement.** A provider is replaced from Kubernetes
+    to a native service under explicit cutover authority. The canary proves the
+    same common, OS, architecture, and workload capabilities before routing
+    changes, and consumer workflows retain their backend-neutral contract.
+16. **Explicit emulation fallback.** Native and emulated providers coexist. The
+    native contract receives ordinary work; only an explicit fallback capability
+    reaches emulation. Failure of the native provider does not silently alter
+    routing.
+17. **All-private trust boundary.** A synthetic organization explicitly grants
+    every private repository access to the estate. Reconciliation preserves that
+    declared trust boundary, reports every principal able to cause or approve
+    workflow execution as provider authority, requires private-fork and allowed
+    event/ref policy, and rejects public and untrusted direct or indirect fork
+    execution.
+18. **Missing provider source.** A registered provider remains mapped but its
+    canonical repository is unavailable. Recovery stops without choosing a new
+    implementation, promoting live state, or mutating the provider.
