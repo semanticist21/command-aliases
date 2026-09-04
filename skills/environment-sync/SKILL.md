@@ -1,6 +1,6 @@
 ---
 name: environment-sync
-description: Restore and reconcile a registered project, user machine, and managed infrastructure across macOS, Linux, and Windows. Use on a new or repaired machine, after recovery fails, or when configuration, credentials, access, deployment inputs, or declared infrastructure change.
+description: Capture, restore, and reconcile a project, user machine, and managed infrastructure across macOS, Linux, and Windows when portable state or access changes.
 ---
 
 # Environment Sync
@@ -17,6 +17,14 @@ read-back check.
 
 ## Scope and requests
 
+- Accepted forms are `$environment-sync`, `$environment-sync user
+  [owner-id/collection-id]`, and `$environment-sync
+  [reconcile|capture|apply] [user [owner-id/collection-id]]`. Direction
+  defaults to `reconcile`; omitted scope means the current repository, while a
+  leading or direction-following `user` selects the user baseline.
+- Plain `$environment-sync` is `reconcile`: apply newer canonical state locally
+  and capture verified portable local improvements in their owning sources.
+  `$environment-sync capture` and `$environment-sync apply` restrict direction.
 - `$environment-sync` in a repository reconciles that canonical project, the
   registered common machine baseline, and infrastructure explicitly registered
   for that project. It does not restore unrelated collections or services.
@@ -52,8 +60,9 @@ Do not load unrelated references merely because they exist.
 
 ## Sources of truth
 
-- The registered private bootstrap repository owns non-secret mappings,
-  recovery registrations, and pointers to canonical sources. It owns no secret
+- The registered private bootstrap repository owns the portable private common
+  baseline, logical access capabilities, recovery registrations, and pointers
+  to canonical sources. It owns no secret
   values or duplicated infrastructure implementation.
 - A private manifest owns only integrity metadata for approved private records.
 - Each project's canonical repository owns its portable configuration,
@@ -78,6 +87,16 @@ new architecture, unrelated service, remote deletion, org-wide policy change,
 credential rotation, or infrastructure cutover that is not already the
 registered desired state or explicitly requested. Never infer a target from one
 filename, live process, hostname, or ambient identity.
+
+When toolkit synchronization invokes the `apply user` phase, do not invoke
+`toolkit-sync` again or modify toolkit-managed public sources or runtime copies.
+Finish that environment phase independently and report partial readiness.
+
+Promote a local fact only when it is verified, portable, and non-secret. Write
+the generalized declaration to its owning source; never copy or synchronize
+`AGENTS.local.md`. Resolve conflicts from chronology, consumers, and behavior
+when they prove one desired state. Preserve both and ask about only that item
+when two divergent states remain valid.
 
 ## Completion
 

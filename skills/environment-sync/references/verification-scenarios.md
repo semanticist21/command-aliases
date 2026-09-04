@@ -34,6 +34,10 @@ and proposed actions, not exact wording or headings.
    authentication, authorization, and non-destructive readiness probe, repairs
    the two NAS paths independently, and leaves the unrelated host untouched. It
    rejects ambient credentials and inferred targets.
+6a. **Toolkit critical access.** After toolkit installation, a private baseline
+    selects two synthetic critical systems. Apply restores fresh device keys
+    and explicit profiles, verifies registered host identity, public-key SSH,
+    and `sudo -n id -u == 0` for both, and fails overall if either probe fails.
 
 ## Infrastructure authority
 

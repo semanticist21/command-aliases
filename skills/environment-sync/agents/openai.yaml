@@ -1,7 +1,7 @@
 interface:
   display_name: "Environment Sync"
   short_description: "Restore a registered machine, project, and infrastructure"
-  default_prompt: "Use $environment-sync user to restore this machine's registered environment, access, private inputs, and managed infrastructure."
+  default_prompt: "Use $environment-sync to reconcile this machine's portable environment, access, private inputs, and managed infrastructure."
 
 policy:
   allow_implicit_invocation: false

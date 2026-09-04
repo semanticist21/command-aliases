@@ -66,6 +66,12 @@ unregistered hosts untouched.
 macOS cannot serve Tailscale SSH; OS-specific SSH is a later managed-host path,
 not the portable bootstrap contract.
 
+A user baseline may declare critical logical systems required after toolkit
+installation. Resolve concrete addresses, accounts, identities, and keys only
+through the private access collection. Require public-key SSH through the
+authenticated Tailnet path and prove administrative access with a harmless
+`sudo -n id -u`; success output must be `0`. Do not enable direct root SSH.
+
 An unavoidable browser, OS, device, or administrator confirmation may pause the
 work. Request only that exact approval and continue afterward.
 
