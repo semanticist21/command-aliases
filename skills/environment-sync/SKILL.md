@@ -20,23 +20,30 @@ read-back check.
 - Accepted forms are `$environment-sync`, `$environment-sync user
   [owner-id/collection-id]`, and `$environment-sync
   [reconcile|capture|apply] [user [owner-id/collection-id]]`. Direction
-  defaults to `reconcile`; omitted scope means the current repository, while a
-  leading or direction-following `user` selects the user baseline.
-- Plain `$environment-sync` is `reconcile`: apply newer canonical state locally
+  defaults to `reconcile`. With no scope, infer the selected environment from
+  the current repository and registered machine state: reconcile a registered
+  project when one is present, otherwise reconcile the user baseline and its
+  registered default infrastructure. A leading or direction-following `user`
+  explicitly forces the user baseline.
+- Plain `$environment-sync` is the normal autonomous `reconcile`: select the
+  applicable project or user environment, apply newer canonical state locally,
   and capture verified portable local improvements in their owning sources.
   `$environment-sync capture` and `$environment-sync apply` restrict direction.
-- `$environment-sync` in a repository reconciles that canonical project, the
-  registered common machine baseline, and infrastructure explicitly registered
-  for that project. It does not restore unrelated collections or services.
+- `$environment-sync` in a registered repository reconciles that canonical
+  project, the registered common machine baseline, and infrastructure
+  explicitly registered for that project. An unregistered repository falls
+  back to the user baseline instead of being treated as a project source. It
+  does not restore unrelated collections or services.
 - `$environment-sync user` restores the common machine baseline, the registered
   default collection, and infrastructure registered to that machine or
   collection. `$environment-sync user
   <owner-id>/<collection-id>` selects that exact registered collection. Use it
   before a project checkout exists.
-- If a project has no registered private collection, continue with the common
-  baseline. Create an absent registration only when owner, scope, destination,
-  consumer, and approved paths are unambiguous; create and verify its exact
-  collection and allowlist before transfer, preserving every existing entry.
+- If an otherwise registered project has no registered private collection,
+  continue with the common baseline. Create an absent registration only when
+  owner, scope, destination, consumer, and approved paths are unambiguous;
+  create and verify its exact collection and allowlist before transfer,
+  preserving every existing entry.
 - A normal sync is autonomous. Ask only for an unavoidable OS, browser, device,
   or administrator approval, or when plausible evidence would select materially
   different owners, targets, or desired states.
@@ -93,9 +100,12 @@ credential rotation, or infrastructure cutover that is not already the
 registered desired state or explicitly requested. Never infer a target from one
 filename, live process, hostname, or ambient identity.
 
-When toolkit synchronization invokes the `apply user` phase, do not invoke
-`toolkit-sync` again or modify toolkit-managed public sources or runtime copies.
-Finish that environment phase independently and report partial readiness.
+When invoked after toolkit synchronization, autonomously select the applicable
+registered project or user environment and also include every registered
+toolkit-critical baseline target. This contextual addition does not force the
+whole user scope or omit an applicable project. Do not invoke `toolkit-sync`
+again or modify toolkit-managed public sources or runtime copies. Finish that
+environment phase independently and report partial readiness.
 
 Promote a local fact only when it is verified, portable, and non-secret. Write
 the generalized declaration to its owning source; never copy or synchronize

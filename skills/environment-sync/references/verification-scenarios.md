@@ -7,10 +7,12 @@ and proposed actions, not exact wording or headings.
 
 ## Scope and routing
 
-1. **User recovery with infrastructure.** The common baseline, default private
-   collection, one registered stateless runner estate, and one unrelated project
-   exist. `$environment-sync user` restores and probes the baseline, collection,
-   and runner estate, but does not inspect the unrelated project.
+1. **Automatic user recovery with infrastructure.** Outside a registered
+   project, the common baseline, default private collection, one registered
+   stateless runner estate, and one unrelated project exist. Plain
+   `$environment-sync` selects and restores the user baseline, collection, and
+   runner estate, but does not inspect the unrelated project. An explicit
+   `$environment-sync user` produces the same scope by forcing that selection.
 2. **Project recovery.** A repository has a registered collection and one
    infrastructure consumer. A repository-scoped invocation restores only those
    inputs plus the common baseline and registered consumer.
@@ -18,6 +20,13 @@ and proposed actions, not exact wording or headings.
    transfer or infrastructure uses the machine-bootstrap policy and bundled
    client without loading private-input or infrastructure procedure. A later
    archive write additionally loads private-input and operations policy.
+3a. **Post-toolkit automatic handoff.** Toolkit synchronization invokes plain
+    `$environment-sync`. In a registered project it selects that project,
+    common baseline, and registered infrastructure; outside a registered
+    project it selects the user baseline and default registered infrastructure.
+    Both paths also include every registered toolkit-critical baseline target
+    without forcing the complete user scope. Neither path invokes toolkit
+    synchronization again or modifies toolkit-managed sources or runtime copies.
 
 ## Ambiguity
 
@@ -35,9 +44,12 @@ and proposed actions, not exact wording or headings.
    the two NAS paths independently, and leaves the unrelated host untouched. It
    rejects ambient credentials and inferred targets.
 6a. **Toolkit critical access.** After toolkit installation, a private baseline
-    selects two synthetic critical systems. Apply restores fresh device keys
-    and explicit profiles, verifies registered host identity, public-key SSH,
-    and `sudo -n id -u == 0` for both, and fails overall if either probe fails.
+    selects registered synthetic critical systems. Plain `$environment-sync`
+    adds every critical system to its normally inferred project or user scope,
+    restores and reconciles fresh device keys and explicit profiles, then
+    verifies registered host identity, public-key SSH, and
+    `sudo -n id -u == 0` for every selected target. If any target is unavailable
+    or any probe fails, it reports partial readiness and does not complete.
 
 ## Infrastructure authority
 
