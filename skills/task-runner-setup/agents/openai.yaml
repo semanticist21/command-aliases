@@ -1,4 +1,0 @@
-interface:
-  display_name: "Task Runner Setup"
-  short_description: "Set up runner consumers or providers"
-  default_prompt: "Use $task-runner-setup to classify consumer versus provider setup, configure and smoke-test the selected scope, and route provider infrastructure through $environment-sync; when paired with $org-kobbokkom-repo-migration, continue from its verified destination through agent-review QA."

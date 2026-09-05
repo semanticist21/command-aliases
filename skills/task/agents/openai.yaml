@@ -1,7 +1,0 @@
-interface:
-  display_name: "Task"
-  short_description: "Implement and land an isolated repository change"
-  default_prompt: "Use $task to implement, verify, and land this repository change without unnecessary process."
-
-policy:
-  allow_implicit_invocation: true

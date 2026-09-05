@@ -1,6 +1,0 @@
-interface:
-  display_name: "OpenAI Image"
-  short_description: "Generate or edit images through the OpenAI API"
-  default_prompt: "Use $openai-image to generate or edit the requested image and show the saved result."
-policy:
-  allow_implicit_invocation: true
