@@ -55,3 +55,9 @@ authority, and proposed probes rather than exact wording.
     build. Setup selects the exact estate, OS, native-architecture, and container
     capability labels from the shared catalog. A repository that does not build a
     container omits the container capability without inventing a broader pool name.
+15. **Common pool after canary.** The owner grants all trusted organization repos
+    access, while live policy still restricts one smoke workflow. Restore the
+    declared shared scope, not a new per-repository allowlist; preserve external
+    fork isolation independently. A specialized pod requested for a missing
+    capability stays inside the estate's declared aggregate budget, is recorded
+    at its canonical source, and is discoverable after requested toolkit sync.

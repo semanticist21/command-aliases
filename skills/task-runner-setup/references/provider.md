@@ -67,6 +67,16 @@ untrusted direct or indirect fork workflows remain forbidden. Use ephemeral
 isolation where declared; long-lived providers require workspace/cache cleanup and
 reboot recovery probes.
 
+Preserve an explicitly approved organization-wide common pool: a smoke repository
+is a probe target, not a permanent repository/workflow allowlist. Reconcile stale
+canary restrictions to the declared scope without requiring per-project approval.
+Project-specific execution is an exception for a demonstrated required capability,
+not default onboarding. Follow the estate's placement and aggregate resource budget;
+additional namespaces or specialized pods do not gain a separate host budget.
+Record each exception in the canonical estate and keep its private discovery link
+current. When requested, finish toolkit synchronization so other agents discover
+the declaration; never publish concrete private infrastructure in public skills.
+
 Apply through `$environment-sync`, publish the capability contract, then dispatch
 trusted smoke jobs for every declared capability. Verify assignment, logs, cache and
 workspace cleanup, failure cleanup, return to idle or ready state, and restoration
