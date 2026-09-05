@@ -13,9 +13,16 @@ need() {
 }
 
 action=${1:-bootstrap}
+key_name=secrets-sync_ed25519
+enrollment_path=/v1/enroll
 case "$action" in
     bootstrap|enroll|rotate|revoke) ;;
-    *) die "usage: bootstrap.sh [bootstrap|enroll|rotate|revoke]" ;;
+    management-enroll|management-rotate|management-revoke)
+        key_name=environment-sync-management_ed25519
+        enrollment_path=/v1/enroll/management
+        action=${action#management-}
+        ;;
+    *) die "usage: bootstrap.sh [bootstrap|enroll|rotate|revoke|management-enroll|management-rotate|management-revoke]" ;;
 esac
 
 [ -n "${HOME:-}" ] && [ "${HOME#/}" != "$HOME" ] || die "HOME must be an absolute path"
@@ -31,7 +38,7 @@ doc_dir=$agents_dir/doc
 install_dir=$agents_dir/bootstrap
 pointer=$doc_dir/AGENTS.local.md
 ssh_dir=$HOME/.ssh
-key_path=$ssh_dir/secrets-sync_ed25519
+key_path=$ssh_dir/$key_name
 
 [ ! -L "$agents_dir" ] || die ".agents must not be a symbolic link"
 [ ! -e "$agents_dir" ] || [ -d "$agents_dir" ] || die ".agents must be a directory"
@@ -245,7 +252,7 @@ post_public_key() {
         --header "X-Secrets-Sync-Device-ID: $device_id" \
         --header 'Content-Type: application/json' \
         --data-binary "@$body" --output "$response" --write-out '%{http_code}' \
-        "$base_url/v1/enroll") || die "key enrollment request failed"
+        "$base_url$enrollment_path") || die "key enrollment request failed"
     require_http_ok "$code" "key enrollment"
     validate_action_response "$response" enrolled || die "key enrollment response contract is invalid"
 }
@@ -286,7 +293,7 @@ rotate_key() {
     fi
     [ ! -e "$key_path" ] || [ -f "$key_path" ] || die "device private key path is not a regular file"
     [ ! -e "$key_path.pub" ] || [ -f "$key_path.pub" ] || die "device public key path is not a regular file"
-    next=$ssh_dir/.secrets-sync_ed25519.pending
+    next=$ssh_dir/.$key_name.pending
     if [ -L "$next" ] || [ -L "$next.pub" ]; then
         die "pending device key paths must not be symlinks"
     fi
@@ -310,7 +317,7 @@ revoke_key() {
     response=$temp_root/revoke-response.json
     code=$(curl --silent --show-error --max-redirs 0 --proto '=https' \
         --request DELETE --header "X-Secrets-Sync-Device-ID: $device_id" \
-        --output "$response" --write-out '%{http_code}' "$base_url/v1/enroll") || die "key revocation request failed"
+        --output "$response" --write-out '%{http_code}' "$base_url$enrollment_path") || die "key revocation request failed"
     require_http_ok "$code" "key revocation"
     validate_action_response "$response" revoked || die "key revocation response contract is invalid"
 }

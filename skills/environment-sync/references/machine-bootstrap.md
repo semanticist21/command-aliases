@@ -87,7 +87,7 @@ verified owner-only bootstrap snapshot, creates or reuses a fresh local Ed25519
 device key, and enrolls only its public key. The `enroll`, `rotate`, and
 `revoke` actions use the same device-bound contract.
 
-The deny-by-default anchor exposes only the fixed
+The deny-by-default anchor exposes the fixed baseline
 `/.well-known/secrets-sync`, `/v1/bootstrap.tar.gz`, and `/v1/enroll` contract.
 It may return the verified secret-free snapshot and enroll one bare
 `ssh-ed25519` public key. Bind its fingerprint to the authenticated stable
@@ -95,6 +95,9 @@ device ID, keep at most one anchor-managed active key per device, and make
 replace and revoke atomic and idempotent. Reject private keys, copied device
 keys, comments, other key types, ambient SSH identities, non-Tailnet callers,
 and manual account or browser login. Never expose archive values or credentials.
+An explicitly registered management capability may additionally expose the
+[separate management enrollment contract](management-enrollment.md); baseline
+archive enrollment alone never proves administrator access.
 
 The `secrets-sync` tag, HTTPS path, key filename, marker names, and client
 messages are stable wire and on-disk protocol identifiers retained for backward

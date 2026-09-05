@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('bootstrap', 'enroll', 'rotate', 'revoke')]
+    [ValidateSet('bootstrap', 'enroll', 'rotate', 'revoke', 'management-enroll', 'management-rotate', 'management-revoke')]
     [string]$Action = 'bootstrap'
 )
 
@@ -60,14 +60,22 @@ function Assert-SafeFile([string]$Path, [string]$Name, [bool]$Required = $false)
 }
 
 $tailscale = Find-Tailscale
-$sshKeygen = if ($Action -eq 'revoke') { $null } else { Find-SshKeygen }
+$operation = $Action
+$keyName = 'secrets-sync_ed25519'
+$enrollmentPath = '/v1/enroll'
+if ($Action.StartsWith('management-')) {
+    $operation = $Action.Substring('management-'.Length)
+    $keyName = 'environment-sync-management_ed25519'
+    $enrollmentPath = '/v1/enroll/management'
+}
+$sshKeygen = if ($operation -eq 'revoke') { $null } else { Find-SshKeygen }
 $tar = Find-Tar
 $agentsDir = Join-Path $HOME '.agents'
 $docDir = Join-Path $agentsDir 'doc'
 $installDir = Join-Path $agentsDir 'bootstrap'
 $pointer = Join-Path $docDir 'AGENTS.local.md'
 $sshDir = Join-Path $HOME '.ssh'
-$keyPath = Join-Path $sshDir 'secrets-sync_ed25519'
+$keyPath = Join-Path $sshDir $keyName
 $pointerText = "# Machine-local agent context`n`n- Private bootstrap source: ``~/.agents/bootstrap```n"
 $client = $null
 $handler = $null
@@ -149,7 +157,7 @@ try {
     function Post-PublicKey([string]$PublicKey) {
         $payload = @{ public_key = $PublicKey } | ConvertTo-Json -Compress
         $content = [Net.Http.StringContent]::new($payload, [Text.Encoding]::UTF8, 'application/json')
-        $response = $client.PostAsync($baseUri + '/v1/enroll', $content).GetAwaiter().GetResult()
+        $response = $client.PostAsync($baseUri + $enrollmentPath, $content).GetAwaiter().GetResult()
         Assert-HttpSuccess $response 'key enrollment'
         Assert-ActionResponse $response 'enrolled'
     }
@@ -243,7 +251,7 @@ try {
         New-Item -ItemType Directory -Force -Path $sshDir | Out-Null
         Assert-SafeFile $keyPath 'device private key'
         Assert-SafeFile ($keyPath + '.pub') 'device public key'
-        $next = Join-Path $sshDir '.secrets-sync_ed25519.pending'
+        $next = Join-Path $sshDir ('.' + $keyName + '.pending')
         Assert-SafeFile $next 'pending device private key'
         Assert-SafeFile ($next + '.pub') 'pending device public key'
         if (-not (Test-Path -LiteralPath $next)) {
@@ -271,7 +279,7 @@ try {
         Fail 'anchor discovery contract is invalid'
     }
 
-    switch ($Action) {
+    switch ($operation) {
         'enroll' {
             Enroll-Key
             Write-Output 'secrets-sync: device key enrolled'
@@ -283,7 +291,7 @@ try {
             return
         }
         'revoke' {
-            $request = [Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Delete, $baseUri + '/v1/enroll')
+            $request = [Net.Http.HttpRequestMessage]::new([Net.Http.HttpMethod]::Delete, $baseUri + $enrollmentPath)
             $response = $client.SendAsync($request).GetAwaiter().GetResult()
             Assert-HttpSuccess $response 'key revocation'
             Assert-ActionResponse $response 'revoked'

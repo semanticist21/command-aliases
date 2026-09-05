@@ -85,23 +85,30 @@ class ClientHarness:
                     i += 2; continue
                 i += 1
             url = args[-1]
+            management = url.endswith('/v1/enroll/management')
+            enrollment = management or url.endswith('/v1/enroll')
+            prefix = 'management-' if management else ''
+            with pathlib.Path(os.environ['FAKE_STATE'], 'requests').open('a') as trace:
+                trace.write(method + ' ' + url.split('://', 1)[-1].split('/', 1)[-1] + '\\n')
             expected = 'X-Secrets-Sync-Device-ID: ' + os.environ['FAKE_DEVICE_ID']
             authorized = expected in headers
             status = int(os.environ.get('FAKE_HTTP_STATUS', '200')) if authorized else 403
+            if management and os.environ.get('FAKE_MANAGEMENT_DISABLED') == '1':
+                status = 404
             body = b'{{"error":"forbidden"}}'
             if status == 200 and url.endswith('/.well-known/secrets-sync'):
                 body = b'{{"version":1,"snapshot":"/v1/bootstrap.tar.gz","enroll":"/v1/enroll"}}'
             elif status == 200 and url.endswith('/v1/bootstrap.tar.gz'):
                 body = pathlib.Path(os.environ['FAKE_SNAPSHOT']).read_bytes()
-            elif status == 200 and url.endswith('/v1/enroll') and method == 'POST':
+            elif status == 200 and enrollment and method == 'POST':
                 value = json.loads(pathlib.Path(data_file).read_text())['public_key']
                 assert value.startswith('ssh-ed25519 ') and len(value.split()) == 2
-                pathlib.Path(os.environ['FAKE_STATE'], 'enrolled').write_text('yes')
+                pathlib.Path(os.environ['FAKE_STATE'], prefix + 'enrolled').write_text('yes')
                 body = b'{{"enrolled":true,"changed":true}}'
-            elif status == 200 and url.endswith('/v1/enroll') and method == 'DELETE':
-                pathlib.Path(os.environ['FAKE_STATE'], 'revoked').write_text('yes')
+            elif status == 200 and enrollment and method == 'DELETE':
+                pathlib.Path(os.environ['FAKE_STATE'], prefix + 'revoked').write_text('yes')
                 body = b'{{"revoked":true,"changed":true}}'
-            if status == 200 and url.endswith('/v1/enroll') and os.environ.get('FAKE_BAD_ACTION_BODY') == '1':
+            if status == 200 and enrollment and os.environ.get('FAKE_BAD_ACTION_BODY') == '1':
                 body = b'{{}}'
             if output:
                 pathlib.Path(output).write_bytes(body)
