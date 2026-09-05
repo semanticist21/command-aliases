@@ -57,7 +57,9 @@ def handoff(repo, source):
     if len(pushes) != 1 or any(url not in {ENTRY, source["repository"]} for url in pushes):
         raise ValueError("push destination conflicts with the approved source")
     # Fetch first. Neither failed access nor divergent history changes origin/HEAD.
-    git(repo, "-c", "http.followRedirects=false", "fetch", "--no-tags",
+    shallow = git(repo, "rev-parse", "--is-shallow-repository") == "true"
+    deepen = ["--unshallow"] if shallow else []
+    git(repo, "-c", "http.followRedirects=false", "fetch", "--no-tags", *deepen,
         source["repository"], "refs/heads/" + source["branch"])
     target = git(repo, "rev-parse", "FETCH_HEAD")
     git(repo, "merge-base", "--is-ancestor", source["continuity_commit"], target)

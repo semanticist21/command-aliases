@@ -74,12 +74,17 @@ class Handoff(unittest.TestCase):
             run("-C", upstream, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
                 "commit", "--allow-empty", "-m", "baseline")
             baseline = run("-C", upstream, "rev-parse", "HEAD")
-            run("clone", upstream, checkout)
+            run("-C", upstream, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.test",
+                "commit", "--allow-empty", "-m", "entrypoint")
+            tip = run("-C", upstream, "rev-parse", "HEAD")
+            run("clone", "--depth=1", upstream.as_uri(), checkout)
+            self.assertEqual(run("-C", checkout, "rev-parse", "--is-shallow-repository"), "true")
             run("-C", checkout, "remote", "set-url", "origin", source.ENTRY)
             value = {"repository": upstream.as_uri(), "branch": "main", "continuity_commit": baseline}
             self.assertEqual(source.handoff(checkout, value), "source_switched")
             self.assertEqual(run("-C", checkout, "remote", "get-url", "--push", "origin"), upstream.as_uri())
-            self.assertEqual(run("-C", checkout, "rev-parse", "HEAD"), baseline)
+            self.assertEqual(run("-C", checkout, "rev-parse", "HEAD"), tip)
+            self.assertEqual(run("-C", checkout, "rev-parse", "--is-shallow-repository"), "false")
             self.assertEqual(source.handoff(checkout, value), "source_verified")
             run("-C", checkout, "config", "branch.main.pushRemote", "github-bootstrap")
             with self.assertRaises(ValueError):
