@@ -153,6 +153,32 @@ class ClientHarness:
 
 
 class BootstrapClientTests(unittest.TestCase):
+    def test_self_anchor_bootstrap_and_ambiguous_or_invalid_self(self) -> None:
+        for parser in ("python3", "jxa"):
+            if parser == "jxa" and not shutil.which("osascript"):
+                continue
+            for case in ("self-only", "duplicate", "invalid-self"):
+                with self.subTest(parser=parser, case=case), tempfile.TemporaryDirectory() as directory:
+                    harness = ClientHarness(Path(directory))
+                    value = json.loads(harness.fixture.read_text())
+                    value["Self"] = dict(value["Peer"]["nodekey:anchor"], ID=value["Self"]["ID"])
+                    if case == "self-only":
+                        value["Peer"] = {}
+                    elif case == "invalid-self":
+                        value["Self"] = []
+                    fixture = Path(directory) / "candidate.json"
+                    fixture.write_text(json.dumps(value))
+                    env = harness.macos_jxa_env() if parser == "jxa" else harness.env()
+                    env["FAKE_STATUS"] = str(fixture)
+                    result = subprocess.run(["/bin/sh", str(SHELL_CLIENT), "bootstrap"],
+                                            env=env, capture_output=True, text=True, timeout=20)
+                    if case == "self-only":
+                        self.assertEqual(0, result.returncode, result.stderr)
+                        self.assertTrue((harness.state / "enrolled").is_file())
+                    else:
+                        self.assertNotEqual(0, result.returncode)
+                        self.assertFalse((harness.state / "enrolled").exists())
+
     def test_pointer_free_linux_bootstrap_sends_device_header(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             harness = ClientHarness(Path(directory))

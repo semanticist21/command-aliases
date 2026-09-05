@@ -7,8 +7,9 @@ description: Create, update, compact, rename, delete, validate, and synchronize 
 
 Environment selection follows Environment Sync's
 [selection and setup procedure](../environment-sync/references/environment-selection.md).
-Shared hosts select their registered organization; ordinary machines ask personal
-or organization unless already specified in the current request. Critical probes
+Shared hosts select their registered organization; new ordinary machines default
+to personal. Organization access requires an explicit request or a durable
+user-declared device default, not merely a saved profile or active login. Critical probes
 belong only to the selected baseline. Personal use does not implicitly require
 an organization anchor. The file-copy phase itself does not grant shared-host
 status; only an explicit Environment Sync `setup` request does so.

@@ -65,12 +65,19 @@ import json, re, sys
 with open(sys.argv[1], encoding="utf-8") as source:
     status = json.load(source)
 peers = status.get("Peer", {})
-if isinstance(peers, dict):
-    peers = peers.values()
-anchors = [p for p in peers if p.get("Online") is True and "tag:secrets-sync-anchor" in (p.get("Tags") or [])]
-device_id = str((status.get("Self") or {}).get("ID") or "")
+if not isinstance(peers, dict) or not isinstance(status.get("Self"), dict):
+    raise SystemExit("candidates")
+candidates = list(peers.values()) + [status["Self"]]
+for candidate in candidates:
+    if not isinstance(candidate, dict) or ("Online" in candidate and not isinstance(candidate["Online"], bool)):
+        raise SystemExit("candidate")
+    tags = candidate.get("Tags")
+    if tags is not None and (not isinstance(tags, list) or any(not isinstance(tag, str) for tag in tags)):
+        raise SystemExit("tags")
+anchors = [p for p in candidates if p.get("Online") is True and "tag:secrets-sync-anchor" in (p.get("Tags") or [])]
+device_id = status["Self"].get("ID")
 host = str(anchors[0].get("DNSName") or ((anchors[0].get("TailscaleIPs") or [""])[0])).rstrip(".") if len(anchors) == 1 else ""
-if not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", device_id):
+if not isinstance(device_id, str) or not re.fullmatch(r"[A-Za-z0-9._:-]{8,128}", device_id):
     raise SystemExit("device_id")
 if len(anchors) == 1 and (not host or any(c in host for c in "/\\\t\r\n")):
     raise SystemExit("anchor_host")
@@ -78,8 +85,20 @@ print(len(anchors)); print(device_id); print(host)
 PY
             ;;
         jq)
-            count=$(jq -r '[.Peer[] | select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))] | length' "$status_file") || return 1
-            jq -r '[([.Peer[] | select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))] | length), .Self.ID, (([.Peer[] | select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))][0] // {}) | (.DNSName // .TailscaleIPs[0] // "") | sub("\\.$"; ""))] | .[]' "$status_file"
+            jq -r '
+              if (.Self | type) != "object" or (has("Peer") and (.Peer | type) != "object") then error("candidates") else . end |
+              .Self.ID as $device |
+              if ($device | type) != "string" then error("device_id") else . end |
+              if ($device | test("^[A-Za-z0-9._:-]{8,128}$") | not) then error("device_id") else . end |
+              [(.Peer // {} | .[]), .Self] |
+              map(if type != "object" then error("candidate") else . end |
+                  if has("Online") and (.Online | type) != "boolean" then error("candidate") else . end |
+                  if .Tags != null and ((.Tags | type) != "array") then error("tags") else . end |
+                  if any(.Tags[]?; type != "string") then error("tags") else . end) |
+              map(select(.Online == true and ((.Tags // []) | index("tag:secrets-sync-anchor")))) as $anchors |
+              ($anchors | length), $device,
+              (if ($anchors | length) == 1 then ($anchors[0] | (.DNSName // .TailscaleIPs[0] // "") | sub("\\.$"; "")) else "" end)
+            ' "$status_file"
             ;;
         jxa)
             jxa_file=$temp_root/parse-status.js
@@ -88,11 +107,17 @@ ObjC.import('Foundation');
 function run(argv) {
   const text = $.NSString.stringWithContentsOfFileEncodingError(argv[0], $.NSUTF8StringEncoding, null).js;
   const status = JSON.parse(text);
-  const peers = Object.values(status.Peer || {});
-  const anchors = peers.filter(p => p.Online === true && (p.Tags || []).includes('tag:secrets-sync-anchor'));
-  const device = String((status.Self || {}).ID || '');
+  const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  if (!object(status.Self) || ('Peer' in status && !object(status.Peer))) throw new Error('candidates');
+  const candidates = Object.values(status.Peer || {}).concat([status.Self]);
+  candidates.forEach(p => {
+    if (!object(p) || ('Online' in p && typeof p.Online !== 'boolean')) throw new Error('candidate');
+    if (p.Tags != null && (!Array.isArray(p.Tags) || p.Tags.some(t => typeof t !== 'string'))) throw new Error('tags');
+  });
+  const anchors = candidates.filter(p => p.Online === true && (p.Tags || []).includes('tag:secrets-sync-anchor'));
+  const device = status.Self.ID;
   const host = anchors.length === 1 ? String(anchors[0].DNSName || (anchors[0].TailscaleIPs || [''])[0]).replace(/\.$/, '') : '';
-  if (!/^[A-Za-z0-9._:-]{8,128}$/.test(device)) throw new Error('device_id');
+  if (typeof device !== 'string' || !/^[A-Za-z0-9._:-]{8,128}$/.test(device)) throw new Error('device_id');
   if (anchors.length === 1 && (!host || /[\/\\\t\r\n]/.test(host))) throw new Error('anchor_host');
   return anchors.length + '\n' + device + '\n' + host;
 }

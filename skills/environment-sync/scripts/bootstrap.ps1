@@ -85,14 +85,33 @@ try {
     $statusText = (& $tailscale status --json 2>$null | Out-String)
     if ($LASTEXITCODE -ne 0) { Fail 'cannot read authenticated Tailscale state' }
     $status = $statusText | ConvertFrom-Json
-    $peers = @($status.Peer.PSObject.Properties | ForEach-Object { $_.Value })
-    $anchors = @($peers | Where-Object {
-        $_.Online -eq $true -and @($_.Tags) -contains 'tag:secrets-sync-anchor'
+    if ($status.Self -isnot [PSCustomObject] -or
+        ($null -ne $status.PSObject.Properties['Peer'] -and $status.Peer -isnot [PSCustomObject])) {
+        Fail 'Tailnet discovery state is invalid'
+    }
+    $peers = @(if ($null -ne $status.PSObject.Properties['Peer']) {
+        $status.Peer.PSObject.Properties | ForEach-Object { $_.Value }
+    })
+    $candidates = @($peers) + @($status.Self)
+    foreach ($candidate in $candidates) {
+        if ($candidate -isnot [PSCustomObject] -or
+            ($null -ne $candidate.PSObject.Properties['Online'] -and $candidate.Online -isnot [bool])) {
+            Fail 'Tailnet discovery state is invalid'
+        }
+        $tagsProperty = $candidate.PSObject.Properties['Tags']
+        if ($null -ne $tagsProperty -and $null -ne $tagsProperty.Value -and
+            ($tagsProperty.Value -isnot [array] -or @($tagsProperty.Value | Where-Object { $_ -isnot [string] }).Count -ne 0)) {
+            Fail 'Tailnet discovery state is invalid'
+        }
+    }
+    $anchors = @($candidates | Where-Object {
+        $null -ne $_.PSObject.Properties['Online'] -and $_.Online -eq $true -and
+        $null -ne $_.PSObject.Properties['Tags'] -and @($_.Tags) -contains 'tag:secrets-sync-anchor'
     })
     if ($anchors.Count -eq 0) { Fail 'no online bootstrap anchor is visible; verify the Tailnet, access policy, and anchor availability' }
     if ($anchors.Count -gt 1) { Fail 'multiple online bootstrap anchors are visible; keep exactly one active anchor' }
     $deviceId = [string]$status.Self.ID
-    if ($deviceId -notmatch '^[A-Za-z0-9._:-]{8,128}$') {
+    if ($status.Self.ID -isnot [string] -or $deviceId -notmatch '^[A-Za-z0-9._:-]{8,128}$') {
         Fail 'Tailscale did not report a stable local device ID'
     }
     $anchorHost = [string]$anchors[0].DNSName

@@ -7,10 +7,13 @@ private registration/archive; public instructions never hardcode an owner.
 ## Select the environment
 
 A registered shared managed host selects its organization environment on normal
-calls. An ordinary machine asks personal or organization once per invocation
-unless the current request already specifies the choice. Recommend personal for
-a new ordinary machine; explicit device placement and default-profile decisions
-override that recommendation. Never infer shared-host status from an OS, login,
+calls. An ordinary machine uses an explicit current-request choice, otherwise
+its durable user-declared default, otherwise personal. Do not ask new ordinary
+machines to choose before applying the personal default. Add or select an
+organization profile only on explicit request or an existing user-declared
+organization default; saved profiles, active login and repository presence are
+not such authorization. Preserve declared exceptions for existing devices.
+Never infer shared-host status from an OS, login,
 active network, server package, or an ordinary organization-use selection.
 
 Resolve project/user scope and selected collections within that environment.
@@ -42,7 +45,10 @@ must remain incomplete in registration and must not advertise readiness.
 Restore/install the registered supported Tailscale client as explicitly authorized
 by setup, using its platform procedure, and complete unavoidable authentication.
 Register the organization profile and default. Generate device keys locally and
-enroll only public keys. Establish platform-supported Tailscale SSH, or OpenSSH
+enroll only public keys. For a tagged host, first follow the
+[managed-device approval procedure](managed-device-approval.md); a tag replaces
+user ownership and must not silently break account-based bootstrap approval.
+Establish platform-supported Tailscale SSH, or OpenSSH
 restricted to the Tailscale access boundary. Preserve known-good access until
 the replacement works; test public/LAN exposure as applicable before closing an
 existing path. Apply the rollback-safe dedicated-account sudoers transaction in

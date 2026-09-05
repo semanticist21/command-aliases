@@ -43,6 +43,12 @@ or reuse a credential. Request only the unavoidable interactive step. Re-read
 network identity after the switch and resume the bundled bootstrap client,
 device-key enrollment, and all selected SSH and no-ticket sudo probes.
 
+When the source is still reachable, verify its live interface addresses before
+concluding a documented independent LAN path is unavailable. Validate any changed
+address against the already trusted host identity; do not scan or guess hosts.
+An independent path must remain usable during browser authentication, not only
+restore the old profile after a timeout.
+
 An online anchor count of zero alone proves neither an outage nor an ACL fault.
 First distinguish wrong network, unknown target, and unavailable Tailscale state.
 Only on a verified matching network inspect peer visibility, anchor tag/online
@@ -51,6 +57,9 @@ authorization failure, and HTTP 503/connection failure. Never broaden ACLs or
 restart a server based only on an absent peer. Multiple approved owner accounts
 must reach the same registered environment; account-specific manual device
 allowlisting is not a replacement for network recovery.
+For a tagged shared host with a verified matching network, follow
+[managed-device approval](managed-device-approval.md) before interpreting a 403
+as a failed human login. Do not remove its tags or broaden authorization ad hoc.
 
 ### Discover the anchor and restore
 

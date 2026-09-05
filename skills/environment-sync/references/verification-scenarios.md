@@ -7,10 +7,12 @@ and proposed actions, not exact wording or headings.
 
 ## Scope and routing
 
-0. **Environment selection.** Ordinary machine with no current-request choice
-   asks personal or organization once, recommends personal, and does not infer
-   the answer from its login or previous invocation. Explicit current-request
-   choice is not asked again. Personal selection without an anchor dependency
+0. **Environment selection.** New ordinary machine with no declared default or
+   current-request choice selects personal without asking, even with an active
+   organization login or saved organization profile. An explicit request or
+   durable user-declared organization default selects organization without
+   asking again. Existing declared device exceptions are preserved.
+   Personal selection without an anchor dependency
    neither invokes organization bootstrap nor probes organization critical hosts.
 0a. **Shared setup.** Explicit setup resolves account, network, machine and
     recovery ownership, registers incomplete intent, configures local device keys,
@@ -23,6 +25,14 @@ and proposed actions, not exact wording or headings.
     registered source anchor first, verifies new discovery/enrollment/watchdog,
     then moves other hosts. Old registrations are retained until consumers pass.
     Offline devices remain pending and removal of a device never deletes a service.
+0c. **Tagged shared-host approval.** A tagged host on the verified organization
+    network discovers an anchor but receives 403 from approved-login-only policy.
+    Explicit setup verifies its stable identity and exact tags through an
+    already authorized operator path and updates protected registration without
+    granting tag-wide access. Discovery, snapshot and enrollment must then pass
+    from that host. Another node with identical tags remains denied. Changed ID
+    or tags need renewed setup; no trusted operator path means an explicit
+    blocker, not self-approval. Repetition preserves unrelated entries.
 
 1. **Automatic user recovery with infrastructure.** Outside a registered
    project, the common baseline, default private collection, one registered

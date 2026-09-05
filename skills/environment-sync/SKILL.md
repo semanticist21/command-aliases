@@ -21,8 +21,9 @@ read-back check.
   a shared managed host; read [environment-selection.md](references/environment-selection.md).
   For other calls, resolve personal versus organization use through that same
   reference before selecting a project or user collection. Registered shared
-  hosts select their organization automatically; ordinary machines need an
-  explicit current-request choice, asking once when absent.
+  hosts select their organization automatically. New ordinary machines default
+  to personal; organization access requires an explicit request or a durable
+  user-declared device default. Do not repeat a resolved choice.
 - Accepted forms are `$environment-sync`, `$environment-sync user
   [owner-id/collection-id]`, and `$environment-sync
   [reconcile|capture|apply] [user [owner-id/collection-id]]`. Direction
