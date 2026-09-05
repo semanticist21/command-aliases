@@ -17,6 +17,12 @@ read-back check.
 
 ## Scope and requests
 
+- `$environment-sync setup` explicitly registers and configures this machine as
+  a shared managed host; read [environment-selection.md](references/environment-selection.md).
+  For other calls, resolve personal versus organization use through that same
+  reference before selecting a project or user collection. Registered shared
+  hosts select their organization automatically; ordinary machines need an
+  explicit current-request choice, asking once when absent.
 - Accepted forms are `$environment-sync`, `$environment-sync user
   [owner-id/collection-id]`, and `$environment-sync
   [reconcile|capture|apply] [user [owner-id/collection-id]]`. Direction
@@ -45,7 +51,7 @@ read-back check.
   owner, scope, destination, consumer, and approved paths are unambiguous;
   create and verify its exact collection and allowlist before transfer,
   preserving every existing entry.
-- A normal sync is autonomous. Ask only for an unavoidable OS, browser, device,
+- After environment selection, a normal sync is autonomous. Ask only for an unavoidable OS, browser, device,
   or administrator approval, or when plausible evidence would select materially
   different owners, targets, or desired states.
 
@@ -114,9 +120,10 @@ desired state. Reconcile and verify that capability through the registered
 platform procedure; do not infer shared-host status, extend it to a personal
 workstation, expose it to a runner workload, or enable direct root login.
 
-When invoked after toolkit synchronization, autonomously select the applicable
-registered project or user environment and also include every registered
-toolkit-critical baseline target. This contextual addition does not force the
+When invoked after toolkit synchronization, first resolve personal or organization
+use, then select the applicable registered project or user environment and include
+every toolkit-critical baseline target belonging to that selected environment.
+This contextual addition does not force the
 whole user scope or omit an applicable project. Do not invoke `toolkit-sync`
 again or modify toolkit-managed public sources or runtime copies. Finish that
 environment phase independently and report partial readiness.

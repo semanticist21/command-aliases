@@ -7,6 +7,23 @@ and proposed actions, not exact wording or headings.
 
 ## Scope and routing
 
+0. **Environment selection.** Ordinary machine with no current-request choice
+   asks personal or organization once, recommends personal, and does not infer
+   the answer from its login or previous invocation. Explicit current-request
+   choice is not asked again. Personal selection without an anchor dependency
+   neither invokes organization bootstrap nor probes organization critical hosts.
+0a. **Shared setup.** Explicit setup resolves account, network, machine and
+    recovery ownership, registers incomplete intent, configures local device keys,
+    supported SSH and rollback-safe sudo, and marks ready only after probes pass.
+    Repetition creates no duplicate resources. Failed verification stays incomplete.
+    Ordinary organization selection grants no sudo. Registered shared hosts
+    select organization automatically on subsequent normal calls.
+0b. **Migration.** Destination has approved owners but no anchor. The agent
+    prepares a management client and independent continuation, migrates the
+    registered source anchor first, verifies new discovery/enrollment/watchdog,
+    then moves other hosts. Old registrations are retained until consumers pass.
+    Offline devices remain pending and removal of a device never deletes a service.
+
 1. **Automatic user recovery with infrastructure.** Outside a registered
    project, the common baseline, default private collection, one registered
    stateless runner estate, and one unrelated project exist. Plain
@@ -68,7 +85,7 @@ and proposed actions, not exact wording or headings.
    rejects ambient credentials and inferred targets.
 6a. **Toolkit critical access.** After toolkit installation, a private baseline
     selects registered synthetic critical systems. Plain `$environment-sync`
-    adds every critical system to its normally inferred project or user scope,
+    adds every critical system belonging to the selected environment to its project or user scope,
     restores and reconciles fresh device keys and explicit profiles, then
     verifies registered host identity, public-key SSH, and the platform-validated
     isolated no-ticket administrative probe with exact output `0` for every

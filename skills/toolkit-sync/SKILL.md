@@ -5,13 +5,23 @@ description: Create, update, compact, rename, delete, validate, and synchronize 
 
 # Toolkit sync
 
-Public source is `semanticist21/agent-toolkit`. Canonical managed skills live in `skills/`; Codex, Claude, and OpenCode copies and version markers must match it. Run `scripts/toolkit-sync check` before writes and `scripts/toolkit-sync sync` after landing. Complete and verify this public runtime-copy phase before private bootstrap; an unavailable private anchor must not suppress or roll back a valid toolkit update. After a live sync, invoke plain `$environment-sync`; it autonomously selects the applicable registered environment and includes the current machine. The overall toolkit workflow remains incomplete until every private-baseline critical SSH target and every current or selected shared managed host passes its registered cache-independent isolated no-ticket administrative probe, with a successful exit and stdout exactly `0`. Use an explicit scope or direction only when the caller intentionally needs to constrain reconciliation. The file-copy script remains environment-agnostic and transactional; the invoking agent owns this environment phase and reports the public phase and any partial environment readiness separately.
+Environment selection follows Environment Sync's
+[selection and setup procedure](../environment-sync/references/environment-selection.md).
+Shared hosts select their registered organization; ordinary machines ask personal
+or organization unless already specified in the current request. Critical probes
+belong only to the selected baseline. Personal use does not implicitly require
+an organization anchor. The file-copy phase itself does not grant shared-host
+status; only an explicit Environment Sync `setup` request does so.
+
+Public source is `semanticist21/agent-toolkit`. Canonical managed skills live in `skills/`; Codex, Claude, and OpenCode copies and version markers must match it. Run `scripts/toolkit-sync check` before writes and `scripts/toolkit-sync sync` after landing. Complete and verify this public runtime-copy phase before private bootstrap; an unavailable private anchor must not suppress or roll back a valid toolkit update. After a live sync, invoke plain `$environment-sync` using the selection rules above and include the current machine. The overall toolkit workflow remains incomplete until every critical SSH target and shared managed host in the selected baseline passes its registered cache-independent isolated no-ticket administrative probe, with a successful exit and stdout exactly `0`. Use an explicit scope or direction only when the caller intentionally needs to constrain reconciliation. The file-copy script remains environment-agnostic and transactional; the invoking agent owns this environment phase and reports the public phase and any partial environment readiness separately.
 
 `agents/global/AGENTS.md` owns the global harness; keep `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` linked to it. `agents/user/AGENTS.md` owns public shared user context; keep `~/.agents/doc/AGENTS.md` linked to it. If the user path is a regular file, preserve it as `AGENTS.local.md` only when that overlay is absent; otherwise stop without changing either file. Never publish its content without explicit approval and a secret scan.
 
 Keep `~/.agents/doc/AGENTS.local.md` machine-local and never copy, merge, publish, overwrite, or synchronize it. Keep the optional private companion separate and verify its identity and private visibility before Git operations. Never store credentials, account identifiers, hosts, private keys, or secret-file paths in public context.
 
-Tailscale installation and interactive authentication are user prerequisites.
+Outside an explicit Environment Sync `setup`, Tailscale installation and
+interactive authentication are user prerequisites. Setup may install the
+registered client; unavoidable interactive authentication still requires the user.
 Environment Sync must also verify the intended Tailnet: login with an approved
 account can still leave a device on a different network. Delegate target
 verification and connection recovery to its machine-bootstrap procedure,

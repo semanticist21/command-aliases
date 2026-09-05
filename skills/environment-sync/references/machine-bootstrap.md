@@ -8,7 +8,7 @@ be restored.
 
 ### Verify and recover the intended Tailnet
 
-Tailscale installation and interactive authentication remain user prerequisites;
+Outside explicit shared-host `setup`, Tailscale installation and interactive authentication remain user prerequisites;
 Environment Sync owns verifying and recovering the selected network afterward.
 One approved account can belong to multiple Tailnets. An administrator role in
 the intended Tailnet does not prove that the current device joined it. Neither
@@ -54,12 +54,15 @@ allowlisting is not a replacement for network recovery.
 
 ### Discover the anchor and restore
 
+Apply discovery only when the selected environment registers Tailnet bootstrap.
+Personal environments without that dependency do not need an organization anchor.
 `~/.agents/doc/AGENTS.local.md` is the stable pointer to the registered private
-bootstrap repository. A completed setup must leave a registered, continuously
+bootstrap repository. A completed organization baseline must leave a registered, continuously
 available Tailnet access anchor usable by a newly joined macOS, Linux, or Windows
 machine. Do not make recovery depend on one workstation remaining online.
+Shared-host setup consumes this anchor; it does not install an anchor on every host.
 
-When the pointer is absent, resolve the active installed `environment-sync`
+When that selected bootstrap dependency exists and the pointer is absent, resolve the active installed `environment-sync`
 skill directory first; do not assume the current working directory is the skill
 directory. Invoke the bundled client by its resolved absolute path rather than
 constructing a raw request or asking the user to copy a pointer:
