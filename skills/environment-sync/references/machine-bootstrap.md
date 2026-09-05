@@ -80,7 +80,7 @@ constructing a raw request or asking the user to copy a pointer:
 - Windows: `powershell -NoProfile -ExecutionPolicy Bypass -File
   <environment-sync-skill-dir>/scripts/bootstrap.ps1 bootstrap`
 
-The client discovers exactly one online peer tagged
+The client discovers exactly one online node across validated `Peer` and `Self` tagged
 `tag:secrets-sync-anchor`, uses authenticated Tailnet state and the stable local
 device ID, rejects redirects and ambiguous or untagged responders, restores the
 verified owner-only bootstrap snapshot, creates or reuses a fresh local Ed25519
@@ -106,6 +106,20 @@ file or shell access. The anchor must authenticate and authorize the device
 against a deny-by-default policy, bind its stable device ID to the connection,
 and expose no archive value or credential. Never substitute an ambient SSH
 identity, copied private key, guessed account, or manual pointer.
+
+### Restoring the anchor itself
+
+A private baseline may explicitly select protected local administrator recovery
+for the anchor when its own HTTPS route conflicts with an existing local service.
+Only that registered anchor uses this exception: restore from its verified
+canonical source through the already authorized operator path, verify local
+backend denial of unauthenticated requests, and test authenticated discovery,
+snapshot integrity and device-local public-key enrollment from an independent
+registered peer. Retain the anchor's registered SSH and isolated no-ticket sudo
+checks. Self HTTPS is not required in this declared mode; failure of any of the
+replacement checks still blocks readiness. Other clients keep normal bootstrap.
+Do not forge proxy identity headers, disable TLS verification, change existing
+listeners or expose bootstrap publicly to make a self probe pass.
 
 ## Machine recovery
 

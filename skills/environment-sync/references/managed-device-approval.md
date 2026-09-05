@@ -36,5 +36,7 @@ conflicting bindings fail closed. This does not
 grant arbitrary tags, users, root SSH or new ACL permissions.
 
 Before completing setup, prove discovery, snapshot and public-key enrollment
-from the host itself, then its declared SSH/no-ticket sudo paths. Failure leaves
+from the host itself (except the explicitly registered
+[local anchor recovery mode](machine-bootstrap.md#restoring-the-anchor-itself)),
+then its declared SSH/no-ticket sudo paths. Failure leaves
 setup incomplete, even when registration or basic network access succeeded.
