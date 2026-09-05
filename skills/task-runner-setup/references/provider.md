@@ -59,13 +59,21 @@ wide runners from ambient identity or implication. Record repository access poli
 public-repository prohibition, runner group, concurrency/capacity, lifecycle,
 cleanup, logs, and recovery in the canonical estate.
 
-Allowing every private repository is an explicit trust decision: every user, app,
-bot, collaborator, or other principal able to cause or approve workflow execution
-in that scope can exercise the provider. The canonical contract must declare
-private-fork policy and allowed events and refs. Even then, public repositories and
-untrusted direct or indirect fork workflows remain forbidden. Use ephemeral
-isolation where declared; long-lived providers require workspace/cache cleanup and
-reboot recovery probes.
+Register a shared estate for every private repository in its owner. Narrow to
+selected repositories only when a stated requirement demands separation, and name
+what that group separates and why. Scoping first fails quietly: a job whose labels
+no runner answers never starts, so `timeout-minutes` never fires, and the queue
+limit cancels it hours later without naming a cause. Widening an already narrow
+group is a scope change on existing infrastructure and needs the same explicit
+request as any other.
+
+Org-wide reach is still an explicit trust decision, and declaring it does not soften
+what it grants: every user, app, bot, collaborator, or other principal able to cause
+or approve workflow execution in that scope can exercise the provider. The canonical
+contract must declare private-fork policy and allowed events and refs. Even then,
+public repositories and untrusted direct or indirect fork workflows remain forbidden.
+Use ephemeral isolation where declared; long-lived providers require workspace/cache
+cleanup and reboot recovery probes.
 
 Preserve an explicitly approved organization-wide common pool: a smoke repository
 is a probe target, not a permanent repository/workflow allowlist. Reconcile stale

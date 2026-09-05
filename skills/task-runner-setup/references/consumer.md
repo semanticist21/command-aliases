@@ -10,7 +10,10 @@ Inspect repository policy, workflows, manifests, target artifacts, and build too
 Derive only capabilities the job actually needs: an operating system, target
 architecture, Apple toolchain, container build, service containers, cache, or an
 explicit fallback. Verify GitHub authority, runner-group access, and the published
-estate contract before editing `runs-on`.
+estate contract before editing `runs-on`. That contract defines which
+repositories reach the estate, and a shared one is expected to reach them all;
+if this repository cannot, treat it as a provider registration to repair rather
+than a reason to select another runner.
 
 Use the closed portable vocabulary and estate-identity rule in
 [capability-labels.md](capability-labels.md). Capabilities are an AND contract. Use
@@ -31,10 +34,11 @@ workflow input or reusable-workflow branch so normal dispatch cannot race onto i
 Use least `permissions`, bounded `workflow_dispatch` inputs, timeout and concurrency,
 safe checkout, deterministic non-secret caches, and no shared database or worktree
 state. GitHub-hosted runners are forbidden. Public repositories and untrusted fork
-events must not dispatch to self-hosted runners. An estate-wide all-private policy is
-valid only when the provider contract explicitly declares every private repository
-and every principal able to cause or approve workflow execution to be in one trust
-domain. The contract must define private-fork policy and allowed events and refs.
+events must not dispatch to self-hosted runners. An estate-wide all-private policy
+is the normal shape for a shared estate, and the provider contract states it: every
+private repository and every principal able to cause or approve workflow execution
+are one trust domain. The contract must define private-fork policy and allowed
+events and refs.
 
 Never check out or execute an untrusted pull-request head from `pull_request_target`
 on a self-hosted runner. Before a `workflow_run` or reusable-workflow call reaches a
