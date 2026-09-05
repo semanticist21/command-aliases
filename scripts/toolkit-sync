@@ -6,7 +6,7 @@ case "$mode" in check|sync) ;; *) echo "usage: $0 [check|sync]" >&2; exit 2 ;; e
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_dir=$(dirname -- "$script_dir")
 version=$(tr -d '[:space:]' < "$repo_dir/VERSION")
-managed='agent-review android-phone-remote-access design environment-sync figma-lookup grilling harness inspect natural-writing openai-image org-kobbokkom-repo-migration pkg-manager task task-runner-setup toolkit-sync'
+managed='agent-review android-phone-remote-access design environment-sync figma-lookup grilling harness image-icons inspect natural-writing openai-image org-kobbokkom-repo-migration pkg-manager task task-runner-setup toolkit-sync'
 obsolete='agent-review-loop analysis audit commit-isolate dead-code-removal git-push grill-me humanizer inspect-quality memo microtask no-ai-slop project-architecture research secrets-sync skill-sync'
 codex_root=${CODEX_SKILLS_ROOT:-$HOME/.codex/skills}
 claude_root=${CLAUDE_SKILLS_ROOT:-$HOME/.claude/skills}
