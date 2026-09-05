@@ -115,9 +115,11 @@ another registered implementation. Preserve a registered implementation during
 recovery. Treat a requested implementation change as an architecture/cutover
 decision with isolated canary, drain, rollback, and explicit retirement.
 
-Repository access is part of the provider contract. An all-private policy is
-valid only when explicitly declared as one trust domain and the broad authority of
-every principal able to cause or approve workflow execution is accepted. The
+Repository access is part of the provider contract. A shared estate serves its
+whole owner; an all-private policy is its normal shape, declared as one trust
+domain with the broad authority of every principal able to cause or approve
+workflow execution accepted. Narrowing is the exception and names what it
+separates. The
 canonical contract must define private-fork policy and allowed events and refs.
 Public repositories and untrusted direct or indirect fork workflows remain
 forbidden for every implementation.
