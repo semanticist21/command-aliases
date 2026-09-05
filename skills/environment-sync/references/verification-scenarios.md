@@ -152,6 +152,18 @@ and proposed actions, not exact wording or headings.
 
 ## Infrastructure authority
 
+6j. **Required forge client.** A selected private environment declares a forge
+    user CLI for pull requests while a second environment needs Git fetch only.
+    Restore and verify the declared client, explicit instance/account and safe
+    API read for the first; do not impose an API credential on the second.
+    Neither API success nor a same-named server binary proves Git push access.
+6k. **Git-only declarations.** The owner explicitly declines additional Git
+    snapshots/backups. Preserve that policy instead of adding them or failing
+    readiness solely for their absence. A forge outage still blocks operations
+    that actually need it; Git history/RAID are not evidence of an independent
+    copy. Separately registered secret/application recovery remains in scope,
+    and existing snapshots are not deleted without retirement authority.
+
 6h. **Service discovery after toolkit sync.** The selected private baseline has
     a runner registration and a shared forge, but its entry document omits the
     canonical links. Verified private repositories contain provider declarations,

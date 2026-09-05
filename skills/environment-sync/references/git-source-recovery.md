@@ -4,6 +4,35 @@ Read when a canonical Git host changes, source metadata conflicts with a local
 checkout, or access to the registered private source must be restored. Read
 [operations.md](operations.md) before a remote write or cutover.
 
+## Required clients and recovery dependencies
+
+Resolve required tools from the selected environment's canonical tool declaration,
+not from a universal package list. Distinguish Git transport (`git` plus the
+registered SSH/HTTPS path) from a forge user CLI for repository metadata, pull
+requests or releases, and from a server administrator executable. A Git-only
+operation does not require a forge CLI or its API credential. Register the
+approved user client when selected management operations need it; do not infer
+that a similarly named binary is the intended tool.
+
+Restore a missing required client through its declared trusted installation and
+version policy. Verify executable identity, the explicitly selected instance and
+account, and a harmless API read of the intended resource. Verify Git transport
+separately; an installed binary, browser login or successful API read proves
+neither Git write authority nor permission for unrelated administrative actions.
+Keep concrete endpoint/auth mappings private and credentials in their registered
+protected storage. Preserve unrelated profiles; request only unavoidable approval.
+
+For a self-hosted forge, explain the registered recovery dependencies and honor
+the owner's declared recovery policy. Do not require an additional Git snapshot
+or backup when the owner has chosen Git-only declarations. Git history and RAID
+do not by themselves provide an independent copy; report actual source
+unavailability without inventing redundancy or relocating services. An optional
+snapshot is recovery input, not fresh remote state or capture authority. A
+Git-only declaration policy does not waive separately registered secret or
+stateful application recovery requirements or authorize deleting existing data.
+
+## Canonical source changes
+
 A GitLab-to-Forgejo migration in progress is not a completed source switch.
 Resolve the migration owner, approved source/destination and cutover state from
 trusted registration and verified repository evidence. Keep the incumbent as
@@ -26,8 +55,9 @@ valid for Forgejo, and browser login alone does not prove Git access. Recover
 only the registered account's intended permissions; never put credentials or
 concrete account/host values in public toolkit instructions.
 
-Update and verify the owning source metadata, consumers and served bootstrap
-snapshot through the registered publication procedure. Re-resolve the canonical
+Update and verify the owning source metadata and consumers, including a served
+bootstrap snapshot only when that environment registers one, through its
+publication procedure. Re-resolve the canonical
 revision and re-read current declarations after restoration. Preserve divergent
 local commits, old repositories and rollback until the explicit retirement
 criteria pass. If source evidence conflicts or cutover is incomplete, report
