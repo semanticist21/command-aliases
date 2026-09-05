@@ -14,7 +14,22 @@ belong only to the selected baseline. Personal use does not implicitly require
 an organization anchor. The file-copy phase itself does not grant shared-host
 status; only an explicit Environment Sync `setup` request does so.
 
-Public source is `semanticist21/agent-toolkit`. Canonical managed skills live in `skills/`; Codex, Claude, and OpenCode copies and version markers must match it. Run `scripts/toolkit-sync check` before writes and `scripts/toolkit-sync sync` after landing. Complete and verify this public runtime-copy phase before private bootstrap; an unavailable private anchor must not suppress or roll back a valid toolkit update. After a live sync, invoke plain `$environment-sync` using the selection rules above and include the current machine. The overall toolkit workflow remains incomplete until every critical SSH target and shared managed host in the selected baseline passes its registered cache-independent isolated no-ticket administrative probe, with a successful exit and stdout exactly `0`. Use an explicit scope or direction only when the caller intentionally needs to constrain reconciliation. The file-copy script remains environment-agnostic and transactional; the invoking agent owns this environment phase and reports the public phase and any partial environment readiness separately.
+`semanticist21/agent-toolkit` on GitHub is the first-install and compatibility
+entrypoint, not the canonical write source. Canonical managed skills live in
+`skills/` in the verified registered Forgejo source. Run `scripts/toolkit-sync
+check` before writes. For first installs and legacy GitHub checkouts, install the
+entrypoint copies first; an unavailable private anchor must not roll back those
+usable copies. Then follow [source handoff](references/source-handoff.md) before
+canonical edits or declaring the source current. This limited source-discovery
+step precedes the full environment phase; it does not reconcile infrastructure.
+After landing at the canonical source, run `scripts/toolkit-sync sync` and
+`check`; Codex, Claude and OpenCode copies and VERSION must match. Then invoke
+plain `$environment-sync` with automatic selection and the current machine.
+Overall readiness also requires every selected toolkit-critical SSH/shared-host
+isolated no-ticket sudo probe to succeed with stdout exactly `0`. Report source,
+runtime and partial environment readiness separately. The file-copy script stays
+environment-agnostic and transactional; the invoking agent owns the handoff and
+environment phases. Explicit scope applies only when intentionally requested.
 
 `agents/global/AGENTS.md` owns the global harness; keep `~/.codex/AGENTS.md` and `~/.claude/CLAUDE.md` linked to it. `agents/user/AGENTS.md` owns public shared user context; keep `~/.agents/doc/AGENTS.md` linked to it. If the user path is a regular file, preserve it as `AGENTS.local.md` only when that overlay is absent; otherwise stop without changing either file. Never publish its content without explicit approval and a secret scan.
 
@@ -55,4 +70,4 @@ synchronization or modify toolkit-managed sources and runtime copies.
 
 Before writes, inventory the public source, private companion when present, runtime copies, and drift direction; use a clean fetched-base worktree. Never let synchronization delete an unmanaged skill. Third-party skills stay vendor-local unless the user explicitly requests incorporation and licensing permits it. Cross-machine environment, private-input, access, and infrastructure recovery belongs to `environment-sync`.
 
-Deletion or rename requires a second confirmation naming skills, runtimes, and public/local sides. Meaningful changes require independent read-only review, secret/internal-detail and license scans, a VERSION bump, explicit commit/push as `semanticist21`, merge, live sync, and zero residual drift.
+Deletion or rename requires a second confirmation naming skills, runtimes, and public/local sides. Meaningful changes require independent read-only review, secret/internal-detail and license scans, a VERSION bump, explicit commit/push with the registered canonical forge identity, merge, live sync, and zero residual drift. Publish the reviewed public entrypoint to GitHub as `semanticist21` only after canonical landing; never push private registration or forge credentials there.
