@@ -17,6 +17,15 @@ path. Apply the exact registration through that already authorized admin path,
 not through the public bootstrap endpoint. If no trusted operator path exists,
 request the one operator action; do not require bootstrap to approve itself.
 
+Before tagging, inventory the required incoming and outgoing SSH directions
+using [SSH readiness](ssh-readiness.md). Prepare the trusted operator path,
+registration tool and rollback first. If the tool validates live exact tags,
+apply the approved tag transition before registering that observed binding;
+do not fabricate future-tag evidence to pre-register it. Retain independent
+operator access during the temporary authorization gap, then verify bootstrap
+and all declared directions. Tagging also removes the outgoing human identity,
+so an admin-only source rule may no longer match this host.
+
 Keep concrete bindings in protected private registration, never public toolkit
 or machine-local overlays. The private bootstrap source owns the procedure.
 Preserve unrelated registrations and owner-only rollback state; validate config

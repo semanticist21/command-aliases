@@ -30,6 +30,13 @@ transport mechanics.
 - Use `scp -O` through the registered restricted NAS alias for archive files
   and manifests. Do not use SFTP, rsync, interactive shell access, recursive
   copy, or unscoped `--delete`.
+- Use the registered normalized relative remote operand under the restricted
+  account's logical root, not its absolute NAS storage path. Omit `-p` and other
+  metadata-preservation requests unless that exact restricted protocol supports
+  them; check local owner-only modes independently. After proving SSH identity
+  and authentication, a wrapper rejection such as exit 126 calls for checking
+  the registered operand/options, not assuming an absent archive or widening
+  permissions. Exit status alone does not establish the failing phase.
 - Validate normalized path, regular-file status, checksum, and owner-only mode
   before consuming a record. An unmatched legacy file cannot supply a profile
   or external value until provenance is resolved and it is re-archived and

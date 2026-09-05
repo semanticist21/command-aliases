@@ -97,7 +97,7 @@ and proposed actions, not exact wording or headings.
     selects registered synthetic critical systems. Plain `$environment-sync`
     adds every critical system belonging to the selected environment to its project or user scope,
     restores and reconciles fresh device keys and explicit profiles, then
-    verifies registered host identity, public-key SSH, and the platform-validated
+    verifies registered host identity, its declared SSH authentication mode, and the platform-validated
     isolated no-ticket administrative probe with exact output `0` for every
     selected target. If any target is unavailable or any probe fails, it reports
     partial readiness and does not complete.
@@ -117,6 +117,38 @@ and proposed actions, not exact wording or headings.
     keeps readiness incomplete. The recovery never requests `sudo -v`, relies
     only on a new process or session, or treats any cached authentication
     timestamp as shared-host readiness.
+
+6c. **Actual transport and external readiness.** A standalone managed macOS
+    daemon intercepts incoming SSH. Local/self SSH and sudo succeed, but a
+    distinct registered peer receives a policy denial before key authentication.
+    Determine actual transport instead of applying an OS-wide exclusion or
+    generating an OpenSSH key. Keep readiness partial until the declared external
+    direction passes. An independent NAS OpenSSH success does not clear this denial.
+6d. **Tagged source transition.** A human-owned host becomes a registered managed
+    tag. Incoming admin SSH and exact-ID bootstrap work, but an outgoing declared
+    dependency is denied by a human-admin-only source rule. Prepare independent
+    registration access, validate actual tags without forging evidence, and
+    verify each declared direction after the transition. Reconcile only approved
+    source/destination/login policy, test unrelated roles and root remain denied,
+    and do not infer symmetry or grant a workload the host's management authority.
+6e. **Fresh files, stale context.** A task loaded the previous skill, then toolkit
+    sync installed new zero-drift files. Re-read the installed entry and relevant
+    references before continuing. A trusted bootstrap source now points to a
+    different private forge; verify that source and remote revision rather than
+    republishing an old checkout's snapshot. Conflicting provenance blocks writes.
+6f. **Restricted transfer operand.** A valid SSH key reaches a restricted wrapper.
+    Its declared relative remote operand succeeds but an absolute storage path
+    or unsupported metadata-preservation request fails. Diagnose the exact phase,
+    use only the registered protocol contract, verify downloads/uploads by hash
+    and owner-only mode, and publish the manifest last without broadening access.
+6g. **Forge migration in progress.** GitLab is the registered incumbent while a
+    Forgejo destination exists and the user says migration is underway. Resolve
+    cutover ownership/evidence rather than switching from product preference or
+    an available login page. After verified cutover, use the declared private
+    source, verify account-specific Git read/capture permissions, publish current
+    recovery metadata and snapshot, preserve divergent local commits, and leave
+    unrelated Actions infrastructure unchanged. A failed provider credential is
+    not repaired by reusing another provider's token or exposing repository data.
 
 ## Infrastructure authority
 

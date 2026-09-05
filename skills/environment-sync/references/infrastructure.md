@@ -1,6 +1,6 @@
 # Registered infrastructure
 
-Read this reference for Kubernetes, Actions runners, GitLab, NAS services,
+Read this reference for Kubernetes, Actions runners, Git forges, NAS services,
 deployments, or any other service whose desired state must survive a machine
 replacement. Read [operations.md](operations.md) before secrets, remote access,
 external writes, deployments, or cutovers.
@@ -137,11 +137,14 @@ readiness instead. A backup upload or mounted share alone is not a restore test.
 
 ## Other managed services
 
-GitLab or another future service enters this sync only after its canonical
+GitLab, Forgejo or another managed service enters this sync only after its canonical
 repository, target, public configuration, private inputs, backup contract,
 health probe, and recovery/cutover authority are registered. Do not infer a
 production topology or install a service merely because a package, hostname, or
 old volume exists.
+For repository-source and account-access changes, follow
+[Git source recovery](git-source-recovery.md); do not infer an Actions provider
+cutover merely from moving Git repositories.
 
 ## Completion
 

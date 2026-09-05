@@ -65,7 +65,9 @@ read-back check.
   secret, mixed input, collection, manifest, or GitHub secret/variable, read
   [private-inputs.md](references/private-inputs.md) and
   [operations.md](references/operations.md).
-- For Kubernetes, runners, GitLab, NAS services, deployments, or other
+- For a Git host migration or stale bootstrap source, read
+  [Git source recovery](references/git-source-recovery.md).
+- For Kubernetes, runners, Git forges, NAS services, deployments, or other
   registered infrastructure, read
   [infrastructure.md](references/infrastructure.md). Also read
   [operations.md](references/operations.md) before any access, secret, external

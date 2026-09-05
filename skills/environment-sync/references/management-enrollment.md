@@ -22,6 +22,8 @@ private profile; configure an explicit identity and strict host-key checking.
 Do not infer trust from `ssh-keyscan` alone. Verify direct SSH from the recovering
 machine and its isolated no-ticket sudo probe with successful exit and stdout
 exactly `0`. Enrollment success is not administrator readiness.
+When the recovering machine is the target itself, additionally verify from a
+distinct registered peer as required by [SSH readiness](ssh-readiness.md).
 
 If the profile still requires an unavailable gateway or omits a declared target,
 repair that registered source through an already authorized operator path; do

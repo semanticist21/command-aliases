@@ -103,6 +103,16 @@ The `secrets-sync` tag, HTTPS path, key filename, marker names, and client
 messages are stable wire and on-disk protocol identifiers retained for backward
 compatibility; the user-facing skill name is `environment-sync`.
 
+After restoration, resolve the private source from its trusted current source
+metadata and verify its repository identity, private visibility and remote
+revision before reconciliation or capture. A verified forge migration supersedes
+an old checkout/pointer; do not republish that checkout's snapshot or treat its
+obsolete access documents as current instructions. Preserve divergent local
+changes and resolve conflicting provenance before writes. A reachable snapshot
+is recovery input, not by itself proof that every declaration is current.
+For a changing forge or conflicting source pointer, use
+[Git source recovery](git-source-recovery.md).
+
 Treat reachability and authorization separately. Tailnet membership is the only
 pre-existing machine trust for portable bootstrap, but reachability alone is not
 file or shell access. The anchor must authenticate and authorize the device
@@ -140,13 +150,14 @@ non-destructive readiness check. A resolvable hostname, reachable port, ambient
 login, or guessed target is not proof that the registered profile works. Repair
 NAS operator and restricted-transfer paths independently and leave unrelated or
 unregistered hosts untouched.
-macOS cannot serve Tailscale SSH; OS-specific SSH is a later managed-host path,
-not the portable bootstrap contract.
+For transport selection, policy denial or shared-host readiness, read
+[SSH transport and direction](ssh-readiness.md). Determine the installed daemon
+variant and effective connection handler rather than inferring support from OS.
 
 A user baseline may declare critical logical systems required after toolkit
 installation. Resolve concrete addresses, accounts, identities, and keys only
-through the private access collection. Require public-key SSH through the
-authenticated Tailnet path and prove administrative access with a harmless
+through the private access collection. Require the registered SSH authentication
+mode through the authenticated Tailnet path and prove administrative access with a harmless
 cache-independent non-interactive probe, preferably `sudo -k -n id -u` where
 the platform confirms that form ignores an existing ticket; success output must
 be exactly `0`. Use an equivalent isolated no-ticket probe when required by the

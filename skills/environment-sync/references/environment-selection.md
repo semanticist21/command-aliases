@@ -53,7 +53,8 @@ restricted to the Tailscale access boundary. Preserve known-good access until
 the replacement works; test public/LAN exposure as applicable before closing an
 existing path. Apply the rollback-safe dedicated-account sudoers transaction in
 [machine-bootstrap.md](machine-bootstrap.md), then prove SSH identity and isolated
-no-ticket sudo from a registered client and locally. No direct root SSH or
+no-ticket sudo locally and from a distinct registered client, plus the declared
+outgoing dependencies in [SSH readiness](ssh-readiness.md). No direct root SSH or
 runner credentials, sockets, or elevation is created by setup.
 
 Capture only portable role/baseline declarations to canonical private Git;
