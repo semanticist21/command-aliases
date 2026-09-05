@@ -69,7 +69,10 @@ read-back check.
   [Git source recovery](references/git-source-recovery.md).
 - For Kubernetes, runners, Git forges, NAS services, deployments, or other
   registered infrastructure, read
-  [infrastructure.md](references/infrastructure.md). Also read
+  [infrastructure.md](references/infrastructure.md), starting with the selected
+  private baseline's linked service entrypoint rather than rediscovering hosts.
+  Maintain verified canonical links there, not duplicate service configuration.
+  Also read
   [operations.md](references/operations.md) before any access, secret, external
   write, deployment, or cutover. For a runner estate, also read the shared
   [runner capability catalog](../task-runner-setup/references/capability-labels.md)

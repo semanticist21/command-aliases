@@ -152,6 +152,21 @@ and proposed actions, not exact wording or headings.
 
 ## Infrastructure authority
 
+6h. **Service discovery after toolkit sync.** The selected private baseline has
+    a runner registration and a shared forge, but its entry document omits the
+    canonical links. Verified private repositories contain provider declarations,
+    consumer admission rules and recovery instructions. Repair the baseline's
+    linked entrypoint durably without copying those rules into public skills or
+    the index. Follow a consumer's admission and capability evidence before
+    claiming it can run; an idle provider alone is insufficient. An unrelated
+    service listed in the index remains outside selected reconciliation.
+6i. **Split sources and stale links.** Public skills, private declarations,
+    snapshot publisher and secret archive have different owners/locations. One
+    registered declaration link is unavailable with no proven replacement.
+    Report that source as unresolved without guessing a target, moving services,
+    or calling a snapshot copy a complete migration. Public runtime parity can
+    still pass while environment readiness remains partial.
+
 7. **Registered runner estate.** A canonical runner repository declares an
    organization-scoped Kubernetes controller, image digest, capability routing,
    maximum concurrency, and smoke workflow. The run applies those declarations,

@@ -5,6 +5,33 @@ deployments, or any other service whose desired state must survive a machine
 replacement. Read [operations.md](operations.md) before secrets, remote access,
 external writes, deployments, or cutovers.
 
+## Discover the registered services
+
+Start at the selected private bootstrap repository's entry document and follow
+its infrastructure links. Keep one discoverable index there (inline or linked)
+mapping registered service roles to their canonical repository and exact
+declaration, consumer contract, and recovery entrypoints where applicable.
+Use existing owning documents instead of creating a parallel inventory. Verify
+repository identity, access and target paths at the remote revision before
+adding or repairing links. Concrete internal URLs belong only in private
+registration, never the public toolkit or public shared user context.
+
+Follow only services selected by the environment/project registration; an index
+is discovery, not authorization to probe or reconcile every listed service.
+Repair missing or stale links from convergent registration and canonical
+evidence, with the normal committed/pushed mapping procedure. Preserve unresolved
+targets and report the exact inaccessible source rather than guessing hosts or
+creating a replacement. Keep labels, capacity, deployment state and probe
+results in their owning declarations/tests, not copied into the index.
+
+For runners, follow the consumer contract before choosing routing or claiming
+availability. Registration or an idle scale-to-zero set does not prove that a
+repository is admitted or that a workload capability has passed. Distinguish
+the public skill source, private declaration repository, bootstrap snapshot
+publisher and secret archive; a link update does not migrate any of them.
+Report the verified private entrypoint after reconciliation so subsequent tasks
+can use it without reconstructing infrastructure from conversation history.
+
 ## Reconcile declarations, not memories
 
 Resolve the infrastructure registration to one canonical Git repository and

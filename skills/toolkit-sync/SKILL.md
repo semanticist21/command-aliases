@@ -24,6 +24,13 @@ parity does not update instructions already loaded by a running task. Give
 continuing tasks the verified revision and have them re-read current files;
 do not claim their active instructions are fresh from file-copy success alone.
 
+In that environment phase, follow Environment Sync's
+[infrastructure discovery](../environment-sync/references/infrastructure.md#discover-the-registered-services)
+to maintain the selected private baseline's linked service entrypoint. Return
+that entrypoint to continuing tasks so they can find existing runners and shared
+services before proposing replacements. Concrete internal links stay private;
+an unavailable source is reported, not replaced by guessed infrastructure.
+
 Keep `~/.agents/doc/AGENTS.local.md` machine-local and never copy, merge, publish, overwrite, or synchronize it. Keep the optional private companion separate and verify its identity and private visibility before Git operations. Never store credentials, account identifiers, hosts, private keys, or secret-file paths in public context.
 
 Outside an explicit Environment Sync `setup`, Tailscale installation and
