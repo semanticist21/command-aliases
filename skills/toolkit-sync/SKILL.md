@@ -5,6 +5,10 @@ description: Create, update, compact, rename, delete, validate, and synchronize 
 
 # Toolkit sync
 
+Use the shared [forge workflow](../task/references/forge-access.md) for Git and
+API access. Toolkit's source handoff applies only to toolkit, never to the user's
+GitHub project repositories.
+
 Environment selection follows Environment Sync's
 [selection and setup procedure](../environment-sync/references/environment-selection.md).
 Shared hosts select their registered organization; new ordinary machines default

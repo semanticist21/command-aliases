@@ -6,6 +6,10 @@ checkout, or access to the registered private source must be restored. Read
 
 ## Required clients and recovery dependencies
 
+The shared [forge workflow](../../task/references/forge-access.md) owns normal
+GitHub/Forgejo operation routing. This procedure owns recovery of the selected
+tools and access; it does not unify accounts or move repositories implicitly.
+
 Resolve required tools from the selected environment's canonical tool declaration,
 not from a universal package list. Distinguish Git transport (`git` plus the
 registered SSH/HTTPS path) from a forge user CLI for repository metadata, pull

@@ -5,6 +5,10 @@ description: Implement, verify, commit, and land repository changes in isolated,
 
 # Task
 
+For GitHub or Forgejo access, use the shared
+[forge workflow](references/forge-access.md) to select Git/API tools and the
+verified repository without changing its hosting provider.
+
 Choose the mode from the request and repository state:
 
 - `isolated` (default): create a clean worktree from the current base, make and verify the change, land it, then remove task-owned branch/worktree resources.
